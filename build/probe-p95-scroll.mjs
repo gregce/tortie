@@ -14,7 +14,7 @@
  *
  *   step  what it does                              what must be true
  *   ----  ----------------------------------------  --------------------------
- *   0     reads the operator's session count         it is the same at the end
+ *   0     reads the app's own agents:list back       nothing resolved (Phase 353)
  *   1     refuses a socket that is not a harness     nothing starts
  *   2     a session on the loopback machine, 60 s    0 scrollState error lines
  *   3     a local session that is not running, 60 s  0 scrollState error lines
@@ -31,10 +31,17 @@
  *
  * It runs on the socket build/harness-socket.mjs gave it, which that script
  * refuses to let be `gmux` or `default`. It uses its own user data directory
- * and its own scratch project, both outside the repository. It names `-L gmux`
- * in exactly one place, a read only session count taken before and after. It
- * never uses pkill, never uses kill-server, and signals only the pids it
- * spawned. Every scratch file carries a `p95-` prefix.
+ * and its own scratch project, both outside the repository. It does not name
+ * `-L gmux` (Phase 353, D-P2): the read only session count it used to take
+ * before and after is gone, because build/electron-run.mjs is the one reader
+ * of the operator's server, and this file reads its OWN scratch server after
+ * the launch returns (`clearHarnessSessions`), so its launch does not hand
+ * that server to the helper. No agent is started, not even for its version:
+ * every probed registry row is hidden in the profile's agents.json before the
+ * launch (build/hidden-agents.mjs) and the app's own `agents:list` is read
+ * back before step 1, a row that resolved failing the run. It never uses
+ * pkill, never uses kill-server, and signals only the pids it spawned. Every
+ * scratch file carries a `p95-` prefix.
  *
  * Usage, from the repository root:
  *
@@ -60,6 +67,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { withElectron } from './electron-run.mjs';
+import { AGENTS_LIST_EXPR, hiddenAgentsBesides, standInsOnlyVerdict, writeHiddenAgents } from './hidden-agents.mjs';
 import { keyscan } from './ssh-run.mjs';
 import { dotfilesMoved, dotfilesSentence, localCensus } from './p3201/real-machine.mjs';
 
@@ -95,15 +103,6 @@ if (
   refuse('out/main/index.js is missing. Run npm run build first.');
 }
 
-/** The operator's own server, listed and never written. The ONLY mention. */
-function operatorSessionCount() {
-  const out = spawnSync('tmux', ['-L', 'gmux', 'list-sessions'], {
-    encoding: 'utf8'
-  });
-  return (out.stdout ?? '').split('\n').filter((l) => l.trim() !== '').length;
-}
-const operatorBefore = operatorSessionCount();
-say(`operator sessions on -L gmux before: ${String(operatorBefore)}`);
 say(`harness socket: ${socket}`);
 say(`config root: ${configRoot}`);
 
@@ -166,6 +165,8 @@ if (carriage === null) {
 // keeps its carriage file and is not where the app reads its configuration.
 const appConfigDir = join(profile, 'gmux', 'config');
 mkdirSync(appConfigDir, { recursive: true, mode: 0o700 });
+// PHASE 353 (D-P2). Every probed registry row hidden before the launch.
+writeHiddenAgents(profile, 'p95', hiddenAgentsBesides([]));
 writeFileSync(
   join(appConfigDir, 'machines.json'),
   `${JSON.stringify(
@@ -607,16 +608,7 @@ function note(step, claim, verdict, detail) {
 const measured = {};
 
 function finish(code) {
-  const operatorAfter = operatorSessionCount();
-  say(`operator sessions on -L gmux after: ${String(operatorAfter)}`);
   let bad = code;
-  if (operatorAfter !== operatorBefore) {
-    say(
-      `NOTE the operator's server went from ${String(operatorBefore)} to ` +
-        `${String(operatorAfter)}. The count is taken while he is using the ` +
-        'app, so read it again by hand before treating it as a violation.'
-    );
-  }
   for (const pid of recordedPids) {
     try {
       process.kill(pid, 'SIGKILL');
@@ -640,7 +632,7 @@ function finish(code) {
   writeFileSync(
     REPORT,
     `${JSON.stringify(
-      { operatorBefore, operatorAfter, measured, results, appLog },
+      { measured, results, appLog },
       null,
       2
     )}\n`,
@@ -676,6 +668,17 @@ async function main() {
       note(0, 'the app honoured the harness socket', 'FAIL', 'override ignored');
       return finish(1);
     }
+    // PHASE 353 (D-P2). The app's own scan, read back: nothing resolved, since
+    // this run has no stand-in.
+    let agents = { ok: false, said: 'agents:list was not read' };
+    try {
+      agents = standInsOnlyVerdict(JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR)), { standIns: [] });
+    } catch (err) {
+      agents = { ok: false, said: `agents:list could not be read: ${String(err?.message ?? err)}` };
+    }
+    measured.agents = agents;
+    note(0, 'no agent resolved in the app\'s own scan', agents.ok ? 'pass' : 'FAIL', agents.said);
+    if (!agents.ok) return finish(1);
     note(1, 'the app is on the harness socket and its own profile', 'pass', socket);
 
     // -- the machine ----------------------------------------------------------

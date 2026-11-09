@@ -1591,6 +1591,39 @@ export const CHECKS = [
   // stand-in pid is ended in its `finally`. `--grader-self-test` grades
   // build/p350/fixtures/graders.json and starts nothing.
   remote('probe:p350'),
+  // PHASE 353 (build/p353/SPEC.md §8, D-P1): one app run for each builder of
+  // the phase that needs one. Each is ONE Electron at a time through
+  // build/electron-run.mjs, the parent's (`P353_PARENT_CHECKOUT`, a built
+  // checkout of the main commit before this phase) FIRST on the same profile, on a scratch profile and HOME with the
+  // socket the harness hands it named as its `tmuxSocket`, every probed registry
+  // row but its stand-ins hidden by build/hidden-agents.mjs before every launch
+  // and `agents:list` read back, a run whose answer is not ok being
+  // UNREADABLE. `probe:p353:records` (gmux-p353r…) ends and removes plain shell
+  // sessions through the shipping bridge at every interval of 302's grid, the
+  // reap driven by ending the pane's own process, and presses Restart with a
+  // Remove inside the create (305), reading both lists and a copy of the
+  // scratch manifest with /usr/bin/sqlite3. `probe:p353:status` (gmux-p353s…)
+  // reads antigravity at rest, through a turn and a silent terminal tool and
+  // under a question, beside a pi and a shell, in the agents
+  // build/p321/stand-in.mjs draws behind their bare names (refused, exit 2,
+  // unless each resolves to the stand-in), every stand-in, writer and
+  // /usr/bin/script tool ended by pid in its `finally`. No vendor process runs
+  // and no token is spent. `--grader-self-test` grades recorded fixtures and
+  // starts nothing.
+  electron('probe:p353:records'),
+  electron('probe:p353:status'),
+  // PHASE 353's third (build/p353/SPEC.md §8, item 354): a session created and
+  // restored in each folder of the measured corpus, on this Mac and inside
+  // build/with-scratch-machine.mjs's loopback machine with the quiet shell, its
+  // own far HOME and none of his keys, which is why this is `remote`; the
+  // parent's Electron (`P353_PARENT_CHECKOUT`, required) first, then HEAD's on
+  // the same profile, one after the other, graded by `#{pane_current_path}` on
+  // the run's own scratch sockets. Its only agent is a pi stand-in it writes at
+  // run time, every other probed row hidden before each launch; a `#(` name's
+  // job writes only into the run's scratch. `--preflight` checks the parent,
+  // out/ and the tools and starts nothing; `--grader-self-test` grades
+  // recorded fixtures and starts nothing.
+  remote('probe:p353:starts'),
   // PHASE 357 (build/p357/SPEC.md §8): a session list that goes bad while
   // Tortie runs, at the parent and at HEAD. Electrons through
   // build/electron-run.mjs ONE AT A TIME and never at once, the parent's
@@ -2816,6 +2849,15 @@ export const CHECKS = [
   // control green. ablation:p312 stays green unchanged beside it. No Electron,
   // no tmux, no ssh, no agent, no token.
   pure('ablation:p321'),
+  // PHASE 328's attack (build/p353/SPEC.md §4.4 step 6): the entry's arms over
+  // a `cp -Rc` clone of src/ (its configs copied, node_modules symlinked), with
+  // vitest run there (output counted as work again, the masked tick not
+  // resetting the dialog count, the dialog arm run on a masked tick,
+  // `lastOutputAt` out of `worthProbing`, clause B removed or above the dialog
+  // arm, the two fields off antigravity's row, a field on DEFAULT_ACTIVITY),
+  // each red on its own row, an unedited control green, every file restored by
+  // sha256. No Electron, no tmux, no agent, no token.
+  pure('ablation:p328', NEEDS.vitest),
   // PHASE 331's attack on its own clauses (build/p331/SPEC.md §2.10): seventeen
   // arms over a `cp -Rc` clone of src/, resources/ and build/ (build/vendor
   // symlinked), one clause each broken in the SHIPPING source: the scrollback

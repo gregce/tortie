@@ -464,7 +464,11 @@ function contractFromMerged(entry: MergedEntry): AgentRecoveryContract {
     // "never" rather than a claim.
     captureRouteVerified: entry.unverified !== true,
     flagsVerifiedVersion: null,
-    flagsVerifiedAgainst: 'never'
+    flagsVerifiedAgainst: 'never',
+    // PHASE 353 (build/p353/SPEC.md D354-4). Not read off the entry: every row
+    // this build creates, a configured agent's included, hands tmux its folder
+    // held back and says so. The key set check is what moved this line.
+    folderHeld: true
   };
 }
 
@@ -2040,10 +2044,11 @@ function p350SpawnWorld(): { rows: Array<{ id: string; found: string | null; run
     file(join(W, 'pnpm', 'bin', 'pi'), stub);
     // A project with no pi of its own, folders reached through links, and a `..` through a link.
     mkdirSync(join(W, 'plain'), { recursive: true });
-    // His ruling of 2026-11-03: projects with no pi whose folder holds a `#`, in its own name and in a parent's.
+    // Projects with no pi whose folder holds a `#`, in its own name and in a parent's (his ruling of 2026-11-03), and
+    // one whose folder ends in `\;` (his ruling of 2026-11-04). Those rulings read them as no file; since Phase 353
+    // the create holds the folder back, the pane starts there, and each is walked like any other.
     mkdirSync(join(W, 'C#Tools'), { recursive: true });
     mkdirSync(join(W, 'C#', 'app'), { recursive: true });
-    // His ruling of 2026-11-04: a project with no pi whose folder ends in `\;`, which tmux's argument reader reads as `;`.
     mkdirSync(join(W, 'semi\\;'), { recursive: true });
     symlinkSync('npm', join(W, 'npm-link'));
     symlinkSync('plain', join(W, 'plain-link'));

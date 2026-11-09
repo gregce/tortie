@@ -21,6 +21,7 @@ import {
 } from './closed-remote-folders';
 import type { ResumeProvenance } from './agents';
 import type { ContextSnapshot } from '@shared/context-snapshot';
+import { getLog } from '../log';
 import type {
   ResumeCapture,
   SessionRestore,
@@ -50,6 +51,14 @@ import {
  * two different ways.
  */
 const DISCARDED_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * Scope "manifest", as in ./context-snapshot.ts and ./ring-schedule.ts. This
+ * file writes one line of its own, being Phase 302's refusal in
+ * {@link SessionsRepository.updateSession}, and it names an id and a status
+ * word and nothing else of the row.
+ */
+const manifestLog = getLog('manifest');
 
 /**
  * PHASE 72 DELETED THE REFUSAL THAT USED TO STAND HERE, and this note is the
@@ -414,6 +423,45 @@ export class SessionsRepository {
     // value below is always the row's own unless this option removes it.
     if (opts.clearRemovedAt === true) {
       delete merged.removedAt;
+    }
+    // PHASE 302. A ROW CARRYING `removed_at` BELONGS TO THE PERSON, and only a
+    // Restore from Past (`setRestoreResult`'s `clearRemovedAt`, asked above, so
+    // a row that came back never reaches this clause) or the 90 day prune may
+    // change that. Phase 305's `restartKeepsRow` in ../sessions/lifecycle-gate.ts
+    // is the same sentence asked of a delete.
+    //
+    // So a status patch over a tombstone keeps the row's own status. The merge
+    // reads the row fresh and writes `removed_at` back from it, so before this
+    // clause ANY status patch kept the removal date beside a new status: the
+    // row left Past Sessions (which reads `discarded`) for the managed list
+    // (which skips only `discarded`), and the prune, which asks for both,
+    // could never collect it. Two writers did exactly that (build/p353/SPEC.md
+    // §2.4): the End and the reaper, each across its awaits. They now re-read
+    // before they write; this is the one place every other writer, and every
+    // writer a later phase adds, passes through.
+    //
+    // The rest of the patch is written, and nothing throws: these writes run
+    // on the End path inside durable transactions, and a refusal that threw
+    // would trade a wrong record for a broken verb. `discarded` itself is
+    // written, because writing a removal over a removal is what it always was.
+    //
+    // ONLY A TOMBSTONE, being `discarded` WITH its removal date (the fix round
+    // of build/p353/SPEC.md). A row an earlier build left reading another
+    // status beside its removal date is not one, and it moves exactly as it
+    // did there: refusing it froze a remote session restored from Past before
+    // this build at `running` for good after its far session ended. No heal is
+    // written for such rows (D302-6). And a Restore from Past says so through
+    // `clearRemovedAt`, asked above, on this Mac (`setRestoreResult`) and on
+    // another machine (src/main/machines/remote-restore.ts, step 8).
+    if (
+      merged.removedAt !== undefined &&
+      existing.status === 'discarded' &&
+      patch.status !== undefined &&
+      patch.status !== 'discarded' &&
+      merged.status !== existing.status
+    ) {
+      manifestLog.warn(`a removed session keeps its status: id=${id} refused=${patch.status}`);
+      merged.status = existing.status;
     }
 
     this.db

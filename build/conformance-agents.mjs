@@ -159,11 +159,13 @@
  *   one resolver (`bareNameSpawnFile`) walking the pane's PATH from the
  *   session's own folder and one comparison by device and inode
  *   (`bareNameSpawnRuns`), a gate in that reader, and the create handing it
- *   the spawn of a pane started by pi's bare name, driven over a planted world,
- *   and, by his ruling of 2026-11-03, no walk at all for a folder holding a `#`,
- *   nor, by his ruling of 2026-11-04, for one ending in `;`
- *   (11.11). Every row is asked again over in-memory copies with its rule
- *   broken, and `npm run ablation:p331` breaks the shipping source.
+ *   the spawn of a pane started by pi's bare name, driven over a planted world
+ *   (11.11). His rulings of 2026-11-03 and 2026-11-04 gave the walk two terms
+ *   that read a folder holding a `#`, or ending in `;`, as unread; Phase 353
+ *   holds the folder back at the create, so the pane starts in it, and 11.11
+ *   now requires the guard to name neither term and the create to hand tmux the
+ *   folder held back. Every row is asked again over in-memory copies with its
+ *   rule broken, and `npm run ablation:p331` breaks the shipping source.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The confirm
  * record is sealed through `safeStorage`, which needs an Electron process, so
@@ -1905,7 +1907,9 @@ if (pb === null) {
 // §12.10) stay in the list the overlay may never name, so neither can come
 // back as configuration. The overlay already refuses
 // `activity` whole; these rows are what keep that refusal from being quietly
-// narrowed by a later round that "only adds one field".
+// narrowed by a later round that "only adds one field". Phase 353 (S4) holds
+// Phase 328's two compiled fields, `writesWithoutDrawing` and `terminalTools`,
+// to the same four rows, each clause with its own self-test.
 //
 // Rows 10.1 to 10.3 read the source with the TypeScript parser (a module, not a
 // process), so comments never satisfy or break them. Row 10.4 is DRIVEN: one
@@ -1914,6 +1918,15 @@ if (pb === null) {
 // in-memory copies with its rule broken, and each copy must read red.
 
 const P321_FIELDS = ['dialogs', 'writesWhileAsking', 'residentHelpers'];
+/**
+ * PHASE 353 (build/p353/SPEC.md S4, for D328-2). The two compiled fields Phase 328 gives antigravity's row: output
+ * that is not work, and a tool on a terminal of its own that is. Each decides a session's status exactly as
+ * `dialogs` does, so refusal 5 holds them to the same rows: no overlay type or schema names them, `ROW_KEYS` admits
+ * neither, neither floor profile lists them, and the shipping loader drops a row carrying either with its field named.
+ */
+const P328_FIELDS = ['writesWithoutDrawing', 'terminalTools'];
+/** Every activity field the overlay may never carry, Phase 321's three and Phase 328's two. */
+const OVERLAY_NEVER_FIELDS = [...P321_FIELDS, ...P328_FIELDS];
 const OVERLAY_TYPES = 'src/shared/agent-overlay.ts';
 const OVERLAY_LOADER = 'src/main/config/overlay.ts';
 const REGISTRY_SOURCE = 'src/main/agents/registry.ts';
@@ -1960,7 +1973,7 @@ function p321OverlayTypeFindings(text) {
   if (row === undefined) return [`${OVERLAY_TYPES} no longer declares the interface AgentOverlayV1, so the row type cannot be read`];
   for (const decl of shapes) {
     const members = tsNodes(decl).filter((n) => ts.isPropertySignature(n)).map(propName).filter((x) => x !== null);
-    for (const f of P321_FIELDS) {
+    for (const f of OVERLAY_NEVER_FIELDS) {
       if (members.includes(f)) out.push(`${decl.name.text} declares \`${f}\``);
     }
     if (decl === row && members.includes('activity')) out.push('AgentOverlayV1 declares `activity`');
@@ -1968,7 +1981,7 @@ function p321OverlayTypeFindings(text) {
   const schema = constObject(sf, 'AGENT_OVERLAY_JSON_SCHEMA');
   if (schema !== null) {
     const keys = tsNodes(schema).filter((n) => ts.isPropertyAssignment(n)).map(propName);
-    for (const f of [...P321_FIELDS, 'activity']) {
+    for (const f of [...OVERLAY_NEVER_FIELDS, 'activity']) {
       if (keys.includes(f)) out.push(`AGENT_OVERLAY_JSON_SCHEMA offers \`${f}\``);
     }
   }
@@ -1996,7 +2009,7 @@ function p321RefusalFindings(overlayText, loaderText) {
     out.push(`${OVERLAY_LOADER} no longer declares ROW_KEYS as a list, so what a row may carry cannot be read`);
   } else {
     const keys = list.elements.filter((e) => ts.isStringLiteral(e)).map((e) => e.text);
-    for (const f of [...P321_FIELDS, 'activity']) {
+    for (const f of [...OVERLAY_NEVER_FIELDS, 'activity']) {
       if (keys.includes(f)) out.push(`ROW_KEYS admits \`${f}\``);
     }
   }
@@ -2031,7 +2044,7 @@ function p321FloorFindings(registryText) {
     }
     for (const p of obj.properties) {
       if (!ts.isPropertyAssignment(p) && !ts.isShorthandPropertyAssignment(p)) out.push(`${name} spreads or computes a field`);
-      else if (P321_FIELDS.includes(propName(p))) out.push(`${name} lists \`${propName(p)}\``);
+      else if (OVERLAY_NEVER_FIELDS.includes(propName(p))) out.push(`${name} lists \`${propName(p)}\``);
     }
   }
   const fn = tsNodes(sf).find((n) => ts.isFunctionDeclaration(n) && n.name?.text === 'activityProfileFor');
@@ -2081,7 +2094,17 @@ const P321_CASES = [
   { name: 'gemini given dialogs at the top of its row', expect: 'refused', field: 'dialogs',
     row: { id: 'gemini', dialogs: ['claude-trust-gate'] } },
   { name: 'control: the same new agent with no activity', expect: 'accepted', row: { ...P321_NEW_AGENT } },
-  { name: 'control: cursor patched with a display name only', expect: 'accepted', row: { id: 'cursor', displayName: 'Cursor' } }
+  { name: 'control: cursor patched with a display name only', expect: 'accepted', row: { id: 'cursor', displayName: 'Cursor' } },
+  // PHASE 353 (S4, for D328-2). Appended, so the self-tests below that name a case by its index read the same rows.
+  { name: 'a new agent carrying activity.writesWithoutDrawing and activity.terminalTools', expect: 'refused', field: 'activity',
+    row: { ...P321_NEW_AGENT, activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial', writesWithoutDrawing: true, terminalTools: true } } },
+  { name: 'antigravity patched with activity.writesWithoutDrawing and activity.terminalTools', expect: 'refused', field: 'activity',
+    row: { id: 'antigravity', activity: { writesWithoutDrawing: true, terminalTools: true } } },
+  { name: 'cursor patched with activity.terminalTools', expect: 'refused', field: 'activity',
+    row: { id: 'cursor', activity: { terminalTools: true } } },
+  { name: 'antigravity given writesWithoutDrawing at the top of its row', expect: 'refused', field: 'writesWithoutDrawing',
+    row: { id: 'antigravity', writesWithoutDrawing: true } },
+  { name: 'control: antigravity patched with a display name only', expect: 'accepted', row: { id: 'antigravity', displayName: 'Antigravity' } }
 ];
 
 /** Judge the loader's answers: a refused row gone WHOLE with its field named, a control kept. */
@@ -2198,10 +2221,10 @@ const p321Rows = [];
     const p = obj?.properties.find((x) => propName(x) === 'activity');
     return p === undefined ? null : `${text.slice(0, p.getStart())}${text.slice(p.getEnd() + (text[p.getEnd()] === ',' ? 1 : 0))}`;
   };
-  const inRowKeys = (text) => {
+  const inRowKeys = (text, key = 'activity') => {
     const d = tsNodes(tsParse(OVERLAY_LOADER, text)).find((n) => ts.isVariableDeclaration(n) && n.name.getText() === 'ROW_KEYS');
     const list = d === undefined ? undefined : tsPeel(d.initializer);
-    return list === undefined || !ts.isArrayLiteralExpression(list) ? null : insertAt(text, list.getStart() + 1, "\n  'activity',");
+    return list === undefined || !ts.isArrayLiteralExpression(list) ? null : insertAt(text, list.getStart() + 1, `\n  '${key}',`);
   };
   const lookupWidened = (text) => {
     const fn = tsNodes(tsParse(REGISTRY_SOURCE, text)).find((n) => ts.isFunctionDeclaration(n) && n.name?.text === 'activityProfileFor');
@@ -2210,14 +2233,17 @@ const p321Rows = [];
   const cases = [
     {
       rule: '10.1',
-      name: 'the overlay types name none of dialogs, residentHelpers, writesWhileAsking',
+      name: 'the overlay types name none of dialogs, residentHelpers, writesWhileAsking, writesWithoutDrawing, terminalTools',
       findings: () => p321OverlayTypeFindings(overlayText),
       attacks: [
         ['AgentOverlayV1 given dialogs', () => inRow(overlayText, 'AgentOverlayV1', 'dialogs?: readonly string[];')],
         ['AgentOverlayV1 given activity', () => inRow(overlayText, 'AgentOverlayV1', 'activity?: unknown;')],
         ['the launch block given residentHelpers', () => inRow(overlayText, 'AgentOverlayLaunchV1', 'residentHelpers?: true;')],
         ['the resume block given writesWhileAsking', () => inRow(overlayText, 'AgentOverlayResumeV1', 'writesWhileAsking?: true;')],
-        ['the registry type re-exported to the overlay', () => `import type { DialogShapeId } from '../main/activity/screen';\nexport type P321SelfTest = DialogShapeId;\n${overlayText}`]
+        ['the registry type re-exported to the overlay', () => `import type { DialogShapeId } from '../main/activity/screen';\nexport type P321SelfTest = DialogShapeId;\n${overlayText}`],
+        // PHASE 353 (S4): Phase 328's two names, each put on an overlay shape.
+        ['AgentOverlayV1 given writesWithoutDrawing', () => inRow(overlayText, 'AgentOverlayV1', 'writesWithoutDrawing?: true;')],
+        ['the launch block given terminalTools', () => inRow(overlayText, 'AgentOverlayLaunchV1', 'terminalTools?: true;')]
       ].map(([n, build]) => [n, build, (t) => p321OverlayTypeFindings(t)])
     },
     {
@@ -2226,7 +2252,10 @@ const p321Rows = [];
       findings: () => p321RefusalFindings(overlayText, loaderText),
       attacks: [
         ['the activity refusal deleted', () => withoutActivity(overlayText), (t) => p321RefusalFindings(t, loaderText)],
-        ['ROW_KEYS admitting activity', () => inRowKeys(loaderText), (t) => p321RefusalFindings(overlayText, t)]
+        ['ROW_KEYS admitting activity', () => inRowKeys(loaderText), (t) => p321RefusalFindings(overlayText, t)],
+        // PHASE 353 (S4).
+        ['ROW_KEYS admitting writesWithoutDrawing', () => inRowKeys(loaderText, 'writesWithoutDrawing'), (t) => p321RefusalFindings(overlayText, t)],
+        ['ROW_KEYS admitting terminalTools', () => inRowKeys(loaderText, 'terminalTools'), (t) => p321RefusalFindings(overlayText, t)]
       ]
     },
     {
@@ -2236,7 +2265,10 @@ const p321Rows = [];
       attacks: [
         ['DEFAULT_ACTIVITY listing a shape', () => inObject(REGISTRY_SOURCE, registryText, 'DEFAULT_ACTIVITY', "dialogs: ['qwen-confirmation'],"), (t) => p321FloorFindings(t)],
         ['SHELL_ACTIVITY given the helper rule', () => inObject(REGISTRY_SOURCE, registryText, 'SHELL_ACTIVITY', 'residentHelpers: true,'), (t) => p321FloorFindings(t)],
-        ['the lookup reading a configured row first', () => lookupWidened(registryText), (t) => p321FloorFindings(t)]
+        ['the lookup reading a configured row first', () => lookupWidened(registryText), (t) => p321FloorFindings(t)],
+        // PHASE 353 (S4): neither floor profile may carry Phase 328's fields.
+        ['DEFAULT_ACTIVITY given writesWithoutDrawing', () => inObject(REGISTRY_SOURCE, registryText, 'DEFAULT_ACTIVITY', 'writesWithoutDrawing: true,'), (t) => p321FloorFindings(t)],
+        ['SHELL_ACTIVITY given terminalTools', () => inObject(REGISTRY_SOURCE, registryText, 'SHELL_ACTIVITY', 'terminalTools: true,'), (t) => p321FloorFindings(t)]
       ]
     },
     {
@@ -2246,7 +2278,11 @@ const p321Rows = [];
       attacks: [
         ['a refused row answered as kept', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 2 ? { rows: ['cursor'], problems: [] } : o))), (o) => p321DrivenFindings(o)],
         ['a refusal naming the wrong field', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 4 ? { rows: [], problems: [{ index: 0, field: 'agents[0].id', message: 'x' }] } : o))), (o) => p321DrivenFindings(o)],
-        ['a control refused', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 6 ? { rows: [], problems: [{ index: 0, field: 'agents[0].activity', message: 'x' }] } : o))), (o) => p321DrivenFindings(o)]
+        ['a control refused', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 6 ? { rows: [], problems: [{ index: 0, field: 'agents[0].activity', message: 'x' }] } : o))), (o) => p321DrivenFindings(o)],
+        // PHASE 353 (S4): the rows carrying Phase 328's fields, cases 8 to 12.
+        ['antigravity patched with both answered as kept', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 9 ? { rows: ['antigravity'], problems: [] } : o))), (o) => p321DrivenFindings(o)],
+        ['the top-level writesWithoutDrawing refusal naming the wrong field', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 11 ? { rows: [], problems: [{ index: 0, field: 'agents[0].id', message: 'x' }] } : o))), (o) => p321DrivenFindings(o)],
+        ['the antigravity control refused', () => (driven.outcomes === null ? null : driven.outcomes.map((o, i) => (i === 12 ? { rows: [], problems: [{ index: 0, field: 'agents[0].activity', message: 'x' }] } : o))), (o) => p321DrivenFindings(o)]
       ]
     }
   ];
@@ -3445,12 +3481,15 @@ function p350PackageFindings(texts) {
 // once, inside `piInlineFloorFor`, as a gate that answers `unread` ahead of the
 // reader's last return; and the create handing that reader its pane's spawn, built
 // from the bare name, the PATH `installUserPath` wrote and the very folder it
-// hands tmux. Since his ruling of 2026-11-03, the resolver's guard answers null for
-// a folder holding a `#`, beside `!folder.startsWith('/')`, because tmux reads
-// `new-session -c` as a format (Phase 353 takes the clause out when it escapes it).
-// Since his ruling of 2026-11-04 it answers null for a folder ending in `;` too,
-// because tmux's argument reader ends a command at an argument ending in `;` and
-// reads `\;` as `;` (Phase 353 takes that clause out with the `#` one).
+// hands tmux. His ruling of 2026-11-03 gave the resolver's guard a term answering
+// null for a folder holding a `#`, because tmux read `new-session -c` as a format,
+// and his ruling of 2026-11-04 one for a folder ending in `;`, because tmux's
+// argument reader ended a command at an argument ending in `;` and read `\;` as
+// `;`. PHASE 353 (build/p353/SPEC.md D354-5) TOOK BOTH OUT: `createSession` hands
+// tmux the folder held back (`tmuxFolderArgument`, src/main/tmux/argument.ts), so
+// the pane starts in exactly the folder the walk starts from. So this row now
+// requires the guard to name neither term, and the create to hold the folder back,
+// because the walk is only the file that runs while the pane starts where it walks.
 //
 // DRIVEN: the probe plants a world (a global npm pi; projects holding their own pi
 // as npm and pnpm install it, behind every relative and empty PATH entry and a
@@ -3459,7 +3498,7 @@ function p350PackageFindings(texts) {
 // projects whose folder, or a parent's, holds a `#`; a project whose folder ends
 // in `\;`) and walks it through the SHIPPING resolver and comparison. Every answer is compared
 // with the table below, written from his ruling and from execvp's rule, never read
-// back from the code. `ablation:p331` P37 to P40 and P42 to P44 break the shipping source.
+// back from the code. `ablation:p331` P37 to P40, P43 and Phase 353's P45 to P47 break the shipping source.
 
 /** The resolver and the comparison, by name. */
 const P350_SPAWN_FNS = ['bareNameSpawnFile', 'bareNameSpawnRuns'];
@@ -3497,12 +3536,87 @@ const P350_SPAWN_TABLE = {
   shut: [null, false],
   'relative-folder': [null, false],
   none: [null, false],
-  // His ruling of 2026-11-03: a folder holding a `#`, in its own name or a parent's, is no folder the walk reads.
-  hash: [null, false],
-  'hash-parent': [null, false],
-  // His ruling of 2026-11-04: nor is a folder ending in `;` (here `semi\;`, which tmux reads as `semi;`).
-  semi: [null, false]
+  // His rulings of 2026-11-03 and 2026-11-04 read these as no file, because the pane did not start in them. Since
+  // Phase 353 the create holds the folder back and the pane starts there, so a folder holding a `#`, in its own name
+  // or a parent's, and one ending in `\;` are walked like any other: each holds no pi, so the global file runs.
+  hash: ['g/bin/pi', true],
+  'hash-parent': ['g/bin/pi', true],
+  semi: ['g/bin/pi', true]
 };
+
+/** The file that holds the create every local session starts through, and the function that hands tmux `-c`. */
+const P353_TMUX_SESSIONS = 'src/main/tmux/sessions.ts';
+
+/**
+ * PHASE 353. The resolver's guard reads no character of the folder: no call on `folder` with a string literal
+ * holding a `#` or a `;`, anywhere in the resolver. Each finding says why, so a later round does not put one back.
+ */
+function p353GuardTermFindings(resolver) {
+  const out = [];
+  if (resolver?.body === undefined) return out;
+  // THE PROBE REVIEW (Phase 353). Every literal in the resolver, and not only a
+  // string handed to a method on `folder`: a term spelled `/[#;]/.test(folder)`
+  // or `folder.at(-1) === ';'` reads the same characters and read green before.
+  // The resolver needs no `#` and no `;` for anything else (its PATH delimiter
+  // is `delimiter`), so any literal holding one is a term put back.
+  for (const n of p350OwnNodes(resolver.body)) {
+    const literal =
+      ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n) || ts.isRegularExpressionLiteral(n);
+    if (!literal) continue;
+    const text = ts.isRegularExpressionLiteral(n) ? n.getText() : n.text;
+    const at = n.parent?.getText() ?? n.getText();
+    if (text.includes('#')) {
+      out.push(
+        `bareNameSpawnFile reads the folder for a \`#\` (\`${at}\`): since Phase 353 every create hands tmux ` +
+          'the folder held back, so the pane starts in exactly the folder the walk starts from, and a folder holding a `#` is walked like any other'
+      );
+    }
+    if (text.includes(';')) {
+      out.push(
+        `bareNameSpawnFile reads the folder for a \`;\` (\`${at}\`): since Phase 353 every create hands tmux ` +
+          'a final `;` held back, so the pane starts in exactly the folder the walk starts from, and a folder ending in `;` is walked like any other'
+      );
+    }
+  }
+  return out;
+}
+
+/**
+ * PHASE 353. The premise the guard rests on: `createSession` hands tmux `-c` once, held back by
+ * `tmuxFolderArgument(input.cwd)`, and as recorded only when a restore asks `folderAsRecorded`.
+ */
+function p353CreateHoldsFolderFindings(texts) {
+  const text = texts.get(P353_TMUX_SESSIONS);
+  if (text === undefined) return [`${P353_TMUX_SESSIONS} is not in the tree, so the create that starts every local pane cannot be read`];
+  const fn = p350Fn(p350Parse(P353_TMUX_SESSIONS, text), 'createSession');
+  if (fn?.body === undefined) return [`${P353_TMUX_SESSIONS} no longer declares createSession`];
+  const pushes = p350OwnNodes(fn.body).filter(
+    (n) =>
+      ts.isCallExpression(n) &&
+      n.expression.getText() === 'args.push' &&
+      n.arguments.length === 2 &&
+      ts.isStringLiteral(n.arguments[0]) &&
+      n.arguments[0].text === '-c'
+  );
+  if (pushes.length !== 1) return [`createSession pushes -c ${String(pushes.length)} times, not once`];
+  const handed = tsPeel(pushes[0].arguments[1]);
+  const held = (e) => {
+    const x = e === undefined ? undefined : tsPeel(e);
+    return x !== undefined && ts.isCallExpression(x) && x.expression.getText() === 'tmuxFolderArgument' && x.arguments.length === 1 && x.arguments[0].getText() === 'input.cwd';
+  };
+  const ok =
+    held(handed) ||
+    (ts.isConditionalExpression(handed) &&
+      handed.condition.getText().replace(/\s+/g, ' ') === 'input.folderAsRecorded === true' &&
+      handed.whenTrue.getText() === 'input.cwd' &&
+      held(handed.whenFalse));
+  return ok
+    ? []
+    : [
+        `createSession hands tmux -c as \`${handed.getText()}\`, not held back by tmuxFolderArgument(input.cwd): tmux reads -c as a format and ` +
+          'ends a command at a final `;`, so the pane would not start in the folder the walk starts from'
+      ];
+}
 
 /** 11.11 by its shape: one resolver, one comparison by identity, one gate, and the create asking it. */
 function p350SpawnSourceFindings(texts) {
@@ -3525,9 +3639,10 @@ function p350SpawnSourceFindings(texts) {
       one[name] = list[0].n;
     }
   }
-  // HIS RULING OF 2026-11-03: a folder holding a `#` anywhere is no folder the walk reads, by ONE clause in the
-  // resolver's guard beside the folder's own `!folder.startsWith('/')`, answering null ahead of the walk, because tmux
-  // reads `new-session -c` as a format. Phase 353 hands tmux the folder escaped and takes this clause out with it.
+  // The resolver's guard answers null for a folder that is not absolute, ahead of the walk, because tmux could not
+  // enter it either. PHASE 353: and it reads no character of the folder. His rulings of 2026-11-03 and 2026-11-04
+  // put a `#` term and a final-`;` term in this guard while tmux read the folder as a format and as the end of a
+  // command; the create now hands it held back (checked below), so both terms went, and a term put back is red.
   const resolver = one.bareNameSpawnFile;
   if (resolver?.body !== undefined) {
     const statements = resolver.body.statements;
@@ -3542,25 +3657,17 @@ function p350SpawnSourceFindings(texts) {
       } else terms.push(x);
     };
     if (guard !== undefined) flat(guard.expression);
-    const hash = terms.some(
-      (t) => ts.isCallExpression(t) && t.expression.getText() === 'folder.includes' && t.arguments.length === 1 && ts.isStringLiteral(t.arguments[0]) && t.arguments[0].text === '#'
-    );
-    // HIS RULING OF 2026-11-04: a folder ending in `;` likewise, by one more term in the SAME guard, because tmux's
-    // argument reader ends a command at an argument ending in `;` and reads `\;` as `;`. Phase 353 takes it out too.
-    const semi = terms.some(
-      (t) => ts.isCallExpression(t) && t.expression.getText() === 'folder.endsWith' && t.arguments.length === 1 && ts.isStringLiteral(t.arguments[0]) && t.arguments[0].text === ';'
-    );
     const absolute = terms.some((t) => t.getText().replace(/\s+/g, '') === "!folder.startsWith('/')");
     const then = guard === undefined ? undefined : ts.isBlock(guard.thenStatement) && guard.thenStatement.statements.length === 1 ? guard.thenStatement.statements[0] : guard.thenStatement;
     const returnsNull = then !== undefined && ts.isReturnStatement(then) && then.expression?.kind === ts.SyntaxKind.NullKeyword;
     const ahead = guard !== undefined && guard.elseStatement === undefined && (walk < 0 || statements.indexOf(guard) < walk);
-    if (!(hash && absolute && returnsNull && ahead)) {
-      out.push("bareNameSpawnFile's guard does not answer null for a folder holding a `#` (`|| folder.includes('#')` beside `!folder.startsWith('/')`, ahead of the walk): tmux reads `new-session -c` as a format, so the pane may not start in that folder");
+    if (!(absolute && returnsNull && ahead)) {
+      out.push("bareNameSpawnFile's guard does not answer null for a folder that is not absolute (`!folder.startsWith('/')`, ahead of the walk): tmux could not enter such a folder, and starts the pane in the home folder instead");
     }
-    if (!(semi && absolute && returnsNull && ahead)) {
-      out.push("bareNameSpawnFile's guard does not answer null for a folder ending in `;` (`|| folder.endsWith(';')` beside `!folder.startsWith('/')`, ahead of the walk): tmux's argument reader reads `\\;` as `;` and ends a command at `;`, so the pane may not start in that folder");
-    }
+    out.push(...p353GuardTermFindings(resolver));
   }
+  // PHASE 353: the premise of the walk, that the pane starts in the folder it walks from.
+  out.push(...p353CreateHoldsFolderFindings(texts));
   // Neither starts anything, reads this process's folder, normalises a path, folds its case or reads a real path's text.
   for (const name of P350_SPAWN_FNS) {
     const fn = one[name];
@@ -3801,18 +3908,25 @@ const p350Data = data.p350 ?? null;
         ['the comparison asked outside the floor reader', () => p350With(texts, P350_RESTORE, (s) => `${s}\nexport const p350SpawnSelfTest = (bin: string): boolean => bareNameSpawnRuns({ name: 'pi', path: '', folder: '/' }, bin);\n`)],
         ['the resolver normalising its candidate', () => p350With(texts, P350_DETECTION, (s) => s.replace('    const at = `${dir}/${name}`;\n', '    const at = join(dir, name);\n'))],
         ['the comparison reading real paths', () => p350With(texts, P350_DETECTION, (s) => s.replace('    const st = statSync(bin, { bigint: true });\n    return st.dev === runs.dev && st.ino === runs.ino;\n', '    return realpathSync(bin) === realpathSync(runs.at);\n'))],
-        // His ruling of 2026-11-03.
-        ["the # clause taken out of the resolver's guard", () => p350With(texts, P350_DETECTION, (s) => s.replace(" || folder.includes('#')", ''))],
-        // His ruling of 2026-11-04.
-        ["the ; clause taken out of the resolver's guard", () => p350With(texts, P350_DETECTION, (s) => s.replace(" || folder.endsWith(';')", ''))]
+        // PHASE 353: his rulings' two terms, put back, each red; and the guard's own absolute-folder term taken out.
+        ["the # term of 2026-11-03 put back into the resolver's guard", () => p350With(texts, P350_DETECTION, (s) => s.replace("|| !folder.startsWith('/')) return null;", "|| !folder.startsWith('/') || folder.includes('#')) return null;"))],
+        ["the ; term of 2026-11-04 put back into the resolver's guard", () => p350With(texts, P350_DETECTION, (s) => s.replace("|| !folder.startsWith('/')) return null;", "|| !folder.startsWith('/') || folder.endsWith(';')) return null;"))],
+        ['a # read anywhere else in the resolver', () => p350With(texts, P350_DETECTION, (s) => s.replace("  for (const entry of path.split(delimiter)) {\n", "  if (folder.indexOf('#') >= 0) return null;\n  for (const entry of path.split(delimiter)) {\n"))],
+        // THE PROBE REVIEW (Phase 353): the same two terms spelled without a string handed to a method on `folder`.
+        ['a # or ; read by a regular expression', () => p350With(texts, P350_DETECTION, (s) => s.replace("  for (const entry of path.split(delimiter)) {\n", "  if (/[#;]/.test(folder)) return null;\n  for (const entry of path.split(delimiter)) {\n"))],
+        ["a final ; read by the folder's last character", () => p350With(texts, P350_DETECTION, (s) => s.replace("  for (const entry of path.split(delimiter)) {\n", "  if (folder.at(-1) === ';') return null;\n  for (const entry of path.split(delimiter)) {\n"))],
+        ["the guard's absolute-folder term taken out", () => p350With(texts, P350_DETECTION, (s) => s.replace(" || !folder.startsWith('/')) return null;", ') return null;'))],
+        // PHASE 353: the premise, broken. The create handing tmux the folder raw, and held back only on the restore's arm.
+        ['the create handing tmux the folder raw', () => p350With(texts, P353_TMUX_SESSIONS, (s) => s.replace('input.folderAsRecorded === true ? input.cwd : tmuxFolderArgument(input.cwd)', 'input.cwd'))],
+        ['the create holding the folder back only when a restore asks it as recorded', () => p350With(texts, P353_TMUX_SESSIONS, (s) => s.replace('input.folderAsRecorded === true ? input.cwd : tmuxFolderArgument(input.cwd)', 'input.folderAsRecorded === true ? tmuxFolderArgument(input.cwd) : input.cwd'))]
       ].map(([n, build]) => [n, build, (t) => p350SpawnSourceFindings(t)]).concat([
         // The behaviour, as each broken resolver answers over the same world.
         ["a relative entry read from this process's folder", () => mut((d) => { const at = (id) => d.spawn?.rows?.find((r) => r.id === id); const a = at('nm-npm'); const b = at('dotdot'); if (a === undefined || b === undefined) return false; Object.assign(a, { found: 'g/bin/pi', runs: true }); Object.assign(b, { found: null, runs: false }); return true; }), (d) => p350SpawnDrivenFindings(d)],
         ['empty entries passed over', () => mut((d) => { const rows = d.spawn?.rows ?? []; const hit = rows.filter((r) => ['lead-npm', 'double-pnpm'].includes(r.id)); if (hit.length !== 2) return false; for (const r of hit) Object.assign(r, { found: 'g/bin/pi', runs: true }); return true; }), (d) => p350SpawnDrivenFindings(d)],
         ['one file told apart by its spelling', () => mut((d) => { const rows = d.spawn?.rows ?? []; const hit = rows.filter((r) => ['second', 'hard', 'alias', 'dotdot'].includes(r.id)); if (hit.length !== 4) return false; for (const r of hit) r.runs = false; return true; }), (d) => p350SpawnDrivenFindings(d)],
-        ['a folder holding a # walked as written', () => mut((d) => { const rows = d.spawn?.rows ?? []; const hit = rows.filter((r) => ['hash', 'hash-parent'].includes(r.id)); if (hit.length !== 2) return false; for (const r of hit) Object.assign(r, { found: 'g/bin/pi', runs: true }); return true; }), (d) => p350SpawnDrivenFindings(d)],
-        // His ruling of 2026-11-04.
-        ['a folder ending in ; walked as written', () => mut((d) => { const r = d.spawn?.rows?.find((x) => x.id === 'semi'); if (r === undefined) return false; Object.assign(r, { found: 'g/bin/pi', runs: true }); return true; }), (d) => p350SpawnDrivenFindings(d)]
+        // PHASE 353: the two folders his rulings read as no file, read so again over the driven data.
+        ['a folder holding a # read as no file again', () => mut((d) => { const rows = d.spawn?.rows ?? []; const hit = rows.filter((r) => ['hash', 'hash-parent'].includes(r.id)); if (hit.length !== 2) return false; for (const r of hit) Object.assign(r, { found: null, runs: false }); return true; }), (d) => p350SpawnDrivenFindings(d)],
+        ['a folder ending in ; read as no file again', () => mut((d) => { const r = d.spawn?.rows?.find((x) => x.id === 'semi'); if (r === undefined) return false; Object.assign(r, { found: null, runs: false }); return true; }), (d) => p350SpawnDrivenFindings(d)]
       ])
     }
   ];

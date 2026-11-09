@@ -604,9 +604,25 @@ describe('which rows name which shapes', () => {
     // THE OPERATOR'S RULING OF 2026-09-23: grok's resident-helper rule is
     // removed whole, so grok reads exactly what it read before this phase.
     expect(activityProfileFor('grok')).toEqual({ tier: 'screen', animatesWhenIdle: false, verified: 'unverified' });
-    const allowed = new Set(['tier', 'native', 'animatesWhenIdle', 'hooks', 'verified', 'dialogs']);
+    // PHASE 353's named amendment (build/p353/SPEC.md D328-6): Phase 328's two
+    // compiled fields join the allowed set, and the row below holds them to the
+    // one agent they were measured on.
+    const allowed = new Set(['tier', 'native', 'animatesWhenIdle', 'hooks', 'verified', 'dialogs', 'writesWithoutDrawing', 'terminalTools']);
     for (const row of AGENT_REGISTRY) {
       for (const key of Object.keys(row.activity ?? {})) expect(allowed.has(key), `${row.id}.activity.${key}`).toBe(true);
+    }
+  });
+
+  it("only antigravity carries Phase 328's two fields, and the shell and the floor carry neither", () => {
+    const carrying = (field: 'writesWithoutDrawing' | 'terminalTools'): string[] =>
+      AGENT_REGISTRY.filter((r) => r.activity?.[field] !== undefined).map((r) => r.id);
+    expect(carrying('writesWithoutDrawing')).toEqual(['antigravity']);
+    expect(carrying('terminalTools')).toEqual(['antigravity']);
+    expect(activityProfileFor('antigravity').writesWithoutDrawing).toBe(true);
+    expect(activityProfileFor('antigravity').terminalTools).toBe(true);
+    for (const p of [SHELL_ACTIVITY, DEFAULT_ACTIVITY, activityProfileFor('shell'), activityProfileFor('not-an-agent')]) {
+      expect(p.writesWithoutDrawing).toBeUndefined();
+      expect(p.terminalTools).toBeUndefined();
     }
   });
 

@@ -576,12 +576,26 @@ const HELPER = 'electron-run.mjs';
  * ended in its `finally`. It never calls app.relaunch(), whose relaunched app
  * would escape this helper's tree and its profile sweep.
  *
+ * PHASE 353 RAISED IT FROM 181 TO 184, by three, one probe for each builder
+ * that needs an app run (build/p353/SPEC.md D-P1), each ONE Electron at a time
+ * through the helper, the parent's (`P353_PARENT_CHECKOUT`) first on the same
+ * profile, on a scratch profile, HOME and socket named as its `tmuxSocket`,
+ * every probed registry row but its stand-ins hidden before every launch and
+ * `agents:list` read back: build/p353/probe-records.mjs (`probe:p353:records`,
+ * the gmux-p353r… socket, shell sessions only: a removed row keeps its
+ * tombstone through an End, a reap and a Restart), build/p353/probe-status.mjs
+ * (`probe:p353:status`, gmux-p353s…, the agents build/p321/stand-in.mjs behind
+ * their bare names: antigravity idle at its prompt) and
+ * build/p353/probe-starts.mjs (`probe:p353:starts`,
+ * gmux-p353t…, inside build/with-scratch-machine.mjs's loopback machine with
+ * the quiet shell: a session in a folder tmux reads starts in that folder).
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 181;
+const HELPER_USER_FLOOR = 184;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.
@@ -634,8 +648,16 @@ const NOT_A_HELPER_USER = new Set(['assert-electron-teardown.mjs']);
  * build/p247/offer-cost.mjs, build/p253/funnel-before-after.mts and
  * vscode-catches.mts deleted, and build/p250/funnel.mts kept without its live
  * measurement, because conformance:pathdoors rule 15 runs its self-test.
+ *
+ * 94 SINCE PHASE 353 (build/p353/SPEC.md D-P2), four lower: the four committed
+ * probes that phase runs lost their own count of his server and the finding it
+ * raised, each now naming its scratch socket as its launch's `tmuxSocket` (or
+ * reading its scratch server after `withElectron` returns) so the helper's
+ * census is the one reader, and hiding every probed agent: build/probe-p167-scale.mjs,
+ * build/probe-p209-selection.mjs, build/probe-p95-scroll.mjs and
+ * build/p284/probe-p284.mjs.
  */
-const OPERATOR_ARGV_CEILING = 98;
+const OPERATOR_ARGV_CEILING = 94;
 
 /**
  * RULE 6, ITS SECOND COUNT (the probe review of Phase 352). The scripts under

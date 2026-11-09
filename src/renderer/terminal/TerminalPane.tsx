@@ -629,6 +629,16 @@ export function TerminalPane({
       } catch {
         /* context-loss handler may have disposed it already */
       }
+      // Phase 301. Give the keyboard up before the terminal goes. Chrome fires
+      // no blur for a focused element that is removed from the document, and
+      // Monaco's context key service (once any editor has loaded) holds a
+      // focus tracker on the focused editable element until it blurs or
+      // something else takes focus, which held this pane's whole helper tree.
+      // The data subscription above is already disposed, so the focus-out
+      // report xterm writes on a blur reaches nobody, as today. When React has
+      // already detached the pane (an unmount), the textarea has no focus left
+      // to give up and this does nothing.
+      term.blur();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;

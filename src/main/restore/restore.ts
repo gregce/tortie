@@ -70,6 +70,10 @@ import type { ManifestSessionRecord } from '../manifest';
 // nothing at all.
 import { withLoginShellFlag } from '../manifest/login-shell';
 import * as tmux from '../tmux';
+// PHASE 353. The folder rule every create holds a folder back by, asked here
+// only to tell whether a row's folder is one tmux reads. A pure leaf, imported
+// directly so a test that mocks the barrel still reads the real rule.
+import { tmuxFolderArgument } from '../tmux/argument';
 import { gmuxError } from '../errors';
 import {
   isWrappedArgv,
@@ -392,6 +396,32 @@ export function originalCwdRule(rec: ManifestSessionRecord): CwdRule {
   } catch {
     return { needsOriginalCwd: true, basis: 'unknown-agent' };
   }
+}
+
+/**
+ * PHASE 353 (build/p353/SPEC.md D354-4, entry Phase 354 mechanism 2: no
+ * conversation lost by the move). Whether a restore hands tmux this row's
+ * folder EXACTLY as recorded, with nothing held back, which is how every create
+ * handed it before this phase.
+ *
+ * TRUE only for a row that (1) was created before this phase, its recovery
+ * contract carrying no `folderHeld` (a row with no contract at all is such a
+ * row); (2) records a folder tmux READS, one `tmuxFolderArgument` changes (a
+ * `#` it expands, or a final `;`), so its pane started in HOME or in another
+ * folder rather than in the one recorded; (3) is not a plain shell; and (4) has
+ * a resume to arm. The agent in that pane filed its conversation where the pane
+ * ran, and a resume run from any other folder can miss it: pi, measured, opens
+ * an EMPTY session under the same id (its registry note), and qwen refuses. So
+ * such a row comes back where it ran, today's `-c` byte for byte, and its
+ * conversation is found (Q9's default: every agent, including the three
+ * measured to find a conversation from another folder). Every other row, and
+ * every row this build creates, starts in its folder. Pure: it reads the row.
+ */
+export function folderAsRecordedFor(rec: ManifestSessionRecord): boolean {
+  if (rec.agentContract?.folderHeld === true) return false;
+  if (tmuxFolderArgument(rec.cwd) === rec.cwd) return false;
+  if (rec.agent === 'shell') return false;
+  return (rec.resumeArgv?.length ?? 0) > 0;
 }
 
 /**
@@ -1090,7 +1120,13 @@ export async function restoreSessionInTmux(
       // passthrough. See paneEnvFor.
       // Phase 202: the login layer, composed again rather than replayed. It
       // is empty for the default and for every agent that has no login.
-      env: paneEnvFor(rec.env, resolvedEnv, rec.id, process.env, loginEnv)
+      env: paneEnvFor(rec.env, resolvedEnv, rec.id, process.env, loginEnv),
+      // PHASE 353 (D354-4). A row created before this phase in a folder tmux
+      // reads comes back where its pane really ran, so the conversation its
+      // agent filed there is found; every other row starts in its folder. The
+      // decision is the row's, and it holds for whichever folder is handed,
+      // the recorded one or, when that is gone, the project's.
+      ...(folderAsRecordedFor(rec) ? { folderAsRecorded: true as const } : {})
     });
   } catch (err) {
     return {

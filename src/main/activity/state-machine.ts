@@ -25,6 +25,7 @@ import {
   CPU_BUSY_TICKS,
   cpuPercent,
   foregroundChildOf,
+  hasTerminalTool,
   hasToolChild,
   holdsTerminal,
   isDescendantOf,
@@ -185,6 +186,14 @@ export interface SessionState {
    * numbered verdict never reads it.
    */
   foreground: ForegroundReading | null;
+  /**
+   * PHASE 328 (build/p353/SPEC.md D328-3). Epoch ms of the last tick on which
+   * a `writesWithoutDrawing` agent's output kept every job output has but
+   * reading as work, and the session was not blocked. `worthProbing` reads it
+   * beside `lastWorkingAt` for such an agent, so it is probed on exactly the
+   * ticks the parent probed it. 0 for every other agent, which never sets it.
+   */
+  lastOutputAt: number;
 }
 
 /**
@@ -228,7 +237,8 @@ export function freshState(now: number): SessionState {
     handback: 'none',
     leftAt: 0,
     leftCommand: '',
-    foreground: null
+    foreground: null,
+    lastOutputAt: 0
   };
 }
 
@@ -241,6 +251,12 @@ export function isMidDialog(st: SessionState): boolean {
  * Whether an unanswered session is worth spending `ps` and `capture-pane` on.
  * A settled, long-quiet session is not: with every session settled the whole
  * tick costs exactly one `list-panes`.
+ *
+ * PHASE 328 (D328-3). For an agent whose output draws nothing
+ * (`writesWithoutDrawing`), that output no longer reads as work, so it no
+ * longer moves `lastWorkingAt`; it moves `lastOutputAt` instead, read here
+ * beside it, so the session is probed on exactly the ticks the parent probed
+ * it and its captures and `ps` reads do not move.
  */
 export function worthProbing(
   profile: AgentActivityProfile,
@@ -250,7 +266,8 @@ export function worthProbing(
   return (
     profile.animatesWhenIdle ||
     st.state === 'starting' ||
-    now - st.lastWorkingAt < AMBIGUOUS_WINDOW_MS
+    now - st.lastWorkingAt < AMBIGUOUS_WINDOW_MS ||
+    (profile.writesWithoutDrawing === true && now - st.lastOutputAt < AMBIGUOUS_WINDOW_MS)
   );
 }
 
@@ -346,8 +363,21 @@ export function inferredVerdict(
   // stronger signal already answered would desync it.
   const quiet = ctx.now - pane.activityAt > QUIET_MS;
   const outputEvidence = !reflowing && !profile.animatesWhenIdle && !quiet;
+  // PHASE 328, clause A (build/p353/SPEC.md D328-3). For an agent whose
+  // output draws nothing (antigravity's two terminal modes every 2.015 s at
+  // rest, measured on 1.2.7), that output keeps every job it has but one: it
+  // is not WORK, so it never returns `working` below. Every other agent's
+  // output is work exactly as it was.
+  const outputIsWork = outputEvidence && profile.writesWithoutDrawing !== true;
   const cpuBusy = noteCpu(st, pane, ctx.proc, ctx.now);
   const toolChild = ctx.proc !== null && hasToolChild(ctx.proc, pane.panePid);
+  // PHASE 328, clause B (D328-4). A tool on a terminal of its own, which
+  // `hasToolChild` cannot see (`Ss+`), for an agent measured running one.
+  // WEAK evidence, read beside a changed screen and never above the dialog
+  // arm, so it can make a tick working and can never move a dialog count or a
+  // needs_input reading.
+  const terminalTool =
+    profile.terminalTools === true && ctx.proc !== null && hasTerminalTool(ctx.proc, pane.panePid);
   // One normalized view of the screen feeds BOTH screen signals: the hash and
   // the dialog detector must never disagree about what "the screen" is.
   const screen =
@@ -373,7 +403,7 @@ export function inferredVerdict(
   // Strong evidence: the pane is producing output right now, burning CPU, or
   // waiting on a tool it setsid'd. An agent doing any of those is not blocked
   // on the user, whatever is drawn on the screen.
-  if (outputEvidence || cpuBusy || toolChild) {
+  if (outputIsWork || cpuBusy || toolChild) {
     st.dialogTicks = 0;
     if (st.state === 'needs_input') {
       // A dialog being answered still paints. Only the detector, or the
@@ -382,6 +412,20 @@ export function inferredVerdict(
     }
     st.quietTicks = 0;
     return { state: 'working', tier: 'inferred' };
+  }
+
+  // PHASE 328, clause A: output that draws nothing. It still zeroes the
+  // dialog count and skips the dialog arm, as the block above does, so the
+  // numbered verdict and his words in the input box read exactly as at the
+  // parent; it still releases a blocked session; and, unless blocked, it
+  // keeps the session probed through `lastOutputAt`. It is not strong
+  // evidence: the tick falls to the screen's own reading, a changed screen
+  // reads working as for every agent and an unchanged one counts toward idle.
+  if (outputEvidence) {
+    st.dialogTicks = 0;
+    if (st.state === 'needs_input') return releaseNeedsInput(st, ctx.capture);
+    st.lastOutputAt = ctx.now;
+    return weakVerdict(st, screenChanged || terminalTool, reflowing);
   }
 
   // needs_input is the ONLY screen-derived attention state, and it is ranked
@@ -401,8 +445,22 @@ export function inferredVerdict(
   st.dialogTicks = 0;
   if (st.state === 'needs_input') return releaseNeedsInput(st, ctx.capture);
 
+  return weakVerdict(st, screenChanged || terminalTool, reflowing);
+}
+
+/**
+ * The tail every tick with no strong evidence and no dialog to count reaches:
+ * weak evidence (the screen moved within the last K ticks, or, PHASE 328
+ * clause B, a tool alive on a terminal of its own) reads working, a reflow
+ * with none holds, and quiet ticks count toward idle.
+ */
+function weakVerdict(
+  st: SessionState,
+  weak: boolean,
+  reflowing: boolean
+): ActivityVerdict | null {
   // Weak evidence: the screen moved within the last K ticks.
-  if (screenChanged) {
+  if (weak) {
     st.quietTicks = 0;
     return { state: 'working', tier: 'inferred' };
   }

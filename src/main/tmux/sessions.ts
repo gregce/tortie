@@ -14,6 +14,7 @@
  */
 
 import { existsSync } from 'node:fs';
+import { tmuxArgument, tmuxFolderArgument } from './argument';
 import { isControlSession } from './control-client';
 import { gmuxError, isGmuxError } from '../errors';
 import {
@@ -66,6 +67,17 @@ export interface CreateTmuxSessionInput {
   argv?: string[];
   /** Extra environment variables for the pane (tmux `-e KEY=VALUE`). */
   env?: Record<string, string>;
+  /**
+   * PHASE 353 (build/p353/SPEC.md D354-3, D354-4). Hand `cwd` to tmux EXACTLY
+   * as given, with nothing held back, which is how every create handed it
+   * before this phase. Asked only by a restore of a row recorded before this
+   * phase whose folder tmux reads (`folderAsRecordedFor` in
+   * ../restore/restore.ts): such a pane started where tmux read the folder,
+   * and its agent filed its conversation there. Absent, the folder is held
+   * back by `tmuxFolderArgument`, so the pane starts in `cwd` itself. The `-e`
+   * pairs and the argv are held back either way.
+   */
+  folderAsRecorded?: true;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,15 +184,23 @@ export async function createSession(
   );
 
   const args = ['new-session', '-d', '-P', '-F', CREATE_FORMAT, '-s', tmuxName];
-  args.push('-c', input.cwd);
+  // PHASE 353 (build/p353/SPEC.md D354-1, D354-3). tmux reads `-c` as a format
+  // and every element as the end of a command when it ends in `;`, so the
+  // folder, each pair and each argv element are handed held back
+  // (./argument.ts), and the pane starts in `cwd` with exactly the env and argv
+  // asked for. The existence check above asks the folder itself.
+  args.push(
+    '-c',
+    input.folderAsRecorded === true ? input.cwd : tmuxFolderArgument(input.cwd)
+  );
   for (const [key, value] of Object.entries(input.env ?? {})) {
-    args.push('-e', `${key}=${value}`);
+    args.push('-e', tmuxArgument(`${key}=${value}`));
   }
   const argv = input.argv ?? [];
   if (argv.length > 0) {
     // tmux 3.4+ accepts the command as an argument vector (no shell quoting
     // hazards); verified against 3.6a with multi-word argv.
-    args.push('--', ...argv);
+    args.push('--', ...argv.map(tmuxArgument));
   }
 
   const stdout = await execTmux(args);
@@ -274,16 +294,6 @@ export interface CapturePaneOptions {
    * the on-screen wrapping — pass `false` there (research 17 §2.1).
    */
   join?: boolean;
-  /**
-   * An exact range of lines instead of "the last N", Phase 209. In tmux's
-   * own coordinates for `-S` and `-E`: 0 is the top row of the LIVE screen,
-   * negative counts back into the history, and both ends are inclusive.
-   * The caller clamps; tmux does not refuse a range above the top, it moves
-   * both ends to the oldest line and answers with one row (measured
-   * 2026-09-03: `-S -1000 -E -999` over 93 lines of history printed the
-   * oldest line rather than nothing).
-   */
-  range?: { start: number; end: number };
 }
 
 /**
@@ -304,17 +314,20 @@ export interface CapturePaneOptions {
  *
  * `target` must already be a pane-addressable target — a `$-id` or a bare
  * name, never `=name`. Use resolvePaneTarget() above.
+ *
+ * An EXACT range of history lines is not read here. Since Phase 295 it is
+ * `captureHistoryLines` (./history-lines.ts), one invocation in which tmux
+ * reads the extent and computes the offsets itself, because the two calls
+ * this file used to make (a read of the extent, then a capture whose offsets
+ * main computed from it) named lines that many rows newer for every line the
+ * pane printed between them.
  */
 export async function capturePane(
   target: string,
   lines = 10_000,
   options: CapturePaneOptions = {}
 ): Promise<string> {
-  const { join = true, range } = options;
-  const extent =
-    range === undefined
-      ? ['-S', `-${Math.max(0, Math.floor(lines))}`]
-      : ['-S', String(Math.floor(range.start)), '-E', String(Math.floor(range.end))];
+  const { join = true } = options;
   return execTmux(
     [
       'capture-pane',
@@ -323,41 +336,12 @@ export async function capturePane(
       ...(join ? ['-J'] : []),
       '-t',
       formatSessionTarget(target),
-      ...extent
+      '-S',
+      `-${Math.max(0, Math.floor(lines))}`
     ],
     // Big captures (50k colored lines) can take a moment.
     { timeoutMs: 30_000 }
   );
-}
-
-/** Where a pane's screen sits in its history right now, Phase 209. */
-export interface PaneExtent {
-  /** `#{history_size}`: lines above the live screen. */
-  history: number;
-  /** `#{pane_height}`: rows on the screen. */
-  rows: number;
-}
-
-/**
- * Read the pane's history depth and height in one round trip, so a range
- * given in history lines can be turned into `capture-pane` coordinates
- * against the same instant.
- */
-export async function readPaneExtent(target: string): Promise<PaneExtent> {
-  const out = await execTmux([
-    'display-message',
-    '-p',
-    '-t',
-    formatSessionTarget(target),
-    '-F',
-    '#{history_size}\t#{pane_height}'
-  ]);
-  const [history, rows] = (out.split('\n')[0] ?? '').split('\t');
-  const num = (v: string | undefined): number => {
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
-  };
-  return { history: num(history), rows: num(rows) };
 }
 
 /** Drop a session's server-side scrollback (the Clear action, Phase 12 #1). */

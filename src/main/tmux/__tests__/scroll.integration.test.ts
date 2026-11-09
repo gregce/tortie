@@ -551,3 +551,153 @@ describe.skipIf(!enabled)('a resize while parked over soft-wrapped lines', () =>
     expect(Math.abs(resent - parked)).toBeGreaterThan(1);
   }, 60_000);
 });
+
+/**
+ * THE WAY BACK DOWN PASSES THROUGH WHAT PRINTED (Phase 294).
+ *
+ * A reader parks to read while the pane keeps printing, then scrolls back
+ * down a notch at a time. `-e` leaves copy mode at the bottom of the FROZEN
+ * frame, so on the parent the notch that reached it put the live screen up
+ * next, and everything printed while the reader read, past one screen of it,
+ * was never drawn: measured on 2026-11-05, 72 of 120 lines on 3.7b and 79 of
+ * 128 on 3.6a. On this Mac's runner a notch that reaches the frame's bottom
+ * now re-freezes the frame first (`refreezeWanted` in ../scroll.ts), on a tmux
+ * that names the frame's depth (3.7 and later).
+ *
+ * The ruler is the one this file's other arms use, an attached client's
+ * screen, every row of it after every notch. The fixture prints 400 lines at
+ * once and then a line every 50 ms, the park is 100 lines up, and the reader
+ * waits four seconds before coming down 3 lines a notch, 60 ms apart.
+ *
+ * GRADED: on a tmux that names the frame (3.7b), every line from the park's
+ * top row to the newest line drawn at the end was on screen in some sample.
+ * On 3.6a, which keeps today's jump by the operator's ruling, the arm reads
+ * that it skips, as the parent does. FOR THE RECORD, on any tmux, a runner
+ * that does not say it refreezes (today's bytes) skips, which is what proves
+ * the rig can see the defect.
+ */
+describe.skipIf(!enabled)('the way back down (Phase 294)', () => {
+  const S = 'zz-down';
+  let client: pty.IPty | null = null;
+  let term: Terminal | null = null;
+  let dir = '';
+  let namesFrame = false;
+
+  /** Every `line N` on the attached client's screen right now. */
+  const linesOnScreen = (): number[] => {
+    const buffer = term?.buffer.active ?? null;
+    if (buffer === null) return [];
+    const out: number[] = [];
+    for (let row = 0; row < 40; row += 1) {
+      const text = buffer.getLine(buffer.baseY + row)?.translateToString(true) ?? '';
+      const m = /^line (\d+)$/.exec(text);
+      if (m !== null) out.push(Number(m[1]));
+    }
+    return out;
+  };
+
+  beforeAll(async () => {
+    await tmux(['kill-server']).catch(() => undefined);
+    dir = mkdtempSync(join(tmpdir(), 'gmux-scroll-down-'));
+    const script = join(dir, 'stream.sh');
+    writeFileSync(
+      script,
+      '#!/bin/sh\ni=0\n' +
+        'while [ "$i" -lt 400 ]; do i=$((i+1)); printf "line %s\\n" "$i"; done\n' +
+        'while :; do i=$((i+1)); printf "line %s\\n" "$i"; sleep 0.05; done\n',
+      { mode: 0o755 }
+    );
+    await tmux(['-f', CONF, 'new-session', '-d', '-s', S, '-x', '120', '-y', '40', script]);
+    for (let i = 0; i < 40; i += 1) {
+      if ((await readPaneScroll(runner, S)).history >= 380) break;
+      await sleep(100);
+    }
+    term = new Terminal({ cols: 120, rows: 40 });
+    client = pty.spawn(TMUX, ['-L', SOCKET, 'attach', '-t', S], {
+      cols: 120,
+      rows: 40,
+      env: process.env
+    });
+    client.onData((d: string) => term?.write(d));
+    await sleep(1200);
+    // Does this tmux name the frozen frame's depth? Asked of tmux, not of a
+    // version string: park, read, leave.
+    await tmux(['copy-mode', '-e', '-t', S]);
+    const named = (await tmux(['display-message', '-p', '-t', S, '#{copy_position_limit}'])).trim();
+    await tmux(['send-keys', '-t', S, '-X', 'cancel']).catch(() => undefined);
+    namesFrame = /^\d+$/.test(named);
+  }, 60_000);
+
+  afterAll(async () => {
+    try {
+      if (client !== null) client.kill();
+    } finally {
+      await tmux(['kill-server']).catch(() => undefined);
+      if (dir !== '') rmSync(dir, { recursive: true, force: true });
+      // `kill-server` leaves the socket file behind, and this is the file's
+      // last describe on the socket every describe here shares.
+      const tmp = process.env['TMUX_TMPDIR'] ?? '/private/tmp';
+      rmSync(join(tmp, `tmux-${String(process.getuid?.() ?? 501)}`, SOCKET), { force: true });
+    }
+  });
+
+  /**
+   * Park 100 up, wait four seconds, then come down a notch at a time through
+   * `run`. Answers how many lines from the park's top to the newest drawn at
+   * the end were never on screen, and how many notches it took.
+   */
+  const wayDown = async (
+    run: TmuxScrollRunner
+  ): Promise<{ never: number[]; notches: number; parkTop: number; newest: number }> => {
+    await tmux(['send-keys', '-t', S, '-X', 'cancel']).catch(() => undefined);
+    await sleep(400);
+    await scrollPaneBy(run, S, 100);
+    await sleep(300);
+    const seen = new Set<number>(linesOnScreen());
+    const parkTop = Math.min(...linesOnScreen());
+    await sleep(4000);
+    let notches = 0;
+    for (; notches < 600; notches += 1) {
+      const state = await scrollPaneBy(run, S, -3);
+      await sleep(60);
+      for (const n of linesOnScreen()) seen.add(n);
+      if (!state.inMode) break;
+    }
+    await sleep(500);
+    const end = linesOnScreen();
+    for (const n of end) seen.add(n);
+    const newest = Math.max(...end);
+    const never: number[] = [];
+    for (let n = parkTop; n <= newest; n += 1) if (!seen.has(n)) never.push(n);
+    return { never, notches, parkTop, newest };
+  };
+
+  it('draws every line printed while parked on the way down, on a tmux that names the frame', async () => {
+    resetSeekSupportForTests();
+    const thisMacs: TmuxScrollRunner = Object.assign((args: readonly string[]) => tmux([...args]), {
+      refreezes: true as const
+    });
+    const result = await wayDown(thisMacs);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[294] ${TMUX} names the frame: ${String(namesFrame)}; parked at line ${String(result.parkTop)}, ` +
+        `${String(result.notches)} notches to live, newest line ${String(result.newest)}, ` +
+        `${String(result.never.length)} line(s) never on screen` +
+        (result.never.length > 0 ? ` (${String(result.never[0])} to ${String(result.never[result.never.length - 1])})` : '')
+    );
+    expect(result.parkTop).toBeGreaterThan(0);
+    if (namesFrame) expect(result.never).toEqual([]);
+    else expect(result.never.length).toBeGreaterThan(0);
+  }, 120_000);
+
+  it('for the record: today\'s bytes, a runner that does not say it refreezes, skip what printed', async () => {
+    resetSeekSupportForTests();
+    const result = await wayDown(runner);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[294] ${TMUX} today's bytes: parked at line ${String(result.parkTop)}, ${String(result.notches)} notches to live, ` +
+        `${String(result.never.length)} line(s) never on screen`
+    );
+    expect(result.never.length).toBeGreaterThan(0);
+  }, 120_000);
+});

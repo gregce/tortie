@@ -54,6 +54,20 @@
  * because the replacement is bare from birth and there is no setting left to
  * flip. `RestartOutcome.capture` reports what happened rather than what the old
  * row said.
+ *
+ * PHASE 305 READS THE ROW AGAIN AFTER THE CREATE, and decides what happens to
+ * it from what that read says rather than from step 1's. The create spawns a
+ * session and is hundreds of milliseconds wide, a Remove is accepted on an
+ * ended row, and so a Remove could land inside it: step 4 then deleted, on the
+ * strength of the read taken before the create, the row the person had just
+ * removed, with its Past Sessions entry and the only record of that
+ * conversation. Now a row that carries a removal date is kept
+ * (`restartKeepsRow` in ../sessions/lifecycle-gate.ts) beside its replacement,
+ * a row that is gone is not an error, a kill that failed keeps the row, and a
+ * row is live by what it says now, `discarded` among the ended words. When a
+ * kill was awaited, the delete reads the row once more after it, so nothing is
+ * awaited between the read that decides the delete and the delete.
+ * `RestartOutcome.oldRow` says which. An ordinary ended row is still deleted.
  */
 
 import type { CaptureChoice } from '@shared/ipc';
@@ -64,6 +78,9 @@ import { recoverLaunchExtras } from './extras';
 // so naming it here keeps this module free of the session core, of the machines
 // barrel and of Electron, which is what lets its tests drive a fake host.
 import { RESTART_ON_MACHINE } from '../machines/remote-copy';
+// PHASE 305. A pure leaf (one type import, one shared constant), so this
+// module stays free of the session core and of Electron.
+import { restartKeepsRow } from '../sessions/lifecycle-gate';
 import { getLog } from '../log';
 
 /**
@@ -107,6 +124,35 @@ export interface RestartOutcome {
   capture: boolean;
   /** True when a live tmux session had to be stopped first. */
   killedOld: boolean;
+  /**
+   * PHASE 305. True when the old row was kept because it carries a removal
+   * date: the person removed it while it restarted, so it stays in Past
+   * Sessions beside its replacement.
+   */
+  keptRemovedRow: boolean;
+  /** PHASE 305. What happened to the old row. */
+  oldRow: RestartOldRow;
+}
+
+/**
+ * PHASE 305. What a restart did with the row it replaced:
+ *
+ *  - `deleted`: the hard delete step 4 has always made, for an ordinary row.
+ *  - `kept-removed`: the row carries a removal date, so it is kept.
+ *  - `kept-kill-failed`: the old session could not be stopped, so its row is
+ *    kept, because a pane that survived its kill and then lost its row is the
+ *    orphan step 3 exists to prevent.
+ *  - `already-gone`: another writer deleted the row first; nothing is deleted.
+ */
+export type RestartOldRow = 'deleted' | 'kept-removed' | 'kept-kill-failed' | 'already-gone';
+
+/**
+ * PHASE 305. Is this status a session that may still have a pane? The three
+ * ended words are named, `discarded` among them, and `unknown` is live: a row
+ * Tortie could not see may still have a pane, as it always could.
+ */
+function mayHaveAPane(status: ManifestSessionRecord['status']): boolean {
+  return status !== 'exited' && status !== 'restorable' && status !== 'discarded';
 }
 
 /**
@@ -181,18 +227,26 @@ export async function restartSession(
   // STEP 2. Everything the user could lose is still on disk while this runs.
   const session = await host.createSession(input);
 
+  // PHASE 305. THE ROW AGAIN, after the create and before anything else, and
+  // every decision below is read off this rather than off `rec`. Step 1's read
+  // is hundreds of milliseconds old by now, and a Remove accepted inside the
+  // create made it wrong.
+  const fresh = host.manifest.getSession(sessionId);
+
   // STEP 3. A row that is still live has a pane behind it. Discarding without
   // killing would orphan that pane: it keeps its `@gmux-id`, no row points at
   // it any more, and reconcile will never adopt it back.
   let killedOld = false;
-  const live = rec.status !== 'exited' && rec.status !== 'restorable';
-  if (live) {
+  let killFailed = false;
+  if (fresh !== undefined && !restartKeepsRow(fresh) && mayHaveAPane(fresh.status)) {
     try {
       await host.killSession(sessionId);
       killedOld = true;
     } catch (err) {
       // The replacement exists and is what the user asked for. A kill that
-      // failed is worth a log line, not a failed restart.
+      // failed is worth a log line, not a failed restart. PHASE 305: and it is
+      // not a delete either, so the row is kept (below).
+      killFailed = true;
       restartLog.warn(
         `restart: could not stop the old '${rec.name}': ` +
           `${(err as Error).message}`
@@ -200,8 +254,27 @@ export async function restartSession(
     }
   }
 
-  // STEP 4, and not one step earlier.
-  host.discardSession(sessionId);
+  // STEP 4, and not one step earlier. PHASE 305: decided from the row as it is
+  // NOW. When no kill was awaited that is the read above; when one was, it is
+  // read again, because the kill's awaits are a second window a removal can
+  // land in (a session that ended by itself during them is one a Remove is
+  // accepted on).
+  const now = killedOld ? host.manifest.getSession(sessionId) : fresh;
+  let oldRow: RestartOldRow;
+  if (killFailed) {
+    oldRow = 'kept-kill-failed';
+  } else if (now === undefined) {
+    oldRow = 'already-gone';
+  } else if (restartKeepsRow(now)) {
+    oldRow = 'kept-removed';
+    restartLog.info(
+      `restart: '${rec.name}' was removed while it restarted; the new session ` +
+        'exists and the removed one is still in Past Sessions.'
+    );
+  } else {
+    host.discardSession(sessionId);
+    oldRow = 'deleted';
+  }
   host.broadcastSessions();
 
   if (declined && rec.specstory?.enabled === true) {
@@ -218,5 +291,13 @@ export async function restartSession(
     );
   }
 
-  return { session, extras, extrasRecovered: recovered !== null, capture, killedOld };
+  return {
+    session,
+    extras,
+    extrasRecovered: recovered !== null,
+    capture,
+    killedOld,
+    keptRemovedRow: oldRow === 'kept-removed',
+    oldRow
+  };
 }

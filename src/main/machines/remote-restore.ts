@@ -100,6 +100,10 @@ import { getLog } from '../log';
 import { gmuxError, isGmuxError } from '../errors';
 import type { LaunchableAgentKind, Session } from '@shared/types';
 import { savedOutputAt } from '../restore/snapshots';
+// PHASE 353. Whether a row recorded before this phase comes back in the folder
+// its pane really ran in: the local restore's one pure decision, asked of the
+// same row here (build/p353/SPEC.md D354-4).
+import { folderAsRecordedFor } from '../restore/restore';
 import type { ManifestSessionRecord } from '../manifest/codecs';
 import { provenanceOf } from '../manifest/contract';
 import { assertArgvBelongsToMachine, findRemoteProgram } from './remote-argv';
@@ -543,6 +547,12 @@ export async function restoreRemoteSession(
     // The folder ON THAT MACHINE, as the row recorded it. No local check runs
     // against it, because this Mac cannot answer for another computer's disk.
     cwd: record.cwd,
+    // PHASE 353 (build/p353/SPEC.md D354-4). The local restore's own decision,
+    // asked of the same row: one created before this phase in a folder that
+    // machine's tmux reads comes back where its pane really ran, so the
+    // conversation its agent filed there is found. Every other row, and every
+    // row this build creates, starts in its folder.
+    ...(folderAsRecordedFor(record) ? { folderAsRecorded: true as const } : {}),
     sessionId,
     // EMPTY ON THE ARMED BRANCH, so the machine starts its own shell and the
     // resume command has somewhere to be typed. Otherwise THE ABSOLUTE PATH ON
@@ -634,11 +644,19 @@ export async function restoreRemoteSession(
   // Step 8. The row, and the feed, so the window shows the session without
   // waiting a cadence. The status is written by the pass that follows, from the
   // machine's own answer, rather than asserted here.
+  //
+  // PHASE 353's FIX ROUND (Phase 302). The session came back, so the removal
+  // date is cleared in the same write, as this Mac's own restore clears it
+  // (`setRestoreResult`): a Restore from Past brings the row out of Past
+  // Sessions. Without it the repository's tombstone clause kept the restored
+  // row `discarded`, drawn in Past while it ran, until the 90 day prune
+  // deleted its record; and the parent left `running` beside the removal date.
+  // A row that was never removed has no date, and the option changes nothing.
   remoteManifest().updateSession(sessionId, {
     tmuxName,
     status: 'running',
     lastSeen: Date.now()
-  });
+  }, { clearRemovedAt: true });
   // PHASE 340.1's fix round. Not when a confirm of changed details retired the
   // route while this restore was out: a feed started now adopts the new route
   // with no context to send a list over, and its first list marks the machine

@@ -84,8 +84,11 @@ const world = vi.hoisted(() => ({
   stored: [] as { sessionId: string; text: string }[],
   /** The manifest rows the record module answers with. */
   rows: new Map<string, Record<string, unknown>>(),
-  /** Every patch `updateSession` was handed, in order. */
-  updates: [] as { id: string; patch: Record<string, unknown> }[],
+  /**
+   * Every patch `updateSession` was handed, in order, and (Phase 353's fix
+   * round) the options it was handed beside it.
+   */
+  updates: [] as { id: string; patch: Record<string, unknown>; opts?: Record<string, unknown> }[],
   /** Whether the restore gate offers every restore (the restore tests). */
   offered: false,
   /**
@@ -191,8 +194,8 @@ vi.mock('../remote-record', async (importOriginal) => ({
     renameSession: () => {
       if (world.renameThrows !== null) throw world.renameThrows;
     },
-    updateSession: (id: string, patch: Record<string, unknown>) => {
-      world.updates.push({ id, patch });
+    updateSession: (id: string, patch: Record<string, unknown>, opts?: Record<string, unknown>) => {
+      world.updates.push({ id, patch, ...(opts === undefined ? {} : { opts }) });
     }
   })
 }));
@@ -1003,6 +1006,24 @@ describe('the restore of a session on another machine (D12, D4b)', () => {
     const create = world.sent.find((argv) => argv[0] === 'new-session') ?? [];
     expect(create[create.indexOf('-s') + 1]).toBe('cost _HOME');
     expect(world.updates.find((one) => one.id === ID)?.patch['tmuxName']).toBe('cost _HOME');
+  });
+
+  // PHASE 353's FIX ROUND (Phase 302, the records lens). A restore that came
+  // back clears the removal date in its one row write, as this Mac's restore
+  // does through `setRestoreResult`: without it the repository's tombstone
+  // clause kept a session restored from Past in Past while it ran, and the 90
+  // day prune then deleted its record. `p302-status-over-tombstone.test.ts`
+  // drives the same patch through a real store; `ablation:p293` K7 removes it.
+  it('R302d: a restore that came back clears the removal date in the same write as its new name and status', async () => {
+    world.offered = true;
+    recordRow('work');
+    machine('warm');
+    await restoreRemoteSession(ID);
+    const writes = world.updates.filter((one) => one.id === ID);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.patch['status']).toBe('running');
+    expect(writes[0]?.patch['tmuxName']).toBe('work');
+    expect(writes[0]?.opts).toEqual({ clearRemovedAt: true });
   });
 
   it('refuses on a warm server whose pair was refused, after its set-up and before any create', async () => {

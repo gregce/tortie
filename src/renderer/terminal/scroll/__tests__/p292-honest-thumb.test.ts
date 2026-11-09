@@ -27,10 +27,13 @@ import type { Terminal } from '@xterm/xterm';
 import type { TerminalScrollState } from '@shared/ipc';
 import {
   distanceFromLive,
+  frameDepth,
   positionAtOffset,
   positionForDistance,
   thumbOffset
 } from '../live-distance';
+import { historyLineOf, visibleSpan, type HistoryFrame, type HistoryRange } from '../drag-math';
+import { heldPointerResend } from '../TerminalScrollbar';
 
 // ---------------------------------------------------------------------------
 // The fake bridge: one answer every verb gives, and the test moves it
@@ -668,6 +671,136 @@ describe('on a tmux that says how deep the frozen frame is', () => {
 });
 
 // ---------------------------------------------------------------------------
+// PHASE 294. A re-freeze on the way down (tmux 3.7b)
+// ---------------------------------------------------------------------------
+
+/**
+ * On the way back down, main re-freezes a parked view in place when a gesture
+ * toward live reaches the bottom of a frame the live history has grown past
+ * (`refreezeWanted` in src/main/tmux/scroll.ts). tmux 3.7b keeps the reader's
+ * line by its index from the top, so the answer after it carries a DEEPER
+ * frame and a position deeper by exactly the same growth. The entry said the
+ * renderer needs nothing new for that, and these rows pin it rather than
+ * assume it: the surface takes the frame from every answer (`noteEntry`), so
+ * the distance from live, the thumb and every screen row's history line stand
+ * still across the re-freeze and move by the notch alone.
+ */
+describe('a re-freeze on the way down (Phase 294)', () => {
+  /** The frame a selection is drawn in, from a view, as drag-select.ts builds it. */
+  const frameOf = (view: { position: number; history: number; historyAtEntry: number | null; rows: number }): HistoryFrame => ({
+    history: frameDepth(view),
+    position: view.position,
+    rows: view.rows,
+    cols: 120
+  });
+
+  async function parkedAtTheFrameBottom(): Promise<{ b: Bridge; surface: InstanceType<typeof ScrollSurface> }> {
+    const b = bridge(stateOf({ history: 400 }));
+    const surface = await started();
+    // Parked 100 back over a 400-line frame, then 120 lines printed.
+    b.answer = stateOf({ position: 100, history: 400, frameHistory: 400, inMode: true });
+    surface.scrollBy(100);
+    await settle();
+    b.answer = stateOf({ position: 100, history: 520, frameHistory: 400, inMode: true });
+    await vi.advanceTimersByTimeAsync(250);
+    await settle();
+    // Down to three lines above the frozen frame's bottom.
+    b.answer = stateOf({ position: 3, history: 520, frameHistory: 400, inMode: true });
+    surface.scrollBy(-97);
+    await settle();
+    return { b, surface };
+  }
+
+  it('keeps the distance, the thumb and every row\'s line across the re-freeze itself', async () => {
+    const { b, surface } = await parkedAtTheFrameBottom();
+    const before = surface.view;
+    expect(distanceFromLive(before)).toBe(123);
+    // The re-freeze alone: frame 400 -> 520, position 3 -> 123.
+    b.answer = stateOf({ position: 123, history: 520, frameHistory: 520, inMode: true });
+    await vi.advanceTimersByTimeAsync(250);
+    await settle();
+    const after = surface.view;
+    expect(after.historyAtEntry).toBe(520);
+    expect(distanceFromLive(after)).toBe(distanceFromLive(before));
+    expect(thumbOffset(after, 750)).toBe(thumbOffset(before, 750));
+    for (const row of [0, 1, 20, 39]) {
+      expect(historyLineOf(row, frameOf(after))).toBe(historyLineOf(row, frameOf(before)));
+    }
+    // A held selection over the rows on screen is drawn on the same rows.
+    const held: HistoryRange = { start: { line: 405, col: 2 }, end: { line: 430, col: 7 } };
+    expect(visibleSpan(held, frameOf(after))).toEqual(visibleSpan(held, frameOf(before)));
+    surface.dispose();
+  });
+
+  it('moves the thumb by the notch alone when the notch re-froze, never by what printed', async () => {
+    const { b, surface } = await parkedAtTheFrameBottom();
+    const before = surface.view;
+    // A 3-line notch toward live that re-froze first: 3 + 120 - 3 = 120.
+    b.answer = stateOf({ position: 120, history: 520, frameHistory: 520, inMode: true });
+    surface.scrollBy(-3);
+    await settle();
+    const after = surface.view;
+    expect(distanceFromLive(before) - distanceFromLive(after)).toBe(3);
+    expect(historyLineOf(0, frameOf(after)) - historyLineOf(0, frameOf(before))).toBe(3);
+    // Still parked, and the thumb above the foot of the lane.
+    expect(after.atLive).toBe(false);
+    expect(thumbOffset(after, 750)).toBeLessThan(750);
+    surface.dispose();
+  });
+
+  it('the way down goes on through what printed, every notch three lines, to live', async () => {
+    const { b, surface } = await parkedAtTheFrameBottom();
+    // After the re-freeze, notches of 3 from position 120 down to the frame's
+    // bottom and live: the distance falls by 3 each, with no jump.
+    b.answer = stateOf({ position: 120, history: 520, frameHistory: 520, inMode: true });
+    surface.scrollBy(-3);
+    await settle();
+    let last = distanceFromLive(surface.view);
+    for (let position = 117; position > 0; position -= 3) {
+      b.answer = stateOf({ position, history: 520, frameHistory: 520, inMode: true });
+      surface.scrollBy(-3);
+      await settle();
+      const now = distanceFromLive(surface.view);
+      expect(last - now).toBe(3);
+      last = now;
+    }
+    b.answer = stateOf({ position: 0, history: 520 });
+    surface.scrollBy(-3);
+    await settle();
+    expect(surface.view.atLive).toBe(true);
+    surface.dispose();
+  });
+});
+
+describe('the scrollbar re-sends a held pointer once against a re-frozen frame (Phase 294, D294-5)', () => {
+  it('re-sends only when the answer carries a DIFFERENT frame from the one the pointer was sent against', () => {
+    expect(heldPointerResend(400, 520)).toBe(true);
+    expect(heldPointerResend(400, 400)).toBe(false);
+    // The drag that parked the pane was sent against no frame.
+    expect(heldPointerResend(null, 400)).toBe(false);
+    // An answer that says the pane went live carries none.
+    expect(heldPointerResend(400, null)).toBe(false);
+    expect(heldPointerResend(null, null)).toBe(false);
+  });
+
+  it('re-sends the pointer it holds, once, and is re-armed only by the pointer itself', () => {
+    const text = readFileSync(join(__dirname, '..', 'TerminalScrollbar.tsx'), 'utf8');
+    const effect = text.slice(text.indexOf('useEffect(() => {\n    const y = heldY.current;'));
+    expect(effect.length).toBeGreaterThan(0);
+    const body = effect.slice(0, effect.indexOf('}, ['));
+    // Asked of the frame the pointer was sent against and the one the answer carries.
+    expect(body).toContain('heldPointerResend(sentAgainst.current, view.historyAtEntry)');
+    // Disarmed before the one re-send, so a still pointer re-sends once.
+    expect(body.indexOf('resendArmed.current = false')).toBeGreaterThan(-1);
+    expect(body.indexOf('resendArmed.current = false')).toBeLessThan(body.indexOf('surface.scrollTo(positionAt(y))'));
+    // Only a pointer event arms it.
+    const send = text.slice(text.indexOf('const sendPointer = useCallback('));
+    expect(send.slice(0, send.indexOf('[positionAt'))).toContain('resendArmed.current = true');
+    expect((text.match(/resendArmed\.current = true/g) ?? []).length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // A pane left parked by a surface that unmounted (going to another session)
 // ---------------------------------------------------------------------------
 
@@ -888,6 +1021,25 @@ describe('where the numbers are used', () => {
     const body = text.slice(open, end + 1);
     expect(body).toContain('gmux.sessions.resize(');
     expect(body).not.toMatch(/scroll\.(?:scrollTo|scrollBy|scrollPages)\(/);
+  });
+
+  it('the teardown gives the keyboard up right before the terminal goes, after the data subscription (Phase 301)', () => {
+    // Chrome fires no blur for a focused element removed from the document,
+    // and Monaco's focus tracker held the pane's helper tree until something
+    // else took focus. The blur comes after `dataSub.dispose()`, so the
+    // focus-out report xterm writes on a blur reaches no listener, as today.
+    const text = readFileSync(join(HERE, '..', 'TerminalPane.tsx'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '');
+    const blur = text.indexOf('term.blur();');
+    const dispose = text.indexOf('term.dispose();');
+    const dataGone = text.indexOf('dataSub.dispose();');
+    expect(blur).toBeGreaterThan(-1);
+    expect(text.indexOf('term.blur();', blur + 1)).toBe(-1);
+    expect(dataGone).toBeGreaterThan(-1);
+    expect(dataGone).toBeLessThan(blur);
+    // Immediately before: nothing but whitespace between the two calls.
+    expect(text.slice(blur + 'term.blur();'.length, dispose).trim()).toBe('');
   });
 });
 

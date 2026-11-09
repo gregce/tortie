@@ -527,6 +527,23 @@ export interface AgentRecoveryContract {
    * format, so a format change alone can read as 'other-version'.
    */
   flagsVerifiedAgainst: 'this-version' | 'other-version' | 'never' | 'unknown';
+  /**
+   * PHASE 353 (build/p353/SPEC.md D354-4). TRUE on every row created by a build
+   * that hands tmux the session's folder held back (`tmuxFolderArgument` in
+   * ../tmux/argument.ts), so its pane started in the folder the row records.
+   *
+   * ABSENT on every row created before that, and absence is the fact a restore
+   * reads: tmux read such a folder as a format, so a folder holding a `#` it
+   * reads, or ending in `;`, started its pane in HOME or in another folder, and
+   * the agent filed its conversation there. `folderAsRecordedFor` in
+   * ../restore/restore.ts restores such a row exactly as it ran, so its
+   * conversation is found; pi's own note in the registry is why (a drifted
+   * folder silently opens an EMPTY session under the same id).
+   *
+   * It rides the JSON column every older build passes through untouched
+   * (./contract.ts), so the version stays 1 and no migration moves.
+   */
+  folderHeld?: true;
 }
 
 /** Everything the contract needs that the registry cannot supply. */
@@ -565,6 +582,9 @@ export function buildRecoveryContract(
     cwdReal: input.cwdReal,
     projectReal: input.projectReal
   };
+  // PHASE 353 (D354-4). Every row this build creates hands tmux its folder held
+  // back, a shell's included, so every row says so. A restore asks it.
+  const held = { folderHeld: true } as const;
   if (agent === 'shell') {
     return {
       ...base,
@@ -577,7 +597,8 @@ export function buildRecoveryContract(
       sessionStore: '',
       captureRouteVerified: true,
       flagsVerifiedVersion: null,
-      flagsVerifiedAgainst: 'never'
+      flagsVerifiedAgainst: 'never',
+      ...held
     };
   }
   // PHASE 23: the same entry the launch spec was composed from, so a session
@@ -603,7 +624,8 @@ export function buildRecoveryContract(
     sessionStore: entry.resume.sessionStore,
     captureRouteVerified: entry.unverified !== true,
     flagsVerifiedVersion: verifiedVersion,
-    flagsVerifiedAgainst: flagVerificationState(verifiedVersion, input.agentVersion)
+    flagsVerifiedAgainst: flagVerificationState(verifiedVersion, input.agentVersion),
+    ...held
   };
 }
 

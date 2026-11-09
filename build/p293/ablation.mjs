@@ -70,10 +70,25 @@
  * landed. A red base is still reported and still fails the run unless
  * `P293_ALLOW_RED_BASE=1` says the operator knows why.
  *
+ * ## Phase 353: the records (302 and 305)
+ *
+ * K1 to K5 attack Phase 302's three guards, whose rules are VITEST rows inside
+ * `npm test` (build/p353/SPEC.md D302-4, no new gate script): an entry with a
+ * `vitest` list runs those files in the clone instead of the gate, and its
+ * rule (R302a, R302b, R302c) is read out of the failing rows' titles, under
+ * the same delta rule against a base run of the same files. S1 to S10 attack
+ * Phase 305's restart through the gate's T27 to T29 and its driven RS1 to RS5.
+ * The fix round added K6 (the clause asked of a row that is not a tombstone),
+ * K7 (the remote Restore from Past's `clearRemovedAt`, rule R302d in
+ * src/main/machines/__tests__/p342-far-names.test.ts) and S11 (the restart
+ * keeping a row that is not a tombstone), 109 in all.
+ * `P293_SCRATCH` names the clone's parent folder (default `/private/tmp`).
+ *
  * Usage:
  *   node build/p293/ablation.mjs
  *   P293_ONLY=7,7b,9 node build/p293/ablation.mjs     named entries only
  *   P293_ALLOW_RED_BASE=1 node build/p293/ablation.mjs
+ *   P293_SCRATCH=/private/var/tmp/x node build/p293/ablation.mjs
  */
 
 import { spawnSync } from 'node:child_process';
@@ -118,6 +133,18 @@ const CSS = 'src/renderer/session-manager/session-manager.css';
 const SESSION_LIST = 'src/shared/session-list.ts';
 const ROUTES = 'src/main/pocket/routes.ts';
 const FORMAT = 'src/renderer/format.ts';
+// Phase 302 and Phase 305 (build/p353/SPEC.md §4.1 step 5, §4.2 step 5): the
+// two writers that re-read, the repository's clause, the restart, and the two
+// vitest files that hold 302's rules.
+const REPOSITORY = 'src/main/manifest/sessions-repository.ts';
+const CORE = 'src/main/sessions/core.ts';
+const RESTART = 'src/main/restart/restart.ts';
+const P302_CLAUSE_TEST = 'src/main/manifest/__tests__/p302-status-over-tombstone.test.ts';
+const P302_SWEEP_TEST = 'src/main/sessions/__tests__/p302-tombstone.test.ts';
+// Phase 353's fix round: the remote Restore from Past's one row write, driven
+// by Phase 342's far-names rig, whose R302d row reads the options it was handed.
+const REMOTE_RESTORE = 'src/main/machines/remote-restore.ts';
+const P342_FAR_NAMES_TEST = 'src/main/machines/__tests__/p342-far-names.test.ts';
 
 /**
  * The ablations. `n` is the row of build/p293/SPEC.md §7's table where it has
@@ -1000,6 +1027,201 @@ const ABLATIONS = [
     file: ROUTES,
     from: 'const label = sessionGroupLabel(firstNamed(open?.name), draft.closedName, identity.path);',
     to: 'const label = sessionGroupLabel(firstNamed(open?.name), null, identity.path);'
+  },
+  // -------------------------------------------------------------------------
+  // Phase 302 (build/p353/SPEC.md §4.1 step 5): a session ended and then
+  // removed keeps its tombstone. The rules are VITEST rows inside `npm test`
+  // (D302-4, no new gate script), so these entries name the test files their
+  // rule lives in and the harness runs those files in the clone. R302a is the
+  // repository's clause, R302b the reap's re-read, R302c the End's. Each guard
+  // has its own entry: the clause alone keeps the status, so a re-read whose
+  // removal left the row's status right still reads red, on the exited sent to
+  // every window and the rest of the patch written over the tombstone.
+  // -------------------------------------------------------------------------
+  {
+    n: 'K1',
+    rule: 'R302a',
+    vitest: [P302_CLAUSE_TEST],
+    name: 'the repository clause removed: a status patch over a tombstone is written again',
+    why: 'it is the one place every writer of a status passes through, including every writer a later phase adds; without it a writer that does not re-read moves a removed row out of Past Sessions and the prune never collects it.',
+    file: REPOSITORY,
+    from: '      manifestLog.warn(`a removed session keeps its status: id=${id} refused=${patch.status}`);\n      merged.status = existing.status;\n',
+    to: ''
+  },
+  {
+    n: 'K2',
+    rule: 'R302a',
+    vitest: [P302_CLAUSE_TEST],
+    name: 'the repository clause asked after the UPDATE: the record handed back is right and the disk is not',
+    why: 'the entry\'s second half of proof 2: a clause asked after the write corrects only the returned record, which is exactly the reading a test of the return value would accept.',
+    edits: [
+      { file: REPOSITORY, from: '      manifestLog.warn(`a removed session keeps its status: id=${id} refused=${patch.status}`);\n      merged.status = existing.status;\n', to: '' },
+      {
+        file: REPOSITORY,
+        from: '        removedAt: merged.removedAt ?? null\n      });\n    return merged;\n',
+        to: "        removedAt: merged.removedAt ?? null\n      });\n    if (merged.removedAt !== undefined && patch.status !== undefined && patch.status !== 'discarded' && merged.status !== existing.status) {\n      manifestLog.warn(`a removed session keeps its status: id=${id} refused=${patch.status}`);\n      merged.status = existing.status;\n    }\n    return merged;\n"
+      }
+    ]
+  },
+  {
+    n: 'K3',
+    rule: 'R302b',
+    vitest: [P302_SWEEP_TEST],
+    name: 'the reap\'s re-read removed: a dead pane over a removed row is reaped as if it were not removed',
+    why: 'the reaper is entered from the monitor\'s dead pane, which is reported after the monitor\'s awaits, so the row can be removed before the reap begins; without the re-read the reap tells every window a removed session ended and writes its exit over the tombstone.',
+    file: CORE,
+    from: "    const removedSinceRead = fresh?.status === 'discarded';",
+    to: '    const removedSinceRead = false;'
+  },
+  {
+    n: 'K4',
+    rule: 'R302b',
+    vitest: [P302_SWEEP_TEST],
+    name: 'the reap\'s re-read asked before the awaits only',
+    why: 'the entry\'s proof 3: the guard is asked immediately before the write and not only at the top, because a status read before an await is not the status at the write.',
+    file: CORE,
+    // Inside Phase 357's try since the move to main (six spaces, not four).
+    from: '      const fresh = this.manifest.getSession(sessionId);\n      const removedSinceRead',
+    to: '      const fresh = rec;\n      const removedSinceRead'
+  },
+  {
+    n: 'K5',
+    rule: 'R302c',
+    vitest: [P302_SWEEP_TEST],
+    name: 'the End\'s re-ask removed: the gate at the top is the only one',
+    why: 'the End\'s gate reads the row before the capture and the hang-up, and a Remove is accepted on an ended row, so it lands inside those awaits; without the second ask the End writes exited over it.',
+    file: CORE,
+    from: '    const endedRemoved = endRefusal(this.manifest.getSession(sessionId)) !== null;',
+    to: '    const endedRemoved = false;'
+  },
+  // -------------------------------------------------------------------------
+  // Phase 305 (build/p353/SPEC.md §4.2 step 5): a restart never deletes a row
+  // the person removed. The entry's five arms (S1 to S5), and one each for the
+  // rules they do not reach (S6 to S10).
+  // -------------------------------------------------------------------------
+  {
+    n: 'S1',
+    rule: 'T27',
+    name: 'the second read removed: the restart decides from the read it took before the create',
+    why: 'a Remove accepted inside the create is then never seen, and the restart deletes the row the person had just removed, with its Past Sessions entry and the only record of that conversation (10 of 10 at the parent).',
+    file: RESTART,
+    from: '  const fresh = host.manifest.getSession(sessionId);',
+    to: '  const fresh = rec;'
+  },
+  {
+    n: 'S2',
+    rule: 'T27',
+    name: 'the second read present, but the delete decided from rec',
+    why: 'a read nobody asks is decoration; the delete is the one decision the read exists for.',
+    file: RESTART,
+    from: '  const now = killedOld ? host.manifest.getSession(sessionId) : fresh;',
+    to: '  const now = rec;'
+  },
+  {
+    n: 'S3',
+    rule: 'RS5',
+    name: 'restartKeepsRow inverted',
+    why: 'the predicate is the one place the invariant is written down; inverted, every ordinary ended row would be kept and every removed one deleted.',
+    file: LIFECYCLE_GATE,
+    from: "  return record.removedAt !== undefined && record.status === 'discarded';",
+    to: "  return !(record.removedAt !== undefined && record.status === 'discarded');"
+  },
+  {
+    n: 'S4',
+    rule: 'RS1',
+    name: 'the kept-row arm deleted: a tombstone read after the create falls through to the delete',
+    why: 'the arm is what turns the fresh read into a kept row; without it the restart reads the tombstone and deletes it anyway.',
+    file: RESTART,
+    from: "  } else if (restartKeepsRow(now)) {\n    oldRow = 'kept-removed';\n    restartLog.info(\n      `restart: '${rec.name}' was removed while it restarted; the new session ` +\n        'exists and the removed one is still in Past Sessions.'\n    );\n  } else {",
+    to: '  } else {'
+  },
+  {
+    n: 'S5',
+    rule: 'RS3',
+    name: 'the failed-kill arm deleted: a kill that threw reaches the delete',
+    why: 'a pane that survived its kill and then lost its row is the orphan step 3 exists to prevent: it keeps its @gmux-id, no row points at it, and reconcile never adopts it back.',
+    file: RESTART,
+    from: "  if (killFailed) {\n    oldRow = 'kept-kill-failed';\n  } else if (now === undefined) {",
+    to: '  if (now === undefined) {'
+  },
+  {
+    n: 'S6',
+    rule: 'T29',
+    name: 'a tombstone refusal planted in core.discardSession',
+    why: 'the smoke and conformance sweeps hard delete tombstoned scratch rows through discardSession; a refusal there strands them for 90 days, which is why the predicate is asked by the restart and not by the delete.',
+    file: CORE,
+    from: "      throw shutdownRefusal('discardSession');\n    }\n",
+    to: "      throw shutdownRefusal('discardSession');\n    }\n    if (this.manifest.getSession(sessionId)?.removedAt !== undefined) return;\n"
+  },
+  {
+    n: 'S7',
+    rule: 'RS2',
+    name: 'the already-gone arm deleted: a row another writer deleted is deleted again',
+    why: 'D305-5: a row gone at the second read is not an error, and the restart must say so rather than act on a row it no longer has.',
+    file: RESTART,
+    from: "  } else if (now === undefined) {\n    oldRow = 'already-gone';\n  } else if (restartKeepsRow(now)) {",
+    to: '  } else if (now !== undefined && restartKeepsRow(now)) {'
+  },
+  {
+    n: 'S8',
+    rule: 'RS4',
+    name: 'liveness back to the parent\'s two ended words: discarded read as live',
+    why: 'D305-3: the parent read a discarded row as live and killed it into the end refusal; the three ended words are named so that cannot happen.',
+    file: RESTART,
+    from: "  return status !== 'exited' && status !== 'restorable' && status !== 'discarded';",
+    to: "  return status !== 'exited' && status !== 'restorable';"
+  },
+  {
+    n: 'S9',
+    rule: 'T28',
+    name: 'a second restartKeepsRow declared in restart.ts instead of the gate\'s',
+    why: 'the gate module is the one place the invariant is written down; a second spelling is the one that drifts.',
+    file: RESTART,
+    from: "import { restartKeepsRow } from '../sessions/lifecycle-gate';",
+    to: 'const restartKeepsRow = (row: { removedAt?: number }): boolean => row.removedAt !== undefined;'
+  },
+  {
+    n: 'S10',
+    rule: 'T27',
+    name: 'liveness read off rec after the create',
+    why: 'D305-3: whether a row is live is read off the row as it is now; rec is the row as it was before the create.',
+    file: RESTART,
+    from: 'mayHaveAPane(fresh.status)',
+    to: 'mayHaveAPane(rec.status)'
+  },
+  // -------------------------------------------------------------------------
+  // Phase 353's fix round (the records lens): the clause is a TOMBSTONE's
+  // alone, a Restore from Past on another machine says it came back, and a
+  // Restart keeps a tombstone and no other row.
+  // -------------------------------------------------------------------------
+  {
+    n: 'K6',
+    rule: 'R302a',
+    vitest: [P302_CLAUSE_TEST],
+    name: 'the clause asked of any row with a removal date, not only of a tombstone',
+    why: 'a row an earlier build left reading another status beside its removal date is not in Past, and refusing its status froze it: a remote session restored from Past before this build read running for good after its far session ended.',
+    file: REPOSITORY,
+    from: "      merged.removedAt !== undefined &&\n      existing.status === 'discarded' &&\n",
+    to: '      merged.removedAt !== undefined &&\n'
+  },
+  {
+    n: 'K7',
+    rule: 'R302d',
+    vitest: [P342_FAR_NAMES_TEST],
+    name: 'the remote Restore from Past writes its status without clearing the removal date',
+    why: 'the session came back, and the repository\'s clause then keeps the row discarded: drawn in Past while it runs, and deleted by the 90 day prune with the only record of its conversation.',
+    file: REMOTE_RESTORE,
+    from: '  }, { clearRemovedAt: true });',
+    to: '  });'
+  },
+  {
+    n: 'S11',
+    rule: 'RS4',
+    name: 'restartKeepsRow widened back to any row carrying a removal date',
+    why: 'a row an earlier build left ended beside its removal date is in the managed list, not in Past; kept, it stays beside every replacement while the log says it is in Past Sessions.',
+    file: LIFECYCLE_GATE,
+    from: "  return record.removedAt !== undefined && record.status === 'discarded';",
+    to: '  return record.removedAt !== undefined;'
   }
 ];
 
@@ -1007,7 +1229,15 @@ const ABLATIONS = [
 // The clone, and the gate run inside it
 // ---------------------------------------------------------------------------
 
-const scratch = mkdtempSync(join('/private/tmp', `p293-ablation-${String(process.pid)}-`));
+// The clone's parent folder. `/private/tmp` as it always was; Phase 353 lets a
+// run name another (`P293_SCRATCH`), the shape of `P323_SCRATCH`, because a
+// phase's rules keep its scratch out of the folder macOS cleans.
+const SCRATCH_PARENT = process.env['P293_SCRATCH'] || '/private/tmp';
+if (!existsSync(SCRATCH_PARENT)) {
+  process.stderr.write(`${TAG} P293_SCRATCH names ${SCRATCH_PARENT}, which does not exist\n`);
+  process.exit(2);
+}
+const scratch = mkdtempSync(join(SCRATCH_PARENT, `p293-ablation-${String(process.pid)}-`));
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 
 function buildClone() {
@@ -1017,10 +1247,55 @@ function buildClone() {
   }
   // EVERY tsconfig: tsx resolves project references out of tsconfig.json, and
   // a clone holding one alone dies on a missing sibling (ablation:p275's lesson).
-  for (const name of ['package.json', ...readdirSync(REPO).filter((f) => /^tsconfig(\.[a-z]+)?\.json$/.test(f))]) {
+  // Phase 353: and vitest.config.ts, for the entries whose rule is a vitest row.
+  for (const name of ['package.json', 'vitest.config.ts', ...readdirSync(REPO).filter((f) => /^tsconfig(\.[a-z]+)?\.json$/.test(f))]) {
     writeFileSync(join(scratch, name), readFileSync(join(REPO, name)));
   }
   symlinkSync(join(REPO, 'node_modules'), join(scratch, 'node_modules'));
+}
+
+/**
+ * PHASE 353. Run vitest files in the clone and answer the RULE IDS of the rows
+ * that failed, read out of their titles (`R302a: …`), or null when vitest gave
+ * no report. A file that failed to load has no rows and counts as every rule
+ * its entries name, so a load error never reads as green.
+ */
+function runTests(files) {
+  const out = join(scratch, `vitest-${String(Date.now())}.json`);
+  const r = spawnSync(
+    process.execPath,
+    [join('node_modules', 'vitest', 'vitest.mjs'), 'run', '--no-cache', '--reporter=json', `--outputFile=${out}`, ...files],
+    { cwd: scratch, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 300_000 }
+  );
+  let report = null;
+  try {
+    report = JSON.parse(readFileSync(out, 'utf8'));
+  } catch {
+    report = null;
+  }
+  rmSync(out, { force: true });
+  if (report === null) {
+    return { code: r.status ?? 1, red: null, ran: 0, text: `${r.stdout ?? ''}${r.stderr ?? ''}`.split('\n').slice(-12).join('\n') };
+  }
+  const red = new Set();
+  const failed = [];
+  let ran = 0;
+  for (const file of report.testResults ?? []) {
+    for (const a of file.assertionResults ?? []) {
+      ran += 1;
+      if (a.status !== 'failed') continue;
+      const full = [...(a.ancestorTitles ?? []), a.title].join(' > ');
+      failed.push(full);
+      for (const m of full.matchAll(/\b(R30[0-9][a-z])\b/g)) red.add(m[1]);
+    }
+    if ((file.assertionResults ?? []).length === 0 && file.status === 'failed') {
+      failed.push(`${file.name} (did not load)`);
+      for (const entry of ABLATIONS) {
+        if ((entry.vitest ?? []).some((f) => file.name.endsWith(f))) red.add(entry.rule);
+      }
+    }
+  }
+  return { code: r.status ?? 1, red: [...red], ran, text: failed.slice(0, 6).join(' // ') };
 }
 
 function runGate() {
@@ -1118,6 +1393,24 @@ try {
     }
   }
   const only = (process.env['P293_ONLY'] ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '');
+  // PHASE 353. The vitest files the chosen entries' rules live in, run once
+  // here for the base those entries' deltas are measured against.
+  const vitestFiles = [
+    ...new Set(ABLATIONS.filter((a) => only.length === 0 || only.includes(a.n)).flatMap((a) => a.vitest ?? []))
+  ];
+  let baseTestsRed = new Set();
+  if (vitestFiles.length > 0) {
+    const baseTests = runTests(vitestFiles);
+    if (baseTests.red === null) {
+      problems.push(`the base vitest run over ${vitestFiles.join(', ')} gave no report: ${baseTests.text}`);
+    } else {
+      baseTestsRed = new Set(baseTests.red);
+      say(`base: ${String(baseTests.ran)} vitest rows over ${vitestFiles.length} file(s), ${baseTestsRed.size === 0 ? 'none red' : `red on ${[...baseTestsRed].join(', ')}`}`);
+      if (baseTestsRed.size > 0 && process.env['P293_ALLOW_RED_BASE'] !== '1') {
+        problems.push(`the vitest rows were red before any ablation ran (${[...baseTestsRed].join(', ')}: ${baseTests.text}). Every reading below is still a DELTA against that base, but re-run with P293_ALLOW_RED_BASE=1 once you know why.`);
+      }
+    }
+  }
   for (const entry of ABLATIONS) {
     if (only.length > 0 && !only.includes(entry.n)) continue;
     const edits = entry.edits ?? [{ file: entry.file, from: entry.from, to: entry.to }];
@@ -1137,6 +1430,26 @@ try {
     // gate run throws still leaves every file it touched as the worktree has
     // it, proved by sha256, before the next entry reads the clone.
     try {
+      // PHASE 353. An entry whose rule is a vitest row runs its test files
+      // instead of the gate, under the same delta rule.
+      if (entry.vitest !== undefined) {
+        const tests = runTests(entry.vitest);
+        if (tests.red === null) {
+          table.push([entry.n, entry.rule, 'NO REPORT', '']);
+          problems.push(`${entry.n} "${entry.name}": vitest gave no report over ${entry.vitest.join(', ')}: ${tests.text}`);
+          continue;
+        }
+        const newlyRed = tests.red.filter((r) => !baseTestsRed.has(r));
+        const own = newlyRed.includes(entry.rule);
+        table.push([entry.n, entry.rule, tests.code === 0 ? 'GREEN' : own ? 'red' : 'RED ELSEWHERE', newlyRed.join(',')]);
+        say(`${entry.n.padEnd(3)} ${entry.rule.padEnd(4)} ${entry.name}: vitest exit ${String(tests.code)}, newly red ${newlyRed.join(', ') || 'nothing'}`);
+        if (tests.code === 0) {
+          problems.push(`${entry.n} "${entry.name}": the vitest rows stayed GREEN. ${entry.why} Nothing notices, so ${entry.rule} is decoration.`);
+        } else if (!own) {
+          problems.push(`${entry.n} "${entry.name}": vitest went red but ${entry.rule} did not (red instead: ${newlyRed.join(', ') || 'nothing numbered'}). ${tests.text}`);
+        }
+        continue;
+      }
       const out = runGate();
       const newlyRed = out.red.filter((r) => !baseRed.has(r));
       const own = newlyRed.includes(entry.rule);
@@ -1158,6 +1471,12 @@ try {
     problems.push(`after every file was restored the gate exited ${String(after.code)} where the base exited ${String(base.code)}, so a restore did not land.`);
   } else {
     say(`restored: every touched clone file matches the worktree by sha256, and the gate is back where it started (exit ${String(after.code)})`);
+  }
+  if (vitestFiles.length > 0) {
+    const afterTests = runTests(vitestFiles);
+    const same = afterTests.red !== null && afterTests.red.length === baseTestsRed.size && afterTests.red.every((r) => baseTestsRed.has(r));
+    if (!same) problems.push(`after every file was restored the vitest rows read red on ${afterTests.red === null ? '(no report)' : afterTests.red.join(', ') || 'nothing'} where the base read ${[...baseTestsRed].join(', ') || 'nothing'}, so a restore did not land.`);
+    else say(`restored: the vitest rows are back where they started (${String(afterTests.ran)} rows)`);
   }
 } catch (err) {
   problems.push(`the harness threw: ${err instanceof Error ? err.message : String(err)}`);

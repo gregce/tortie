@@ -333,10 +333,45 @@ export interface AgentActivityProfile {
   /**
    * TRUE = the agent paints at an IDLE prompt, so tmux's output clock cannot
    * be read as "working". Measured: muse emits exactly 1 event/s and
-   * deepseek-tui 6 per 15 s while idle; every other agent measured emits
-   * ZERO bytes at an idle prompt.
+   * deepseek-tui 6 per 15 s while idle. It removes EVERY job output has: the
+   * clock no longer resets the dialog count and no longer keeps the session
+   * probed.
+   *
+   * Not every other agent is byte-silent at an idle prompt (Phase 328):
+   * antigravity 1.2.7 WRITES at rest and draws nothing, which is
+   * `writesWithoutDrawing` below and not this field. August's measurement of
+   * zero idle bytes (research 18) stands for the rows it measured.
    */
   animatesWhenIdle: boolean;
+  /**
+   * PHASE 328 (build/p353/SPEC.md D328-2). TRUE = the agent WRITES at an idle
+   * prompt and while it asks, and what it writes DRAWS NOTHING, so its output
+   * clock is not work. Measured on antigravity 1.2.7, research 129's recording
+   * of 2026-09-22 (docs/BACKLOG.md Phase 328): from +270 s to its last write it
+   * wrote 162 times, 1.999 to 2.019 s apart, every write the same 15 bytes
+   * (`ESC [ ? 2004 h ESC [ > 4 ; 2 m`, bracketed paste on and modify-other-keys
+   * set), and the screen did not change across 325 captures.
+   *
+   * IT IS NOT `animatesWhenIdle`, which removes all four jobs output has. This
+   * removes ONE: the output still resets the dialog count and skips the dialog
+   * arm, still releases a blocked session, and still keeps the session probed
+   * (through `lastOutputAt`), so the numbered verdict, his words in the input
+   * box and the capture schedule read exactly as before; it only stops reading
+   * as `working` (src/main/activity/state-machine.ts, clause A). Compiled,
+   * never configured: the overlay refuses `activity` whole.
+   */
+  writesWithoutDrawing?: true;
+  /**
+   * PHASE 328 (D328-2). TRUE = the agent runs its tools on a terminal of their
+   * own, a session leader IN ITS OWN foreground group (`Ss+`), which the
+   * tool-child rule cannot see. Measured on antigravity 1.2.7 in the same
+   * recording: its tool, `sleep`, was `Ss+` in 179 of the 184 half-second
+   * samples of its tool stretch (+89.16 s to +178.28 s), and nothing was under
+   * it at rest in 648 samples. Such a tool is WEAK evidence of work
+   * (`hasTerminalTool`, src/main/activity/process.ts; clause B), read beside a
+   * changed screen and never above the dialog arm. Compiled, never configured.
+   */
+  terminalTools?: true;
   /** Hook-injection recipe, when gmux ships one. */
   hooks?: 'claude-settings';
   /** Evidence marker (BACKLOG requirement) — see research 18 §2.3. */
@@ -1368,12 +1403,20 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     //
     // NOT BYTE-SILENT AT REST ANY MORE (PHASE 321). This comment used to say
     // "Idle byte-silence VERIFIED", with no version; the row's hand check is
-    // dated 2026-08-10 on 1.1.11. agy 1.2.7 writes every 2.0 s at rest, 169
-    // chunks over 340 s, and while its questions are drawn (research 129
-    // §2.2), and the repaint moves tmux's clock and not the screen. That
-    // repaint is what hides its numbered questions: at a 1 s tick one tick of
-    // every pair sees output and resets the count. It also reads "running" at
-    // rest. Both are limits and their own entry.
+    // dated 2026-08-10 on 1.1.11. agy 1.2.7 writes every 2.015 s at rest and
+    // while its questions are drawn (research 129 §2.2; Phase 328 measured the
+    // period and the bytes), and WHAT IT WRITES IS TWO TERMINAL MODES AND NO
+    // DRAWING: the same 15 bytes, `ESC [ ? 2004 h ESC [ > 4 ; 2 m`, bracketed
+    // paste on and modify-other-keys set. They move tmux's clock and never the
+    // screen. They are what hides its numbered questions (at a 1 s tick one
+    // tick of every pair sees output and resets the count), and until Phase
+    // 328 they read as "running" at rest.
+    //
+    // PHASE 328 (build/p353/SPEC.md D328-2): `writesWithoutDrawing`, so that
+    // output stops reading as work and keeps its other three jobs, and
+    // `terminalTools`, because agy runs its tools on a terminal of their own
+    // (`Ss+`), which the tool-child rule cannot see and which, with CPU, held
+    // its silent tool `running` once the output no longer did.
     //
     // `animatesWhenIdle` STAYS FALSE ON PURPOSE. It would stop the output
     // counting on every tick, which unmasks the numbered verdict over his own
@@ -1382,8 +1425,15 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // arrow list and an exemption for its repaint while that shape was drawn,
     // and its fix round REMOVED both: the shape read a shell or pager in the
     // session showing its rows, and the pickers agy draws with the same
-    // component, as live questions (build/p321/SPEC.md §12.9).
-    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
+    // component, as live questions (build/p321/SPEC.md §12.9). Its questions
+    // still do not turn amber; at rest and while they wait it reads idle.
+    activity: {
+      tier: 'screen',
+      animatesWhenIdle: false,
+      writesWithoutDrawing: true,
+      terminalTools: true,
+      verified: 'partial'
+    },
     screen: {
       class: 'fullscreen-with-mouse',
       measured: '1.2.8, 2026-09-29, read only (research 134)',

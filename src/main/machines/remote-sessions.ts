@@ -328,6 +328,9 @@ import { assertRemoteEnvAllowed } from './remote-env';
 // composed here and none crosses the wire. The slot is pure; the probe and the
 // union rule are in `./remote-env-probe.ts`.
 import { REMOTE_ENV_SLOT } from './remote-env-carriage';
+// PHASE 353. What that machine's tmux reads in the create's folder, pairs and
+// argv, held back by the one rule a local create uses. Pure.
+import { tmuxArgument, tmuxFolderArgument } from '../tmux/argument';
 import {
   probeRemoteEnvNames,
   remoteEnvNamesDroppedFor,
@@ -891,6 +894,15 @@ export function remoteCreateArgs(input: {
    * function returns byte for byte what it returned at the parent commit.
    */
   readonly envNames?: readonly string[];
+  /**
+   * PHASE 353 (build/p353/SPEC.md D354-3, D354-4). Send `cwd` EXACTLY as given,
+   * as every create did before this phase: a remote restore asks it for a row
+   * recorded before then whose folder that machine's tmux reads
+   * (`folderAsRecordedFor` in ../restore/restore.ts). Absent, the folder is
+   * held back by `tmuxFolderArgument`. The pairs and the argv are held back
+   * either way.
+   */
+  readonly folderAsRecorded?: true;
 }): string[] {
   const args = [
     'new-session',
@@ -907,8 +919,17 @@ export function remoteCreateArgs(input: {
   // Mac cannot answer for it. `./dir-list.ts` asks the MACHINE instead, before
   // this function is called, because a create against a folder that is not there
   // exits 0 and leaves the pane in the home directory with no error at all.
+  //
+  // PHASE 353 (build/p353/SPEC.md D354-1, D354-3). That machine's tmux reads
+  // `-c` as a format and ends a command at an element ending in `;`, as this
+  // Mac's does, and the far argv arrives byte for byte through every login
+  // shell measured (M354d), so the folder, the pairs below and the argv are
+  // held back by the same rule a local create uses (../tmux/argument.ts).
   if (input.cwd !== undefined && input.cwd.length > 0) {
-    args.push('-c', input.cwd);
+    args.push(
+      '-c',
+      input.folderAsRecorded === true ? input.cwd : tmuxFolderArgument(input.cwd)
+    );
   }
   // PHASE 73, item 2. Every name that reaches this loop is checked against the
   // three Tortie is allowed to put on a session on another machine. PHASE 84
@@ -937,11 +958,16 @@ export function remoteCreateArgs(input: {
   // manufactures, exactly as `paneEnvFor` puts `managedPaneEnv` last on this
   // Mac. A passthrough name may not begin `GMUX_` anyway, and this is the
   // second answer to the same question rather than the only one.
+  //
+  // PHASE 353. THE SLOT STAYS ONE ELEMENT, AND IS NOT HELD BACK HERE: the far
+  // login shell replaces it with pairs composed from that machine's own values,
+  // which this Mac never sees, so a far value ending in `;` is a stated limit
+  // (build/p353/SPEC.md D354-6, §13).
   if ((input.envNames ?? []).length > 0) args.push(REMOTE_ENV_SLOT);
   for (const [key, value] of Object.entries(env)) {
-    args.push('-e', `${key}=${value}`);
+    args.push('-e', tmuxArgument(`${key}=${value}`));
   }
-  if (input.argv.length > 0) args.push('--', ...input.argv);
+  if (input.argv.length > 0) args.push('--', ...input.argv.map(tmuxArgument));
   return args;
 }
 

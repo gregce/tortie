@@ -156,13 +156,15 @@
  *   - The socket `gmux` and the socket `default`, by name, before anything
  *     launches, and a run with no `GMUX_TMUX_SOCKET` at all re-runs itself
  *     under build/harness-socket.mjs rather than guessing one.
- *   - `-L gmux` is only ever asked `list-sessions`, before and after, BY
- *     IDENTITY (the Phase 171 reading in build/probe-p165-paint.mjs): a session
- *     that vanished is a finding, a fresh session THIS RUN'S scratch manifest
- *     knows is a finding, a fresh session still unstamped a second later is a
- *     finding, and a session the operator opened himself is a note. A bare
- *     count called that last one a failure on 2026-08-30 and again on
- *     2026-09-17.
+ *   - `-L gmux` is not named by this file (Phase 353, D-P2). Each build's
+ *     launch names the scratch socket, so build/electron-run.mjs's census
+ *     reads the operator's server around it, read only and BY IDENTITY, which
+ *     is his allowance of 2026-11-02; the identity census this file used to
+ *     take itself, and the findings it raised, are gone with it.
+ *   - Any agent, even for its version: every probed registry row is hidden
+ *     in each build's profile before its launch (build/hidden-agents.mjs),
+ *     and the app's own `agents:list` is read back before any state is
+ *     driven, a row that resolved being a finding that stops that build.
  *   - Any byte outside `GMUX_HARNESS_DIR` and the photograph directory.
  *   - `conformance:hue`, and every other gate. It reads the running app.
  *   - NOT DRIVEN, and said so in the report rather than passed: a FILE dragged
@@ -191,8 +193,10 @@
  * which ends the tree it started in a `finally` block whatever happened. The
  * socket is handed in by build/harness-socket.mjs, which names it
  * `gmux-p284-<slug>-<pid>`, ends the server afterwards and unlinks its socket
- * and marker. Every other process this script starts is a synchronous `git`,
- * `tmux` or `sqlite3` that has exited before the call returns.
+ * and marker, and since Phase 353 each launch hands that server to the helper
+ * too, which ends it in its own `finally`. Every other process this script
+ * starts is a synchronous `git` or `tmux` that has exited before the call
+ * returns.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -208,6 +212,7 @@ import { fileURLToPath } from 'node:url';
 import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import { cdpEval, wsConnect } from '../cdp-client.mjs';
 import { decodePng, pixel } from '../png-read.mjs';
+import { AGENTS_LIST_EXPR, hiddenAgentsBesides, standInsOnlyVerdict, writeHiddenAgents } from '../hidden-agents.mjs';
 import { seedArchSwitchOn } from '../probe-arch-switch.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -734,26 +739,6 @@ export function parentVerdict(parentArms) {
   );
 }
 
-/**
- * The operator's server, judged by identity. `before` and `after` map a tmux
- * `$-id` to `{ name, gmuxId }`; `knows` answers whether a scratch manifest of
- * this run holds a `@gmux-id`; `stillUnstamped` is the set of fresh ids that
- * carried no stamp on a second reading a second later.
- */
-export function censusFindings(before, after, knows, stillUnstamped) {
-  const findings = [];
-  const notes = [];
-  for (const [id, s] of before) {
-    if (!after.has(id)) findings.push(`the operator's session ${id} ${s.name} vanished during this run`);
-  }
-  for (const [id, s] of after) {
-    if (before.has(id)) continue;
-    if (s.gmuxId !== '' && knows(s.gmuxId)) findings.push(`THIS RUN created ${id} ${s.name} on the operator's server: its id is in this run's scratch manifest`);
-    else if (stillUnstamped.has(id)) findings.push(`${id} ${s.name} appeared on the operator's server and is still unstamped a second later, which no Tortie window of his leaves behind`);
-    else notes.push(`${id} ${s.name} was opened on the operator's server during the run, not by this run, not counted`);
-  }
-  return { findings, notes };
-}
 
 // ---------------------------------------------------------------------------
 // --self-test. Every grader on a HEAD shaped fixture and a parent shaped one.
@@ -813,7 +798,6 @@ function selfTest() {
     frame: headRects.work, tabs: box(577, 38, 1232, 74), body: box(577, 74, 1232, bodyBottom),
     roots: roots.map(([name, position, top, bottom, standIn]) => ({ name, position, box: box(577, top, 1232, bottom), standIn: standIn === true }))
   });
-  const before = new Map([['$1', { name: 'his', gmuxId: 'a' }]]);
   const count = (list) => list.length;
 
   const fixtures = [
@@ -944,12 +928,7 @@ function selfTest() {
     // The parent rule and the census.
     ['a parent that fails all six says nothing', () => parentVerdict({ R1: ['x'], R2: ['x'], R4: ['x'], R5: ['x'], R11: ['x'], R15: ['x'] }), []],
     ['a parent that passes R4 is named', () => parentVerdict({ R1: ['x'], R2: ['x'], R4: [], R5: ['x'], R11: ['x'], R15: ['x'] }), ['the parent build ALSO passes R4, so that arm asserts nothing about this phase']],
-    ['a parent that passes R15, the foot, is named (Phase 284.1)', () => parentVerdict({ R1: ['x'], R2: ['x'], R4: ['x'], R5: ['x'], R11: ['x'], R15: [] }), ['the parent build ALSO passes R15, so that arm asserts nothing about this phase']],
-    ['the census: nothing moved', () => censusFindings(before, new Map(before), () => false, new Set()), { findings: [], notes: [] }],
-    ['the census: his own new session is a NOTE', () => count(censusFindings(before, new Map([...before, ['$2', { name: 'claude-1', gmuxId: 'b' }]]), () => false, new Set()).notes), 1],
-    ['the census: a session this run made is a FINDING', () => count(censusFindings(before, new Map([...before, ['$2', { name: 'p284-a', gmuxId: 'b' }]]), (id) => id === 'b', new Set()).findings), 1],
-    ['the census: a fresh session left unstamped is a FINDING', () => count(censusFindings(before, new Map([...before, ['$2', { name: 'x', gmuxId: '' }]]), () => false, new Set(['$2'])).findings), 1],
-    ['the census: a session that vanished is a FINDING', () => count(censusFindings(before, new Map(), () => false, new Set()).findings), 1]
+    ['a parent that passes R15, the foot, is named (Phase 284.1)', () => parentVerdict({ R1: ['x'], R2: ['x'], R4: ['x'], R5: ['x'], R11: ['x'], R15: [] }), ['the parent build ALSO passes R15, so that arm asserts nothing about this phase']]
   ];
   let ok = true;
   for (const [label, run, want] of fixtures) {
@@ -1020,6 +999,8 @@ for (const d of [home, project, profiles.head, profiles.parent]) {
 // fresh profile. The seed is Phase 200's helper, one settings file in each
 // scratch profile naming no agent and no model, so the map spawns nothing.
 for (const profile of Object.values(profiles)) seedArchSwitchOn(profile);
+// PHASE 353 (D-P2). Every probed registry row hidden in both profiles.
+for (const profile of Object.values(profiles)) writeHiddenAgents(profile, 'p284', hiddenAgentsBesides([]));
 // A scratch HOME with no .zshrc makes zsh open its new-user questionnaire in
 // the pane instead of a prompt, and `seq 1 300` would be typed into that.
 writeFileSync(join(home, '.zshrc'), "PS1='p284 %# '\n");
@@ -1050,43 +1031,11 @@ git('config', 'commit.gpgsign', 'false');
 git('add', '.');
 git('commit', '-q', '-m', 'first');
 
-/**
- * The one read of the operator's server: every session by its immutable id
- * with its `@gmux-id`. `list-sessions` is the only verb this file ever aims at
- * `-L gmux`, and this is the only place it names it.
- */
-function operatorSessions() {
-  const out = spawnSync(
-    'tmux',
-    ['-L', 'gmux', 'list-sessions', '-F', '#{session_id}\t#{session_name}\t#{@gmux-id}'],
-    { encoding: 'utf8' }
-  );
-  const rows = new Map();
-  if (out.status !== 0) return rows;
-  for (const line of (out.stdout ?? '').split('\n')) {
-    if (line.trim() === '') continue;
-    const [id, name, gmuxId] = line.split('\t');
-    rows.set(id, { name: name ?? '', gmuxId: gmuxId ?? '' });
-  }
-  return rows;
-}
-/** Does either scratch manifest of this run know a session id? Then this run made it. */
-function scratchManifestKnows(gmuxId) {
-  if (gmuxId === '') return false;
-  for (const profile of Object.values(profiles)) {
-    const db = join(profile, 'gmux', 'manifest.db');
-    if (!existsSync(db)) continue;
-    const r = spawnSync(
-      'sqlite3',
-      [db, `SELECT COUNT(*) FROM sessions WHERE id = '${gmuxId.replace(/'/g, "''")}';`],
-      { encoding: 'utf8' }
-    );
-    if (r.status === 0 && Number((r.stdout ?? '').trim()) > 0) return true;
-  }
-  return false;
-}
-const operatorBefore = operatorSessions();
-say(`the operator's -L gmux holds ${String(operatorBefore.size)} session(s) before; harness socket ${socket}`);
+// PHASE 353 (D-P2). The read of the operator's own server this file used to
+// take before and after, by identity, is gone: each launch below names its
+// scratch socket, so build/electron-run.mjs's census reads his server around
+// it, read only and by identity, and is the one reader of that server.
+say(`harness socket ${socket}`);
 
 /** THIS RUN'S panes, by session name, as `WxH`. The ground truth for a resize. */
 function paneSizes() {
@@ -1675,7 +1624,10 @@ async function runBuild(tag, cwd, profile) {
       {
         label: `p284-${tag}`,
         userDataDir: profile,
-        tmuxSocket: null,
+        // PHASE 353 (D-P2): named, so the helper's census guards this launch
+        // and ends the scratch server in its finally; the next build's launch
+        // starts its own, and nothing reads the server after a launch returns.
+        tmuxSocket: socket,
         cwd,
         args: ['--remote-debugging-port=0', '--use-mock-keychain'],
         env: withoutDevRenderer({ HOME: home, GMUX_TMUX_SOCKET: socket, GMUX_PROBES: '1' }),
@@ -1850,6 +1802,18 @@ async function runBuild(tag, cwd, profile) {
 
         try {
           await cdp.call('Runtime.enable');
+          // PHASE 353 (D-P2). The app's own scan, read back before any state:
+          // nothing resolved, since this run has no stand-in.
+          stage = 'agents';
+          let agents = { ok: false, said: 'agents:list was not read' };
+          try {
+            agents = standInsOnlyVerdict(JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR, 90_000)), { standIns: [] });
+          } catch (err) {
+            agents = { ok: false, said: `agents:list could not be read: ${err instanceof Error ? err.message : String(err)}` };
+          }
+          readings.agents = agents;
+          say(`${tag}: agents ${agents.ok ? 'ok' : 'NOT OK'}: ${agents.said}`);
+          if (!agents.ok) throw new Error(`an agent resolved in the app's own scan: ${agents.said}`);
           // The window is never in front during a probe run, and a page Chromium
           // believes is unfocused never matches :focus-visible.
           await cdp.call('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => undefined);
@@ -2240,19 +2204,6 @@ if (parentCheckout !== '') {
   say('(P284_PARENT_CHECKOUT not set: the parent build was not measured)');
 }
 
-const operatorAfter = operatorSessions();
-const freshUnstamped = [...operatorAfter].filter(([id, s]) => !operatorBefore.has(id) && s.gmuxId === '').map(([id]) => id);
-let stillUnstamped = new Set();
-if (freshUnstamped.length > 0) {
-  // One re-read a second later: a Tortie window stamps a session just after it
-  // spawns it, so a stamp that is still missing then was never coming.
-  await sleep(1000);
-  const again = operatorSessions();
-  stillUnstamped = new Set(freshUnstamped.filter((id) => (again.get(id)?.gmuxId ?? '') === ''));
-}
-const census = censusFindings(operatorBefore, operatorAfter, scratchManifestKnows, stillUnstamped);
-say(`the operator's -L gmux holds ${String(operatorAfter.size)} session(s) after, ${String(operatorBefore.size)} before`);
-for (const n of census.notes) say(`note: ${n}`);
 
 // -- the report -------------------------------------------------------------
 say('');
@@ -2285,7 +2236,6 @@ if (parent) {
   for (const arm of ARMS) for (const f of parent.arms[arm]) say(`  PARENT ${arm} ${f}`);
   failures.push(...parentVerdict(parent.arms));
 }
-failures.push(...census.findings);
 
 say('');
 say(`photographs and readings: ${outDir}. Hold them beside design/prototypes/index.html#surround. Remove the directory before a package: electron-builder packs out/**.`);

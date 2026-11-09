@@ -172,6 +172,52 @@
  *      pre-resize position 300 ms after a resize, a number that counts ROWS,
  *      and moved the reader 127 lines on every change of width where tmux
  *      alone had the line exactly right. Run last, because it stops the loop
+ *   h  THE WAY BACK DOWN (Phase 294, build/p353/SPEC.md §4.5 step 5). Parked
+ *      as arm a parks, eight seconds of printing, then gestures toward live
+ *      one at a time, every row of the pane's xterm buffer read after each,
+ *      until tmux says the pane has left copy mode and once 500 ms later.
+ *      Variants, each from a fresh park: the WHEEL; ⇧PageDown; the
+ *      SCROLLBAR DRAG through the band below the frozen frame; a QUIET pane
+ *      with the loop stopped; a program that opens its ALTERNATE SCREEN while
+ *      parked; and a HISTORY AT ITS LIMIT, a second session made under a
+ *      1,000-line history-limit of its own (the global is set only while it
+ *      is made and put back at once, because tmux 3.7b applies a global
+ *      change to panes that already exist; Phase 353's fix round). Every
+ *      wheel variant's notch is the lines its park measured a notch to move
+ *      (`notchOfTrail`), and the alternate screen's variant is graded on its
+ *      re-freezes alone, its end showing that screen. GRADED on a tmux
+ *      that names the frame's depth (3.7b): every `line N` from the park's top
+ *      row to the newest line on screen at the end was drawn on some row of
+ *      some sample (wheel, ⇧PageDown, drag); no gesture moved row 0 by more
+ *      than its own lines plus what printed between the two samples, nor the
+ *      thumb toward live by more than that (wheel, ⇧PageDown); the quiet pane
+ *      moves by exactly the notch every notch and is never re-frozen; the
+ *      alternate screen and the history at its limit are never re-frozen,
+ *      being the parent's jump, and a re-freeze is read off tmux's own
+ *      `#{copy_position_limit}` growing. PRINTED, not graded: notches and
+ *      seconds to live, and on 3.6a every reading, which keeps today's jump
+ *      (his ruling, D294-6) and is compared with the parent's run
+ *   h2 THE COPY FROM A BUSY HISTORY (Phase 295, §4.6 step 5). ASKED FOR BY
+ *      NAME ONLY, because it presses ⌘C: a stream of `L<n>` at about 80 lines
+ *      a second; 200 calls of the shipped channel
+ *      `window.gmux.capture.pane({ tmuxName, historyLines: 0, range, join })`,
+ *      each for exactly one line 200 above tmux's own reading, graded by the
+ *      text it got (HEAD 0 off; the parent's count is its reading); then a
+ *      real drag that scrolls and parks, and ⌘C twenty times while the pane
+ *      prints, each pasteboard graded as the HELD RANGE (`pasteVerdict`, the
+ *      fix round): one unbroken run of lines beginning with every highlighted
+ *      row, which is the range's visible part, and the same range every time
+ *      while the view is parked. The system pasteboard is saved with every
+ *      flavour before and put back in a `finally`, by
+ *      build/pasteboard-keep.swift compiled into the run directory, as
+ *      probe:p209 does, and the flavours must agree
+ *
+ * ## No agent runs, not even for its version (Phase 353, D-P2)
+ *
+ * Every probed registry row is hidden in the profile's agents.json before the
+ * launch (build/hidden-agents.mjs), and the app's own `agents:list` is read
+ * back before any arm; a row that resolved stops the run as a finding. The
+ * session measured is a plain shell, typed into.
  *
  * ## On another machine (Phase 320.1), and only when asked
  *
@@ -231,7 +277,9 @@
  *                      and the server's own command line, and a server that is
  *                      not the binary asked for is a finding.
  *   P292_CHECKOUT      A BUILT worktree to measure instead of this one.
- *   P292_ARMS          A comma separated subset of a,b,c,d,e,f,g. All by default.
+ *   P292_ARMS          A comma separated subset of a,b,c,d,e,f,g,h,h2. Every
+ *                      arm but h2 by default; h2 presses ⌘C, so it runs only
+ *                      when named.
  *   P292_MIN_LINES     Lines printed before the scroll. Default 400, which
  *                      leaves the parent room to fall for the whole watch.
  *   P292_BACK_LINES    Lines to wheel back. Default 100.
@@ -252,8 +300,10 @@
  *   node build/p292/probe-p292.mjs --self-test              graders alone,
  *                                                           launches nothing
  *
- * All seven arms are one launch of about 65 s, most of it waiting for the loop
- * to print and for arm d's half minute.
+ * Arms a to g are one launch of about 65 s, most of it waiting for the loop
+ * to print and for arm d's half minute. Arm h adds six fresh parks of eight
+ * seconds' printing each and the way down after each, a few minutes not yet
+ * measured, and h2 its 200 copies and twenty ⌘C, about a minute.
  *
  * ## SAFETY
  *
@@ -264,8 +314,10 @@
  * name. The loop that prints is typed into the pane and belongs to the pane's
  * own shell, so it ends with the scratch server and is never a child of this
  * script. Every process this script starts itself is a tmux or a ps read that
- * has exited before the call returns. It spawns no agent, spends no token,
- * opens no keychain and never names `-L gmux` or the default server.
+ * has exited before the call returns, and under h2 a `swiftc` build of the
+ * pasteboard keeper, that keeper, `pbcopy` and `pbpaste`, each synchronous.
+ * It spawns no agent, spends no token, opens no keychain and never names
+ * `-L gmux` or the default server.
  */
 import { execFile, spawnSync } from 'node:child_process';
 import {
@@ -285,6 +337,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import { cdpEval, wsConnect } from '../cdp-client.mjs';
+import { AGENTS_LIST_EXPR, hiddenAgentsBesides, standInsOnlyVerdict, writeHiddenAgents } from '../hidden-agents.mjs';
 // PHASE 320.1, read only when P292_MACHINE is set. Loading either starts nothing.
 import { keyscanText } from '../ssh-run.mjs';
 import {
@@ -335,8 +388,34 @@ const MAX_STALE_LINES = 20;
  * at 28 s was not. 33 s is the first with a second to spare.
  */
 const REASK_MS = 33_000;
-const ALL_ARMS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+const ALL_ARMS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'h2'];
+/** What runs when P292_ARMS is unset: every arm but h2, which presses ⌘C. */
+const DEFAULT_ARMS = ALL_ARMS.filter((a) => a !== 'h2');
 const ARMS = [...ALL_ARMS, 'RUN'];
+/**
+ * Arm h's wheel notch, in lines, MEASURED (Phase 353's fix round, the terminal
+ * lens): the step tmux's own position takes per notch of the park that started
+ * the variant (`notchOfTrail`). It was a constant of 5, the cells a notch
+ * spans, and the app moves 10 lines a notch of 90 px (the park's own log reads
+ * 10, 20 … 100), so the quiet variant's exact grade and the wheel's jump grade
+ * fired at both builds over a way down that moved exactly a notch a notch.
+ */
+export function notchOfTrail(trail) {
+  if (!Array.isArray(trail) || trail.length === 0) return null;
+  const steps = [];
+  let prev = 0;
+  for (const p of trail) {
+    if (isNum(p) && p > prev) steps.push(p - prev);
+    if (isNum(p)) prev = p;
+  }
+  if (steps.length === 0) return null;
+  const sorted = [...steps].sort((x, y) => x - y);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+/** Arm h2's stream, and the gap above the last reading each copy asks for. */
+const H2_CALLS = 200;
+const H2_BACK = 200;
+const H2_PASTES = 20;
 
 // ---------------------------------------------------------------------------
 // The graders. Pure, exported, and proved both ways under --self-test.
@@ -757,6 +836,160 @@ export function liveFindings(r) {
 }
 
 /**
+ * Arm h's grader (Phase 294): one variant's way down. `r` is
+ * `{ kind, notchLines, parkTop, newest, reachedLive, notches, refreezes,
+ *    seen, samples }`, `seen` every line number drawn on any row of any
+ * sample and `samples` the readings after each gesture, the last one 500 ms
+ * after the pane left copy mode. `o` says what is graded: `coverage` (every
+ * line from the park's top to the newest at the end was drawn), `jumps` (no
+ * gesture moved row 0, nor the thumb toward live, by more than its own lines
+ * plus what printed between the two samples), `exact` (every gesture inside
+ * copy mode moved row 0 by exactly its lines, a quiet pane) and `noRefreeze`
+ * (tmux's frame depth never grew, being the parent's path).
+ */
+export function wayDownFindings(r, o = {}) {
+  const label = o.label ?? `h ${String(r?.kind)}`;
+  // THE FIX ROUND (the terminal lens): the newest line on screen at the end is
+  // asked only of a grade that reads lines. The alternate screen's variant is
+  // graded on its re-freezes alone, and its end sample shows that screen, which
+  // holds no `line N`, at both builds.
+  const readsLines = o.coverage === true || o.reach === true;
+  if (r === null || r === undefined || !isNum(r.parkTop) || (readsLines && !isNum(r.newest)) || !Array.isArray(r.samples)) {
+    return [`${label}: the way down has no park or no end to read`];
+  }
+  if (o.jumps === true || o.exact === true) {
+    if (!isNum(r.notchLines) || r.notchLines <= 0) return [`${label}: the gesture's lines were not measured, so no move can be graded against them`];
+  }
+  const out = [];
+  if (r.reachedLive !== true) out.push(`${label}: after ${String(r.notches)} gesture(s) toward live the pane is still scrolled back`);
+  if (o.coverage === true) {
+    const seen = new Set(r.seen ?? []);
+    const never = [];
+    for (let n = r.parkTop; n <= r.newest; n += 1) if (!seen.has(n)) never.push(n);
+    if (never.length > 0) {
+      out.push(`${label}: ${String(never.length)} line(s) printed while you read were never on screen on the way back down (lines ${String(never[0])} to ${String(never[never.length - 1])}), parked at line ${String(r.parkTop)} and the newest ${String(r.newest)}`);
+    }
+  }
+  for (let i = 1; i < r.samples.length; i += 1) {
+    const a = r.samples[i - 1];
+    const b = r.samples[i];
+    if (!isNum(a.top) || !isNum(b.top)) continue;
+    const printed = isNum(a.lastPrinted) && isNum(b.lastPrinted) ? Math.max(0, b.lastPrinted - a.lastPrinted) : 0;
+    const allowed = r.notchLines + printed + 1;
+    if (o.jumps === true && b.top - a.top > allowed) {
+      out.push(`${label}: one gesture moved the top line from ${String(a.top)} to ${String(b.top)}, ${String(b.top - a.top)} lines toward live, where the gesture was ${String(r.notchLines)} lines and ${String(printed)} printed between the two readings`);
+      break;
+    }
+    if (o.jumps === true && isNum(a.thumbTop) && isNum(b.thumbTop) && isNum(b.laneH) && isNum(b.thumbH) && isNum(b.history) && b.history > 0) {
+      const travel = Math.max(1, b.laneH - b.thumbH);
+      const fell = ((b.thumbTop - a.thumbTop) / travel) * b.history;
+      if (fell > allowed + 6) {
+        out.push(`${label}: the thumb fell ${String(r1(fell))} lines toward live in one gesture of ${String(r.notchLines)} lines with ${String(printed)} printed`);
+        break;
+      }
+    }
+    if (o.exact === true && a.inMode === true && b.inMode === true && b.top - a.top !== r.notchLines) {
+      out.push(`${label}: on a quiet pane one notch moved the top line from ${String(a.top)} to ${String(b.top)}, not by the notch's ${String(r.notchLines)} lines`);
+      break;
+    }
+  }
+  if (o.noRefreeze === true && isNum(r.refreezes) && r.refreezes > 0) {
+    out.push(`${label}: the frozen frame was re-frozen ${String(r.refreezes)} time(s), where nothing may change and the parent never re-freezes`);
+  }
+  // THE PROBE REVIEW (Phase 353). `reach`: the drag released in the band must
+  // show at least one line printed after the park, past the bottom of the frame
+  // frozen at the park (`frameBottom`, row 0's line plus the position plus the
+  // rows, less one). At the parent the band shows that frame's bottom and the
+  // thumb stops following the pointer, so its newest line IS the frame's bottom
+  // and coverage up to it passes there; this is the half that tells them apart.
+  if (o.reach === true) {
+    if (!isNum(r.frameBottom)) out.push(`${label}: the frame frozen at the park was not read, so whether the drag reached past it is unknown`);
+    else if (!(isNum(r.newest) && r.newest > r.frameBottom)) {
+      out.push(`${label}: released in the band, the drag's newest line is ${String(r.newest)}, no further than line ${String(r.frameBottom)}, the bottom of the frame frozen at the park: nothing printed while you read was reached`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Whether one ⌘C is the HELD RANGE (Phase 353's fix round, the terminal lens):
+ * Phase 209's copy is the range held in history positions, which may run past
+ * the screen (the anchor is pressed on a live screen that keeps printing), so
+ * the pasteboard is graded against the range itself and not the visible
+ * highlight alone. The highlighted rows are the range's visible part and begin
+ * at its first line, so the paste begins with exactly those rows, its first
+ * and last lines as cut as the selection cut them; past them it carries on
+ * through the range, every whole line between its first and its last one
+ * unbroken run of the stream's `L<n>`. Null when it is the range; a sentence
+ * otherwise. (The fix round's first reading also asked the first and last
+ * lines to be whole, and so refused the committed drag's own six rows, which
+ * begin on an empty row and end on a cut `L`; that was the grader, not the
+ * copy.)
+ */
+export function pasteVerdict(p) {
+  if (!Array.isArray(p?.pasted)) return 'never landed on the pasteboard';
+  if (!Array.isArray(p.highlighted) || p.highlighted.length === 0) return 'had no highlighted rows to compare with';
+  const trim = (rows) => (rows.length > 0 && rows[rows.length - 1] === '' ? rows.slice(0, -1) : rows);
+  const lines = trim(p.pasted);
+  const hl = trim(p.highlighted);
+  if (lines.length < hl.length) return `holds ${String(lines.length)} lines where ${String(hl.length)} rows are highlighted`;
+  for (let i = 0; i < hl.length; i += 1) {
+    if (lines[i] !== hl[i]) return `reads ${J(lines[i])} on its line ${String(i + 1)}, where the highlighted row, the held range's visible part, reads ${J(hl[i])}`;
+  }
+  const whole = lines.slice(1, -1).map((l) => streamNo(l));
+  if (whole.some((n) => n === null)) return `holds a whole line that is not one of the stream's (${J(lines.slice(1, -1).find((l) => streamNo(l) === null))})`;
+  for (let i = 1; i < whole.length; i += 1) {
+    if (whole[i] !== whole[i - 1] + 1) return `is not one unbroken run of lines (L${String(whole[i - 1])} then L${String(whole[i])})`;
+  }
+  return null;
+}
+
+/**
+ * Arm h2's grader (Phase 295). `calls` is `[{ want, got }]`, the line each call
+ * asked for and the line its first row named; `pastes` is `[{ pasted,
+ * highlighted }]`, the pasteboard's lines after each ⌘C and the highlighted
+ * rows read off the screen at that moment. Each paste is the held range
+ * (`pasteVerdict`), and, the view being parked while the pane prints, every
+ * paste is the same range (the fix round: the parent's pastes drifted).
+ */
+export function copyFindings(calls, pastes, o = {}) {
+  const out = [];
+  if (o.calls !== false) {
+    if (!Array.isArray(calls) || calls.length === 0) out.push('h2 no copy through the channel was made');
+    else {
+      const off = calls.filter((c) => c.got !== c.want);
+      if (off.length > 0) {
+        const worst = Math.max(...off.map((c) => (isNum(c.got) ? Math.abs(c.got - c.want) : Number.POSITIVE_INFINITY)));
+        out.push(`h2 ${String(off.length)} of ${String(calls.length)} copies of one line came back as another line, by up to ${String(worst)}, while the pane printed`);
+      }
+    }
+  }
+  if (o.pastes !== false) {
+    if (!Array.isArray(pastes) || pastes.length === 0) out.push('h2 no ⌘C was read back from the pasteboard');
+    else {
+      if (pastes.some((p) => !Array.isArray(p.highlighted) || p.highlighted.length < 6)) out.push('h2 the drag did not leave six or more rows highlighted, so the ⌘C compared nothing');
+      // `heldRange: false` on a tmux that does not name the frame (3.6a): the
+      // range the renderer holds is then its own estimate of the frame, a line
+      // off when one printed between the park and its read (Phase 292's limit,
+      // the twin of arm h's jump there, D294-6), so it is printed, not graded.
+      const wrong = o.heldRange === false ? [] : pastes.map((p) => pasteVerdict(p)).filter((w) => w !== null);
+      if (wrong.length > 0) {
+        out.push(`h2 ${String(wrong.length)} of ${String(pastes.length)} ⌘C did not put the held range on the pasteboard (the first ${wrong[0]})`);
+      }
+      const ranges = new Set(pastes.filter((p) => Array.isArray(p.pasted)).map((p) => J(p.pasted)));
+      if (ranges.size > 1) out.push(`h2 the ${String(pastes.length)} ⌘C over one parked selection put ${String(ranges.size)} different ranges on the pasteboard, where the held range does not move while the pane prints`);
+    }
+  }
+  return out;
+}
+
+/** `L123` to 123, anything else to null: arm h2's numbered stream. */
+export function streamNo(text) {
+  const m = /^L(\d+)$/.exec(String(text ?? '').trim());
+  return m ? Number(m[1]) : null;
+}
+
+/**
  * The staleness grader. `sources` is `[path, mtimeMs]` per source and `bundle`
  * is `[path, mtimeMs]` of the bundle built from them, or null when there is
  * none. Answers the refusal sentence, or null when the build is at least as
@@ -784,7 +1017,14 @@ const RENDERER_SOURCES = [
   join('src', 'renderer', 'terminal', 'keys', 'focus-report.ts'),
   join('src', 'renderer', 'terminal', 'keys', 'pane-report.ts')
 ];
-const MAIN_SOURCES = [join('src', 'main', 'tmux', 'scroll.ts'), join('src', 'main', 'sessions', 'core.ts')];
+// Phase 295: arm h2 reads the copy path, whose two files a checkout without
+// history-lines.ts reads as mtime 0, so the parent can still be measured.
+const MAIN_SOURCES = [
+  join('src', 'main', 'tmux', 'scroll.ts'),
+  join('src', 'main', 'sessions', 'core.ts'),
+  join('src', 'main', 'capture', 'service.ts'),
+  join('src', 'main', 'tmux', 'history-lines.ts')
+];
 // PHASE 320.1. A run on another machine also reads the carriage door, so its
 // build is stale when any of these is newer. Read only when P292_MACHINE is set.
 const MACHINE_SOURCES = [
@@ -866,7 +1106,7 @@ export function panesOfThisRun(panes, sessions, warm = WARM_SESSION) {
 /** The P292_ARMS subset, or every arm; an unknown name is a refusal. */
 export function chooseArms(raw) {
   const text = String(raw ?? '').trim();
-  if (text === '') return { arms: [...ALL_ARMS], bad: [] };
+  if (text === '') return { arms: [...DEFAULT_ARMS], bad: [] };
   const names = text.split(',').map((s) => s.trim().toLowerCase()).filter((s) => s !== '');
   const bad = names.filter((n) => !ALL_ARMS.includes(n));
   return { arms: ALL_ARMS.filter((a) => names.includes(a)), bad };
@@ -930,6 +1170,57 @@ function selfTest() {
   const ws = (token, ms, o = {}) => ({ token, topText: ` w${String(token)} w${String(token)}`, ms, paneW: o.paneW ?? 152, inMode: o.inMode ?? true });
   const wBefore = { token: 646, topText: 'line 646 w646', ms: 0, paneW: 124, inMode: true };
   const live = { notches: 30, inMode: false, position: 0, screenMax: 900, printedMax: 903, screenMaxLater: 909, thumbTop: LANE - thumbH(860), thumbH: thumbH(860), laneH: LANE };
+  // PHASE 294. Arm h's readings, as each build draws the way down: parked at
+  // line 300 over a 40-row screen, 3 lines printed between readings, a notch
+  // of 5. HEAD re-freezes at the frame's bottom and passes through every line;
+  // the parent leaves copy mode at the frozen bottom and jumps to live.
+  const wd = (kind) => {
+    const samples = [];
+    const seen = new Set();
+    let top = 300;
+    let printed = 520;
+    const at = (t, inMode) => {
+      samples.push({ top: t, inMode, position: inMode ? 1 : 0, history: printed - 40, frame: inMode ? 480 : null, lastPrinted: printed, thumbTop: 100 + samples.length, thumbH: 40, laneH: LANE });
+      for (let n = t; n < t + 40; n += 1) seen.add(n);
+    };
+    at(top, true);
+    if (kind === 'head') {
+      while (top + 40 <= printed) {
+        top += 5;
+        printed += 3;
+        at(top, top + 40 <= printed);
+      }
+    } else {
+      for (let k = 0; k < 28; k += 1) {
+        top += 5;
+        printed += 3;
+        at(top, true);
+      }
+      printed += 3;
+      at(printed - 39, false);
+    }
+    return { kind: 'wheel', notchLines: 5, parkTop: 300, newest: printed, reachedLive: true, notches: samples.length - 1, refreezes: kind === 'head' ? 6 : 0, seen: [...seen], samples };
+  };
+  const quiet = () => {
+    const samples = [];
+    const seen = new Set();
+    for (let t = 300; t <= 400; t += 5) {
+      samples.push({ top: t, inMode: t < 400, lastPrinted: 439 });
+      for (let n = t; n < t + 40; n += 1) seen.add(n);
+    }
+    return { kind: 'quiet', notchLines: 5, parkTop: 300, newest: 439, reachedLive: true, notches: samples.length - 1, refreezes: 0, seen: [...seen], samples };
+  };
+  // THE PROBE REVIEW (Phase 353). A drag through the band, parked at line 302
+  // with position 100 over 40 rows (the frame's bottom line 441, the entry's
+  // own 3.7b reading), whose last held view ends at `newest`, every line from
+  // the park to it drawn on the way.
+  const dragAt = (newest) => {
+    const seen = [];
+    for (let n = 302; n <= newest; n += 1) seen.push(n);
+    return { kind: 'drag', notchLines: null, parkTop: 302, newest, frameBottom: 302 + 100 + 40 - 1, reachedLive: true, notches: 60, refreezes: newest > 441 ? 3 : 0, seen, samples: [{ top: 302, inMode: true }, { top: newest - 39, inMode: true }] };
+  };
+  const copies = (offBy) => Array.from({ length: 200 }, (_, i) => ({ want: 1000 + i, got: 1000 + i + (i % 4 === 0 ? offBy : 0) }));
+  const rows6 = ['L901', 'L902', 'L903', 'L904', 'L905', 'L906', 'L907'];
   const fixtures = [
     ['lineNo reads the number and nothing else', () => [lineNo('line 261'), lineNo('p292 % '), lineNo(null)], [261, null, null]],
     ['distanceFromLive: live is 0 whatever the history did', () => distanceFromLive({ position: 0, history: 900, historyAtEntry: 363 }), 0],
@@ -1001,7 +1292,8 @@ function selfTest() {
     ['g tmux\'s own rows - 1 jump is caught too', () => count(wrapFindings(wBefore, [ws(661, 150), ws(661, 900), ws(661, 1600)])), 1],
     ['g a pane that did not change width tested nothing', () => count(wrapFindings(wBefore, [ws(646, 900, { paneW: 124 }), ws(646, 1600, { paneW: 124 })])), 1],
     ['g thrown to live is caught', () => count(wrapFindings(wBefore, [ws(646, 150, { inMode: false }), ws(900, 1600, { inMode: false })])), 1],
-    ['the arms: empty means all', () => chooseArms(''), { arms: ALL_ARMS, bad: [] }],
+    ['the arms: empty means every arm but h2, which presses ⌘C', () => chooseArms(''), { arms: DEFAULT_ARMS, bad: [] }],
+    ['the arms: h2 is asked for by name', () => chooseArms('h2'), { arms: ['h2'], bad: [] }],
     ['the pane measured: the one session of this run, the app\'s control session left out', () => panesOfThisRun(['gmux-control\t%0', 'p292-shell\t%1'], [{ id: 'a', name: 'p292-shell', tmuxName: 'p292-shell' }]), ['p292-shell\t%1']],
     ['the pane measured: the warm-up session is never it (the reverifier\'s 3.7b runs stopped here)', () => panesOfThisRun(['gmux-control\t%0', 'p292-shell\t%1', 'p292-warm\t%2'], [{ id: 'a', name: 'p292-shell', tmuxName: 'p292-shell' }, { id: 'b', name: 'p292-warm', tmuxName: 'p292-warm' }]), ['p292-shell\t%1']],
     ['the pane measured: two sessions of this run besides the warm-up are still two, and the run stops on them', () => panesOfThisRun(['p292-shell\t%1', 'other\t%3', 'p292-warm\t%2'], [{ id: 'a', name: 'p292-shell', tmuxName: 'p292-shell' }, { id: 'c', name: 'other', tmuxName: 'other' }, { id: 'b', name: 'p292-warm', tmuxName: 'p292-warm' }]).length, 2],
@@ -1012,7 +1304,42 @@ function selfTest() {
     ['the arms: an unknown name is named', () => chooseArms('a,z'), { arms: ['a'], bad: ['z'] }],
     ['stale: a build newer than every source is not stale', () => staleSentence([['a.ts', 1000], ['b.tsx', 2000]], ['out/main/index.js', 2000]), null],
     ['stale: a source newer than the build is refused and named', () => staleSentence([['a.ts', 3500], ['b.tsx', 2000]], ['out/main/index.js', 2000]), 'out/ is older than the scroll sources; build first (a.ts is 1.5 s newer than out/main/index.js).'],
-    ['stale: no bundle at all is a refusal, not a pass', () => staleSentence([['a.ts', 1000]], null), 'out/ holds no bundle for the scroll sources; build first.']
+    ['stale: no bundle at all is a refusal, not a pass', () => staleSentence([['a.ts', 1000]], null), 'out/ holds no bundle for the scroll sources; build first.'],
+    ['h HEAD: the way down passes through every line, no gesture jumps', () => wayDownFindings(wd('head'), { coverage: true, jumps: true }), []],
+    ['h the parent: lines never on screen, and the jump to live, are both caught', () => count(wayDownFindings(wd('parent'), { coverage: true, jumps: true })), 2],
+    ['h the parent read on 3.6a, graded by never re-freezing, passes', () => wayDownFindings(wd('parent'), { noRefreeze: true }), []],
+    ['h a re-freeze where none may happen is caught', () => count(wayDownFindings(wd('head'), { noRefreeze: true })), 1],
+    ['h quiet: every notch moves by the notch, and nothing is never on screen', () => wayDownFindings(quiet(), { coverage: true, exact: true, noRefreeze: true }), []],
+    ['h quiet: one notch that moved by more is caught', () => count(wayDownFindings({ ...quiet(), samples: quiet().samples.map((x, i) => (i === 4 ? { ...x, top: x.top + 2 } : x)) }, { exact: true })), 1],
+    ['h a way down that never reached live is caught', () => count(wayDownFindings({ ...wd('head'), reachedLive: false }, {})), 1],
+    ['h no park is a finding, not a pass', () => count(wayDownFindings(null, {})), 1],
+    // THE PROBE REVIEW (Phase 353). The drag through the band: coverage up to
+    // the newest line on screen passes at the parent too, whose band shows the
+    // frame frozen at the park (bottom line 441 parked at 302, position 100, 40
+    // rows), so `reach` is what reads the band at all.
+    ['h drag review: HEAD reaches past the frozen frame', () => wayDownFindings(dragAt(470), { coverage: true, reach: true }), []],
+    ['h drag review: the parent band, newest the frame bottom, passes coverage alone', () => wayDownFindings(dragAt(441), { coverage: true }), []],
+    ['h drag review: and is caught by reach', () => count(wayDownFindings(dragAt(441), { coverage: true, reach: true })), 1],
+    ['h drag review: a frame bottom never read is a finding, not a pass', () => count(wayDownFindings({ ...dragAt(470), frameBottom: null }, { reach: true })), 1],
+    ['h2 streamNo reads L<n> and nothing else', () => [streamNo('L123'), streamNo('line 1'), streamNo(' L7 '), streamNo(null)], [123, null, 7, null]],
+    ['h2 HEAD: every copy is its line, every paste the highlighted rows', () => copyFindings(copies(0), [{ pasted: rows6, highlighted: rows6 }]), []],
+    ['h2 the parent: copies one line newer are caught', () => starts(copyFindings(copies(1), [{ pasted: rows6, highlighted: rows6 }])), ['h2 50 of 200 copies of one line came back as ano']],
+    ['h2 a paste that is not the highlighted rows is caught', () => count(copyFindings(copies(0), [{ pasted: rows6.slice(1).concat(['L908']), highlighted: rows6 }])), 1],
+    ['h2 a ⌘C that never landed is caught', () => count(copyFindings(copies(0), [{ pasted: null, highlighted: rows6 }])), 1],
+    ['h2 a drag that highlighted too little compared nothing', () => count(copyFindings(copies(0), [{ pasted: ['L1'], highlighted: ['L1'] }])), 1],
+    // THE FIX ROUND (the terminal lens): the held range, not the highlight alone.
+    ['h2 fix round: a paste that runs past the screen to its anchor is the held range', () => copyFindings(copies(0), [{ pasted: [...rows6, 'L908', 'L909'], highlighted: rows6 }]), []],
+    ['h2 fix round: a paste one line newer than the highlight is caught', () => count(copyFindings(copies(0), [{ pasted: ['L902', 'L903', 'L904', 'L905', 'L906', 'L907', 'L908'], highlighted: rows6 }])), 1],
+    ['h2 fix round: a paste with a gap is caught', () => count(copyFindings(copies(0), [{ pasted: ['L901', 'L902', 'L903', 'L905', 'L906', 'L907', 'L908'], highlighted: rows6 }])), 1],
+    ['h2 fix round: the committed drag\'s own shape, an empty first row and a cut last one, equal to the highlight, is the held range', () => copyFindings(copies(0), [{ pasted: ['', 'L1048', 'L1049', 'L1050', 'L1051', 'L'], highlighted: ['', 'L1048', 'L1049', 'L1050', 'L1051', 'L'] }]), []],
+    ['h2 fix round: a range past the screen with a gap after the highlight is caught', () => count(copyFindings(copies(0), [{ pasted: [...rows6, 'L909', 'L910'], highlighted: rows6 }])), 1],
+    ['h2 fix round: pastes of one parked selection that drift are caught', () => count(copyFindings(copies(0), [{ pasted: rows6, highlighted: rows6 }, { pasted: rows6.map((l) => `L${String(Number(l.slice(1)) + 100)}`), highlighted: rows6.map((l) => `L${String(Number(l.slice(1)) + 100)}`) }])), 1],
+    ['h2 fix round: on a tmux that does not name the frame, a paste a line off the highlight is printed and one range passes', () => copyFindings(copies(0), [{ pasted: ['', 'L959', 'L960', 'L961', 'L962', 'L963', 'L964', 'L'], highlighted: ['', 'L958', 'L959', 'L960', 'L961', 'L962', 'L963', 'L'] }], { heldRange: false }), []],
+    ['h2 fix round: and two ranges over one parked selection are still caught there', () => count(copyFindings(copies(0), [{ pasted: rows6, highlighted: rows6 }, { pasted: rows6.slice(1).concat(['L908']), highlighted: rows6 }], { heldRange: false })), 1],
+    ['h fix round: the notch is the park\'s own step', () => [notchOfTrail([10, 20, 30, 40]), notchOfTrail([5, 10, 15]), notchOfTrail([10, 20, 20, 30]), notchOfTrail([]), notchOfTrail(null)], [10, 5, 10, null, null]],
+    ['h fix round: the alternate screen\'s end holds no line, and its re-freezes are still graded', () => [wayDownFindings({ ...wd('head'), newest: null, refreezes: 0 }, { noRefreeze: true }), count(wayDownFindings({ ...wd('head'), newest: null, refreezes: 2 }, { noRefreeze: true })), count(wayDownFindings({ ...wd('head'), newest: null }, { coverage: true }))], [[], 1, 1]],
+    ['h fix round: a notch never measured is a finding, not a pass', () => count(wayDownFindings({ ...quiet(), notchLines: null }, { exact: true })), 1],
+    ['h2 no copies is a finding, not a pass', () => count(copyFindings([], [])), 2]
   ];
   let ok = true;
   for (const [label, run, want] of fixtures) {
@@ -1091,6 +1418,10 @@ mkdirSync(outDir, { recursive: true });
 // PHASE 320.1. Another machine, when asked; '' is this Mac, exactly as before.
 const MACHINE = (process.env['P292_MACHINE'] ?? '').trim();
 if (MACHINE !== '' && MACHINE !== 'loopback' && MACHINE !== 'real') refuse(`P292_MACHINE is ${J(MACHINE)}; it is loopback, real, or unset for this Mac.`);
+// PHASE 295. The copy a session on another machine makes is its own two-call
+// reader (src/main/machines/remote-pane-history.ts), not this phase's, so h2 is
+// this Mac's alone.
+if (MACHINE !== '' && chosen.includes('h2')) refuse('arm h2 reads this Mac\'s history copy; a session on another machine copies through its own reader, which Phase 295 does not touch.');
 if (MACHINE === 'real' && chosen.some((a) => !['a', 'c', 'd', 'e', 'f'].includes(a))) {
   refuse(`the real machine runs arms a, c, d, e and f (build/p3201/SPEC.md §8); ${chosen.filter((a) => !['a', 'c', 'd', 'e', 'f'].includes(a)).join(', ')} were asked for.`);
 }
@@ -1152,6 +1483,9 @@ for (const d of [home, project, profile]) {
 // the pane instead of a prompt, and the loop would be typed into that.
 writeFileSync(join(home, '.zshrc'), "PS1='p292 %# '\n");
 writeFileSync(join(home, '.hushlogin'), '');
+// PHASE 353 (D-P2). Every probed registry row hidden before the launch, so no
+// agent is started, not even for its version; read back before any arm.
+writeHiddenAgents(profile, 'p292', hiddenAgentsBesides([]));
 writeFileSync(join(project, 'README.md'), '# Phase 292\n');
 // Arm g: 900 lines of about 290 characters, all at once, then nothing.
 writeFileSync(
@@ -1342,6 +1676,19 @@ const PAGE_KIT = String.raw`
       away: lane ? lane.hasAttribute('data-away') : null
     };
   };
+  // Phase 294's arm h: every row's line number, not only the top and bottom.
+  kit.lines = () => {
+    if (!kit.term) return [];
+    const b = kit.term.buffer.active;
+    const out = [];
+    for (let i = 0; i < kit.term.rows; i += 1) { const l = b.getLine(b.viewportY + i); const n = l ? num(l.translateToString(true)) : null; if (n !== null) out.push(n); }
+    return out;
+  };
+  kit.lane = () => box(document.querySelector('.gmux-terminal-scrollbar'));
+  // Phase 295's arm h2: the highlighted text as xterm itself reads it off the
+  // screen, which is the rows the person sees highlighted.
+  kit.highlighted = () => (kit.term && kit.term.hasSelection() ? kit.term.getSelection() : null);
+  kit.focusTerm = () => { const t = document.querySelector('.xterm-helper-textarea'); if (t) t.focus(); return t !== null; };
   kit.wheels = 0;
   window.addEventListener('wheel', () => { kit.wheels += 1; }, true);
   kit.focusWhere = () => { const a = document.activeElement; return a ? a.tagName.toLowerCase() + '.' + String(a.className || '') : 'null'; };
@@ -1460,7 +1807,9 @@ try {
         ...(MACHINE === 'real' ? { SSH_AUTH_SOCK: process.env['SSH_AUTH_SOCK'] } : {})
       }),
       graceMs: 8_000,
-      ceilingMs: MACHINE === '' ? 80_000 : 300_000
+      // Phase 353: arm h's six parks and ways down, and h2's copies and ⌘C,
+      // each get their own room on top of arms a to g's.
+      ceilingMs: (MACHINE === '' ? 80_000 : 300_000) + (chosen.includes('h') ? 420_000 : 0) + (chosen.includes('h2') ? 240_000 : 0)
     },
     async (handle) => {
       const { cdp, url } = await cdpForAppWindow(profile, 40_000);
@@ -1494,6 +1843,12 @@ try {
         }
         await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
         await sleep(600);
+        // PHASE 353 (D-P2). The app's own scan, read back before anything is
+        // opened: nothing resolved, since this run has no stand-in.
+        stage = 'agents';
+        readings.agents = standInsOnlyVerdict(JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR, 90_000)), { standIns: [] });
+        say(`${tag}: agents ${readings.agents.ok ? 'ok' : 'NOT OK'}: ${readings.agents.said}`);
+        if (!readings.agents.ok) throw new Error(`an agent resolved in the app's own scan: ${readings.agents.said}`);
         stage = 'open';
         if (MACHINE === '') {
           await cdpEval(cdp, `window.__gmuxShotDrive(${J({ projectPath: project, session: { agent: 'shell', name: 'p292-shell' } })}).then(() => true)`, 60_000);
@@ -1628,18 +1983,26 @@ try {
         readings.pane = mine[0].replace('\t', ' ');
 
         /** tmux's own numbers for the pane, one call so they are one moment. */
-        const fmtNow = async () => {
-          const [pos, hist, inMode, ph, pw] = (await tmux('display-message', '-p', '-t', paneId, '#{scroll_position}|#{history_size}|#{pane_in_mode}|#{pane_height}|#{pane_width}')).trim().split('|');
-          return { position: pos === '' ? 0 : Number(pos), history: Number(hist), inMode: inMode === '1', paneH: Number(ph), paneW: Number(pw) };
+        // Phase 294: the frame's depth, tmux's own (`#{copy_position_limit}`,
+        // empty before 3.7 and outside copy mode), and the alternate screen,
+        // read for arm h; every other arm ignores the two.
+        const fmtNow = async (pane = paneId) => {
+          const [pos, hist, inMode, ph, pw, frame, alt] = (await tmux('display-message', '-p', '-t', pane, '#{scroll_position}|#{history_size}|#{pane_in_mode}|#{pane_height}|#{pane_width}|#{copy_position_limit}|#{alternate_on}')).trim().split('|');
+          return { position: pos === '' ? 0 : Number(pos), history: Number(hist), inMode: inMode === '1', paneH: Number(ph), paneW: Number(pw), frame: inMode === '1' && /^\d+$/.test(frame ?? '') ? Number(frame) : null, alt: alt === '1' };
         };
         /** The newest line printed: capture-pane answers the LIVE screen. */
-        const newestPrinted = async () => {
-          const rows = (await tmux('capture-pane', '-p', '-t', paneId)).split('\n').map(lineNo).filter((n) => n !== null);
+        const newestPrinted = async (pane = paneId) => {
+          const rows = (await tmux('capture-pane', '-p', '-t', pane)).split('\n').map(lineNo).filter((n) => n !== null);
+          return rows.length > 0 ? Math.max(...rows) : null;
+        };
+        /** Arm h2's newest `L<n>`: capture-pane answers the LIVE screen. */
+        const newestStream = async (pane = paneId) => {
+          const rows = (await tmux('capture-pane', '-p', '-t', pane)).split('\n').map(streamNo).filter((n) => n !== null);
           return rows.length > 0 ? Math.max(...rows) : null;
         };
         /** All three rulers, asked together. */
-        const sample = async (extra = {}) => {
-          const [screen, f, printed] = await Promise.all([cdpEval(cdp, 'window.__p292.read()', 5000), fmtNow(), newestPrinted()]);
+        const sample = async (extra = {}, pane = paneId) => {
+          const [screen, f, printed] = await Promise.all([cdpEval(cdp, 'window.__p292.read()', 5000), fmtNow(pane), newestPrinted(pane)]);
           return {
             ...extra,
             topText: screen.top, top: lineNo(screen.top), bottom: lineNo(screen.bottom), screenMax: screen.max,
@@ -1717,6 +2080,8 @@ try {
         // frame's depth (arm d).
         let sizeChanges = 0;
         let tPark = Date.now();
+        /** The lines one wheel notch moved on the last park (`notchOfTrail`), or null before one. */
+        let parkNotch = null;
         readings.parks = [];
         const park = async (why) => {
           const historyBefore = (await fmtNow()).history;
@@ -1742,7 +2107,9 @@ try {
           const fromScreen = entryFromScreen(first.top, first.position, offset);
           const chosenEntry = chooseEntry(fromScreen, historyBefore, historyAfterFirst);
           entry = chosenEntry.entry;
-          readings.parks.push({ why, cellHeight: cell, notches, positionAfterEachNotch: trail, historyBefore, historyAfterFirst, fromScreen, ...chosenEntry });
+          // THE FIX ROUND: the lines a notch moves, measured off this park.
+          parkNotch = notchOfTrail(trail);
+          readings.parks.push({ why, cellHeight: cell, notches, positionAfterEachNotch: trail, notchLines: parkNotch, historyBefore, historyAfterFirst, fromScreen, ...chosenEntry });
           if (chosenEntry.why !== null) note(chosenEntry.why);
           say(`${tag}: the pane entered copy mode at history ${String(entry)} (${chosenEntry.source}; tmux read ${String(historyBefore)} before the first notch and ${String(historyAfterFirst)} after it; line N sits at history index N + ${String(offset)})`);
           return first;
@@ -1979,6 +2346,376 @@ try {
           );
           readings.switch = { before, whileAway, back, sent };
           arms.f.push(...switchFindings(before, back, { entry, sent }));
+        }
+
+        // ------------------------------------------------------------- h, h2
+        // THE WAY BACK DOWN (Phase 294) and THE COPY FROM A BUSY HISTORY
+        // (Phase 295). Each of h's variants starts from a fresh park. The
+        // tmux commands this file sends itself (a cancel, an interrupt, a
+        // clear-history, a history-limit on the scratch server) are the arms'
+        // setting and never what they grade.
+        const sendKeysToPane = (sid, text) => cdpEval(cdp, `(window.gmux.term.sendInput(${J(sid)}, ${J(text)}), true)`);
+        const toLive = async (pane = paneId) => {
+          await tmux('send-keys', '-t', pane, '-X', 'cancel').catch(() => undefined);
+          await sleep(400);
+        };
+        /** Interrupt what the pane runs and wait until nothing more prints. */
+        const stopLoop = async (sid, pane = paneId) => {
+          await toLive(pane);
+          for (let i = 0; i < 10; i += 1) {
+            await sendKeysToPane(sid, String.fromCharCode(3));
+            const a = (await fmtNow(pane)).history;
+            await sleep(500);
+            if ((await fmtNow(pane)).history === a) return true;
+          }
+          return false;
+        };
+        const wheelDown = () => cdp.call('Input.dispatchMouseEvent', { type: 'mouseWheel', x: cx, y: cy, deltaX: 0, deltaY: cell * perNotch });
+        const pageDown = async () => {
+          const k = { key: 'PageDown', code: 'PageDown', windowsVirtualKeyCode: 34, nativeVirtualKeyCode: 34, modifiers: 8 };
+          await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', ...k }, 5000);
+          await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', ...k }, 5000);
+        };
+        /** One reading of the way down, kept small. */
+        const pick = (x) => ({ top: x.top, inMode: x.inMode, position: x.position, history: x.history, frame: x.frame, alt: x.alt, lastPrinted: x.lastPrinted, thumbTop: x.thumbTop, thumbH: x.thumbH, laneH: x.laneH });
+        /**
+         * Gestures toward live one at a time until tmux says the pane left copy
+         * mode, every row of the pane's buffer read after each, and once 500 ms
+         * later. A re-freeze is tmux's frame depth growing while in the mode.
+         */
+        const wayDown = async (kind, step, notchLines, pane = paneId) => {
+          const first = await sample({}, pane);
+          const seen = new Set(await cdpEval(cdp, 'window.__p292.lines()'));
+          const samples = [pick(first)];
+          let lastFrame = first.frame;
+          let refreezes = 0;
+          let notches = 0;
+          let s = first;
+          const t0w = Date.now();
+          while (notches < 500 && s.inMode) {
+            await step();
+            notches += 1;
+            await sleep(80);
+            s = await sample({}, pane);
+            for (const n of await cdpEval(cdp, 'window.__p292.lines()')) seen.add(n);
+            if (s.inMode && isNum(s.frame) && isNum(lastFrame) && s.frame > lastFrame) refreezes += 1;
+            if (s.inMode && isNum(s.frame)) lastFrame = s.frame;
+            samples.push(pick(s));
+          }
+          const seconds = r1((Date.now() - t0w) / 1000);
+          await sleep(500);
+          const end = await sample({}, pane);
+          for (const n of await cdpEval(cdp, 'window.__p292.lines()')) seen.add(n);
+          samples.push(pick(end));
+          return { kind, notchLines, parkTop: first.top, newest: end.screenMax, reachedLive: !end.inMode, notches, seconds, refreezes, namesFrame: isNum(first.frame), seen: [...seen].sort((x, y) => x - y), samples };
+        };
+        if (chosen.includes('h')) {
+          armDone(stage);
+          stage = 'h';
+          readings.wayDown = {};
+          const here = MACHINE === '';
+          /** Print one variant, and grade it as its own rule says. */
+          const report = (r, grade) => {
+            readings.wayDown[r.kind] = r;
+            const seen = new Set(r.seen);
+            let never = 0;
+            if (isNum(r.parkTop) && isNum(r.newest)) for (let n = r.parkTop; n <= r.newest; n += 1) if (!seen.has(n)) never += 1;
+            say(`h ${r.kind}: parked at line ${String(r.parkTop)}, ${String(r.notches)} gesture(s) to live in ${String(r.seconds)} s, ${String(r.refreezes)} re-freeze(s), newest line ${String(r.newest)}, ${String(never)} line(s) never on screen (tmux ${r.namesFrame ? 'names' : 'does not name'} the frame's depth)`);
+            arms.h.push(...wayDownFindings(r, { label: `h ${r.kind}`, ...grade(r) }));
+          };
+          // On THIS MAC and a tmux that names the frame, the way down passes
+          // through what printed; anywhere else it is the parent's path, which
+          // is graded by never re-freezing and printed for the side by side.
+          const passesThrough = (r) => (here && r.namesFrame ? { coverage: true, jumps: true } : { noRefreeze: r.namesFrame });
+          const parkPrintRead = async (why) => {
+            await toLive();
+            await park(why);
+            await sleep(8000);
+          };
+          // h wheel: real wheel notches toward live.
+          stage = 'h wheel';
+          await parkPrintRead('h wheel parks');
+          report(await wayDown('wheel', wheelDown, parkNotch), passesThrough);
+          // h page: ⇧PageDown, a page of rows - 1.
+          stage = 'h page';
+          await parkPrintRead('h page parks');
+          await cdpEval(cdp, 'window.__p292.focusTerm()');
+          const pageLines = Math.max(1, (await fmtNow()).paneH - 1);
+          report(await wayDown('page', pageDown, pageLines), passesThrough);
+          // h drag: the scrollbar thumb pressed and dragged down through the
+          // band below the frozen frame, three pixels at a time, released three
+          // pixels above the lane's foot, which would send the pane live.
+          stage = 'h drag';
+          await parkPrintRead('h drag parks');
+          {
+            const first = await sample();
+            const lane = await cdpEval(cdp, 'window.__p292.lane()');
+            if (!isNum(first.thumbMidY) || lane === null) throw new Error('arm h drag found no thumb to press');
+            const seen = new Set(await cdpEval(cdp, 'window.__p292.lines()'));
+            const samples = [pick(first)];
+            let lastFrame = first.frame;
+            let refreezes = 0;
+            let steps = 0;
+            const x = first.thumbMidX;
+            const startY = first.thumbMidY;
+            const endY = lane.bottom - first.thumbH / 2 - 3;
+            const t0d = Date.now();
+            await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: startY });
+            await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', x, y: startY, button: 'left', buttons: 1, clickCount: 1 });
+            for (let y = startY; y <= endY; y += 3) {
+              await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'left', buttons: 1 });
+              steps += 1;
+              await sleep(60);
+              const s = await sample();
+              for (const n of await cdpEval(cdp, 'window.__p292.lines()')) seen.add(n);
+              if (s.inMode && isNum(s.frame) && isNum(lastFrame) && s.frame > lastFrame) refreezes += 1;
+              if (s.inMode && isNum(s.frame)) lastFrame = s.frame;
+              samples.push(pick(s));
+            }
+            await sleep(600);
+            const held = await sample();
+            for (const n of await cdpEval(cdp, 'window.__p292.lines()')) seen.add(n);
+            await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y: endY, button: 'left', buttons: 0, clickCount: 1 });
+            samples.push(pick(held));
+            // Released in the band, so still parked: the end of the way is
+            // that frame's newest line, and nothing is asked of reaching live.
+            // The probe review: the frame frozen at the park ends at row 0's
+            // line plus the position plus the rows, less one, and the drag must
+            // reach past it (`reach`), which the parent's band never does.
+            const frameBottom = isNum(first.top) && isNum(first.position) && first.inMode && isNum(first.paneH) ? first.top + first.position + first.paneH - 1 : null;
+            report(
+              { kind: 'drag', notchLines: null, parkTop: first.top, newest: held.screenMax, frameBottom, reachedLive: true, notches: steps, seconds: r1((Date.now() - t0d) / 1000), refreezes, namesFrame: isNum(first.frame), seen: [...seen].sort((p, q) => p - q), samples },
+              (r) => (here && r.namesFrame ? { coverage: true, reach: true } : { noRefreeze: r.namesFrame })
+            );
+          }
+          // h quiet: the loop stopped, so nothing prints while parked. Equal to
+          // the parent notch for notch: every notch moves the top line by the
+          // notch, and nothing is re-frozen.
+          stage = 'h quiet';
+          if (!(await stopLoop(mySid))) throw new Error('arm h quiet: the loop did not stop');
+          await park('h quiet parks');
+          await sleep(3000);
+          report(await wayDown('quiet', wheelDown, parkNotch), (r) => ({ coverage: true, exact: true, noRefreeze: r.namesFrame }));
+          // h alt: a program prints, the pane is parked, more prints, and the
+          // program opens its alternate screen while the reader is parked.
+          // Equal to the parent: a re-frozen frame would put that screen under
+          // the transcript, so nothing is re-frozen.
+          stage = 'h alt';
+          await toLive();
+          await tmux('clear-history', '-t', paneId).catch(() => undefined);
+          await sendKeysToPane(
+            mySid,
+            ` clear; i=0; while [ $i -lt 400 ]; do i=$((i+1)); printf 'line %s\\n' "$i"; done; sleep 3; while [ $i -lt 520 ]; do i=$((i+1)); printf 'line %s\\n' "$i"; sleep 0.02; done; printf '\\033[?1049hALT SCREEN\\n'; sleep 30; printf '\\033[?1049l'\r`
+          );
+          for (let i = 0; i < 40; i += 1) {
+            if (((await newestPrinted()) ?? 0) >= 400) break;
+            await sleep(100);
+          }
+          await park('h alt parks');
+          for (let i = 0; i < 80; i += 1) {
+            if ((await fmtNow()).alt) break;
+            await sleep(100);
+          }
+          readings.wayDownAltOpened = (await fmtNow()).alt;
+          // The probe review: with no alternate screen open the history grows
+          // beside a parked reader, where a re-freeze is RIGHT, so grading
+          // `noRefreeze` there would accuse HEAD of exactly the repair. The
+          // variant read nothing, and says so as a finding, never a pass.
+          if (!readings.wayDownAltOpened) {
+            note('h alt: the program had not opened its alternate screen within 8 s of the park');
+            const r = await wayDown('alt', wheelDown, parkNotch);
+            readings.wayDown.alt = r;
+            arms.h.push('h alt: the program never opened its alternate screen while the pane was parked, so this variant read nothing about it');
+          } else {
+            report(await wayDown('alt', wheelDown, parkNotch), (r) => ({ noRefreeze: r.namesFrame }));
+          }
+          // The interrupt ends the program before it leaves its alternate
+          // screen, so the pane is put back on the ordinary one by hand.
+          await stopLoop(mySid);
+          await sendKeysToPane(mySid, ` printf '\\033[?1049l'; clear\r`);
+          await sleep(600);
+          // h limit: a second session under a 1,000-line history-limit, set on
+          // the scratch server before the session is made, printing past it,
+          // so its history is inside tmux's trim band. Equal to the parent's
+          // jump: nothing is re-frozen. This Mac only: the limit is set on the
+          // server this file reads.
+          if (here) {
+            stage = 'h limit';
+            // THE FIX ROUND (the terminal lens). The limit belongs to the second
+            // session alone: tmux 3.7b applies a GLOBAL history-limit change to
+            // panes that already exist (25000 became 1000 at once, measured),
+            // so the global set here left arm h2 on a 1,000-line history that
+            // trims every 100 lines. So the global is set only while the
+            // session is made (3.6a reads it when a pane is made), the session
+            // is given its own, and the global is put back before anything else.
+            const globalLimit = (await tmux('show-options', '-gv', 'history-limit')).trim();
+            await tmux('set-option', '-g', 'history-limit', '1000');
+            await cdpEval(cdp, `window.__gmuxP95.create(${J({ name: 'p292-limit', agent: 'shell' })}).then(() => true)`, 30_000);
+            {
+              const made = await cdpEval(cdp, `window.gmux.sessions.list().then((l) => (l.find((x) => x.name === 'p292-limit') || {}).tmuxName || null)`, 5000);
+              // `=name:`, the colon included: set-option's -t is a target pane,
+              // and tmux 3.7b answers `no such session` to `=name` alone (measured).
+              if (typeof made === 'string') await tmux('set-option', '-t', `=${made}:`, 'history-limit', '1000');
+              await tmux('set-option', '-g', 'history-limit', /^\d+$/.test(globalLimit) ? globalLimit : '25000');
+              readings.wayDownLimitGlobalBack = (await tmux('show-options', '-gv', 'history-limit')).trim();
+              say(`h limit: the global history-limit put back to ${readings.wayDownLimitGlobalBack} (it read ${globalLimit}); the second session keeps 1000 of its own`);
+            }
+            for (let i = 0; i < 40; i += 1) {
+              if (await cdpEval(cdp, 'window.__p292.rearm()')) break;
+              await sleep(100);
+            }
+            await sleep(1500);
+            const listed = await cdpEval(cdp, `window.gmux.sessions.list().then((l) => l.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName })))`, 5000);
+            const limitRow = listed.find((x) => x.name === 'p292-limit');
+            if (limitRow === undefined) throw new Error('arm h limit: the second session was not made');
+            const limitPane = ((await tmux('list-panes', '-a', '-F', '#{session_name}\t#{pane_id}')).trim().split('\n').find((l) => l.split('\t')[0] === limitRow.tmuxName) ?? '').split('\t')[1];
+            if (limitPane === undefined) throw new Error('arm h limit: no pane for the second session');
+            await sendKeysToPane(limitRow.id, ` i=0; while [ $i -lt 1200 ]; do i=$((i+1)); printf 'line %s\\n' "$i"; done; while :; do i=$((i+1)); printf 'line %s\\n' "$i"; sleep 0.05; done\r`);
+            for (let i = 0; i < 100; i += 1) {
+              if ((await fmtNow(limitPane)).history >= 950) break;
+              await sleep(100);
+            }
+            const limit = Number((await tmux('display-message', '-p', '-t', limitPane, '#{history_limit}')).trim());
+            readings.wayDownLimit = { limit, history: (await fmtNow(limitPane)).history };
+            say(`h limit: the second session's history-limit is ${String(limit)}, its history ${String(readings.wayDownLimit.history)}`);
+            // Park it the way arm a parks, through the pane the screen shows.
+            let parkedAt = 0;
+            for (let n = 0; n < 80 && parkedAt < BACK_LINES; n += 1) {
+              await cdp.call('Input.dispatchMouseEvent', { type: 'mouseWheel', x: cx, y: cy, deltaX: 0, deltaY: -cell * perNotch });
+              await sleep(40);
+              parkedAt = (await fmtNow(limitPane)).position;
+            }
+            await sleep(4000);
+            // The probe review: the trim band is `limit - ceil(limit / 10)`
+            // and up (src/main/scrollback/watch.ts `isDiscarding`); a history
+            // below it may be re-frozen ON PURPOSE, so `noRefreeze` is asked
+            // only of a history inside the band, and a history that never got
+            // there read nothing.
+            const band = limit > 0 ? limit - Math.ceil(limit / 10) : null;
+            const inBand = band !== null && readings.wayDownLimit.history >= band;
+            if (inBand) {
+              report(await wayDown('limit', wheelDown, parkNotch, limitPane), (r) => ({ noRefreeze: r.namesFrame }));
+            } else {
+              readings.wayDown.limit = await wayDown('limit', wheelDown, parkNotch, limitPane);
+              arms.h.push(`h limit: the second session's history read ${String(readings.wayDownLimit.history)} under a limit of ${String(limit)}, below the trim band from ${String(band)}, so this variant read nothing about a history at its limit`);
+            }
+            if (!(limit > 0 && limit <= 1000)) arms.h.push(`h limit: the second session's history-limit read ${String(limit)}, not the 1,000 set, so it was never at its limit`);
+            await stopLoop(limitRow.id, limitPane);
+            await cdpEval(cdp, `(window.__gmuxP95.select(${J(mySid)}), true)`, 10_000);
+            for (let i = 0; i < 40; i += 1) {
+              if (await cdpEval(cdp, 'window.__p292.rearm()')) break;
+              await sleep(100);
+            }
+            await sleep(1500);
+          } else {
+            note('h limit: not run on another machine; the limit is set on the server this file reads');
+          }
+          // Back to the loop, for the arms after this one.
+          await sendKeysToPane(mySid, ` ${ISSUE_LINES}\r`);
+          await sleep(1500);
+          // Every variant ran to its end: the next arm's armDone marks h.
+          stage = 'h';
+        }
+        if (chosen.includes('h2')) {
+          armDone(stage);
+          stage = 'h2';
+          // The stream: `L<n>`, 600 at once and then about 80 a second, into a
+          // cleared history so every number is the only one of its kind.
+          if (!(await stopLoop(mySid))) throw new Error('arm h2: the loop did not stop');
+          await tmux('clear-history', '-t', paneId).catch(() => undefined);
+          await sendKeysToPane(mySid, ` clear; i=0; while [ $i -lt 600 ]; do i=$((i+1)); printf 'L%s\\n' "$i"; done; while :; do i=$((i+1)); printf 'L%s\\n' "$i"; sleep 0.0125; done\r`);
+          await sleep(4000);
+          // Where `L1` sits in the history, from the whole transcript once.
+          const dump = (await tmux('capture-pane', '-p', '-S', '-', '-E', '-', '-t', paneId)).split('\n');
+          const at1 = dump.findIndex((row) => row.trim() === 'L1');
+          if (at1 < 0) throw new Error('arm h2: the transcript holds no L1');
+          const c = at1 - 1;
+          const listed = await cdpEval(cdp, `window.gmux.sessions.list().then((l) => l.map((x) => ({ id: x.id, tmuxName: x.tmuxName })))`, 5000);
+          const tmuxName = listed.find((x) => x.id === mySid)?.tmuxName;
+          if (typeof tmuxName !== 'string') throw new Error('arm h2: the session has no tmux name');
+          const calls = [];
+          const firstNewest = await newestStream();
+          const tCalls = Date.now();
+          for (let i = 0; i < H2_CALLS; i += 1) {
+            const h = Number((await tmux('display-message', '-p', '-t', paneId, '#{history_size}')).trim());
+            const want = h - H2_BACK;
+            const res = await cdpEval(cdp, `window.gmux.capture.pane(${J({ tmuxName, sessionId: mySid, historyLines: 0, range: { start: want, end: want }, join: true })}).then((r) => r.ansi)`, 10_000);
+            calls.push({ want: want - c, got: streamNo(String(res ?? '').split('\n')[0]) });
+          }
+          const rate = r1((((await newestStream()) ?? 0) - (firstNewest ?? 0)) / ((Date.now() - tCalls) / 1000));
+          const off = calls.filter((x) => x.got !== x.want).length;
+          say(`h2: ${String(H2_CALLS)} copies of one line through the channel while the pane printed about ${String(rate)} lines a second: ${String(off)} came back as another line`);
+          readings.copy = { calls, rate };
+          // The drag that scrolls and parks, then ⌘C twenty times while the
+          // pane prints. The pasteboard is his: saved whole before, put back in
+          // the finally, and its flavours must agree.
+          const pbDir = join(root, 'pasteboard');
+          mkdirSync(pbDir, { recursive: true });
+          const PB = join(root, 'pb');
+          const built = spawnSync('swiftc', ['-O', '-o', PB, join(REPO, 'build', 'pasteboard-keep.swift')], { encoding: 'utf8' });
+          if (built.status !== 0) throw new Error(`arm h2: the pasteboard keeper did not compile: ${String(built.stderr).slice(0, 300)}`);
+          const pb = (...a) => (spawnSync(PB, a, { encoding: 'utf8' }).stdout ?? '').trim();
+          const pbFlavours = (info) => info.replace(/^changeCount=\d+\n?/, '');
+          const pbBefore = pb('info');
+          say(`h2: pasteboard saved: ${pb('save', pbDir)}`);
+          const pastes = [];
+          let h2NamesFrame = true;
+          try {
+            await cdpEval(cdp, 'window.__p292.focusTerm()');
+            const g = await cdpEval(cdp, 'window.__p292.geometry()');
+            const rowH = g.screen.height / g.rows;
+            const colW = g.screen.width / g.cols;
+            const anchorRow = g.rows - 6;
+            const yOf = (row) => g.screen.top + (row + 0.5) * rowH;
+            const xOf = (col) => g.screen.left + (col + 0.5) * colW;
+            await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: xOf(12), y: yOf(anchorRow) });
+            await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', x: xOf(12), y: yOf(anchorRow), button: 'left', buttons: 1, clickCount: 1 });
+            await sleep(60);
+            for (let k = 1; k <= 6; k += 1) {
+              await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: xOf(0), y: yOf(anchorRow - k), button: 'left', buttons: 1 });
+              await sleep(40);
+            }
+            // Six lines from the wheel path while the button is down: the
+            // buffer moves, so the drag takes the selection over as history
+            // positions (drag-select.ts), and the pane is parked.
+            await cdpEval(cdp, `window.gmux.scroll.by({ sessionId: ${J(mySid)}, lines: 6 }).then(() => true)`, 10_000);
+            await sleep(600);
+            await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: xOf(0), y: yOf(anchorRow - 6), button: 'left', buttons: 0, clickCount: 1 });
+            await sleep(400);
+            // THE FIX ROUND: whether tmux names the frame the selection is held
+            // against (3.7b does, 3.6a does not), read while it is parked.
+            h2NamesFrame = isNum((await fmtNow()).frame);
+            for (let k = 0; k < H2_PASTES; k += 1) {
+              spawnSync('pbcopy', [], { input: 'p292 sentinel' });
+              const key = { key: 'c', code: 'KeyC', modifiers: 4, windowsVirtualKeyCode: 67, nativeVirtualKeyCode: 67 };
+              await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', ...key });
+              await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
+              let text = 'p292 sentinel';
+              for (let w = 0; w < 60 && text === 'p292 sentinel'; w += 1) {
+                await sleep(100);
+                text = spawnSync('pbpaste', [], { encoding: 'utf8' }).stdout ?? '';
+              }
+              const highlighted = await cdpEval(cdp, 'window.__p292.highlighted()');
+              pastes.push({ pasted: text === 'p292 sentinel' ? null : text.split('\n'), highlighted: typeof highlighted === 'string' ? highlighted.split('\n') : null });
+              await sleep(300);
+            }
+          } finally {
+            say(`h2: pasteboard restored: ${pb('restore', pbDir)}`);
+            const pbAfter = pb('info');
+            const same = pbFlavours(pbBefore) === pbFlavours(pbAfter);
+            if (!same) arms.h2.push('h2 the pasteboard after the restore is not the pasteboard before');
+          }
+          readings.copy.pastes = pastes;
+          readings.copy.namesFrame = h2NamesFrame;
+          const wrong = pastes.filter((x) => pasteVerdict(x) !== null).length;
+          say(`h2: ${String(pastes.length)} ⌘C while the pane printed: ${String(wrong)} put something other than the held range on the pasteboard (${String(new Set(pastes.map((x) => J(x.pasted))).size)} distinct)`);
+          if (!h2NamesFrame) note(`h2: tmux does not name the frame's depth, so the range the renderer holds is its own estimate of the frame; the ⌘C reading above is printed and compared with the parent's, not graded (Phase 292's limit there, D294-6's twin)`);
+          arms.h2.push(...copyFindings(calls, pastes, { heldRange: h2NamesFrame }));
+          // Back to the issue's loop for the arms after this one.
+          await stopLoop(mySid);
+          await tmux('clear-history', '-t', paneId).catch(() => undefined);
+          await sendKeysToPane(mySid, ` clear; ${ISSUE_LINES}\r`);
+          await sleep(1500);
         }
 
         // --------------------------------------------------------------- g

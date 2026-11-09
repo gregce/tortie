@@ -108,9 +108,11 @@ describe('the two argvs', () => {
     ]);
     // The two fields of this Mac's own extent format, with a space where it has
     // a tab (Phase 320.1's fix round), so no byte of it is one a client with no
-    // UTF-8 locale gets back as `_`.
-    const sessions = readFileSync(join(REPO, 'src/main/tmux/sessions.ts'), 'utf8');
-    expect(sessions.includes(`'${REMOTE_EXTENT_FORMAT.replace(' ', '\\t')}'`)).toBe(true);
+    // UTF-8 locale gets back as `_`. This Mac reads it in
+    // src/main/tmux/history-lines.ts since Phase 295 (build/p353/SPEC.md
+    // D295-4), in the same invocation as its capture.
+    const local = readFileSync(join(REPO, 'src/main/tmux/history-lines.ts'), 'utf8');
+    expect(local.includes(`'${REMOTE_EXTENT_FORMAT.replace(' ', '\\t')}'`)).toBe(true);
     expect(/^[\x20-\x7e]+$/.test(REMOTE_EXTENT_FORMAT)).toBe(true);
   });
 

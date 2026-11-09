@@ -13,12 +13,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as scrollModule from '../scroll';
+import { isDiscarding } from '../../scrollback/watch';
 import {
   exitPaneScroll,
   readPaneScroll,
+  REFREEZE_READ_FORMAT,
+  refreezeWanted,
+  REMOTE_STATE_FORMAT,
   resetSeekSupportForTests,
   scrollPaneBy,
   scrollPaneTo,
+  STATE_FORMAT,
+  type PaneScrollState,
   type TmuxScrollRunner
 } from '../scroll';
 
@@ -535,6 +541,360 @@ describe('the deleted correction stays deleted (Phase 292)', () => {
       ),
       []
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 294. The way back down passes through what printed while you read.
+// ---------------------------------------------------------------------------
+
+/**
+ * A parked pane the decision should re-freeze: three lines above the bottom
+ * of a frame 400 lines deep, while the live history grew to 520, under the
+ * default limit. Every row of the table below changes ONE thing from it.
+ */
+const PARKED: PaneScrollState = {
+  position: 3,
+  history: 520,
+  rows: 40,
+  cols: 120,
+  frameHistory: 400,
+  inMode: true,
+  innerAlt: false,
+  innerMouse: false
+};
+
+/** The decision's table: a state, a limit, a notch, the answer, and which clause the row owns. */
+const DECISION_ROWS: ReadonlyArray<{
+  name: string;
+  state: PaneScrollState;
+  limit: number | null;
+  n: number;
+  want: boolean;
+  owns?: string;
+}> = [
+  { name: 'parked, the frame lags, the notch reaches its bottom', state: PARKED, limit: 25_000, n: -3, want: true },
+  { name: 'a notch exactly to the bottom', state: { ...PARKED, position: 3 }, limit: 25_000, n: -3, want: true },
+  { name: 'at the bottom already, still in copy mode', state: { ...PARKED, position: 0 }, limit: 25_000, n: -3, want: true },
+  { name: 'a page toward live reaches it from further up', state: { ...PARKED, position: 39 }, limit: 25_000, n: -39, want: true },
+  { name: 'live, not in copy mode', state: { ...PARKED, inMode: false, frameHistory: null, position: 0 }, limit: 25_000, n: -3, want: false },
+  // The parser never names a frame outside copy mode, and the decision does
+  // not lean on that: a state that says it is not in copy mode is refused.
+  { name: 'out of copy mode, though a frame is named', state: { ...PARKED, inMode: false }, limit: 25_000, n: -3, want: false, owns: 'in copy mode' },
+  { name: 'tmux names no frame (3.6a)', state: { ...PARKED, frameHistory: null }, limit: 25_000, n: -3, want: false, owns: "the frame's depth" },
+  { name: 'the program opened its alternate screen while parked', state: { ...PARKED, innerAlt: true }, limit: 25_000, n: -3, want: false, owns: 'the alternate screen' },
+  { name: 'nothing printed since the park', state: { ...PARKED, history: 400 }, limit: 25_000, n: -3, want: false, owns: 'the growth' },
+  { name: 'the history shrank under the frame (a trim or a Clear)', state: { ...PARKED, history: 300 }, limit: 25_000, n: -3, want: false, owns: 'the growth' },
+  { name: 'the notch stops short of the bottom', state: { ...PARKED, position: 4 }, limit: 25_000, n: -3, want: false, owns: 'the bottom' },
+  // THE BAND'S EDGE and one each side, the entry's attack: with a limit of
+  // 1,000, tmux trims a tenth at a time and the band begins at 900.
+  { name: 'one line below the trim band', state: { ...PARKED, frameHistory: 800, history: 899 }, limit: 1_000, n: -3, want: true },
+  { name: 'exactly at the trim band', state: { ...PARKED, frameHistory: 800, history: 900 }, limit: 1_000, n: -3, want: false, owns: 'the trim band' },
+  { name: 'one line inside the trim band', state: { ...PARKED, frameHistory: 800, history: 901 }, limit: 1_000, n: -3, want: false, owns: 'the trim band' },
+  { name: 'a history at its limit', state: { ...PARKED, frameHistory: 990, history: 995 }, limit: 1_000, n: -3, want: false, owns: 'the trim band' },
+  { name: 'tmux answered no limit', state: PARKED, limit: null, n: -3, want: false, owns: 'the trim band' },
+  { name: 'tmux answered a limit of 0', state: PARKED, limit: 0, n: -3, want: false, owns: 'the trim band' }
+];
+
+/** The clauses of the shipping decision, as the lines of its own source. */
+function decisionSource(): { expr: string; clauses: string[] } {
+  const source = readFileSync(join(__dirname, '..', 'scroll.ts'), 'utf8');
+  const start = source.indexOf('export function refreezeWanted(');
+  assert.ok(start > 0, 'refreezeWanted is declared in scroll.ts');
+  const open = source.indexOf('return (', start);
+  const close = source.indexOf('\n  );\n}', open);
+  assert.ok(open > start && close > open, 'refreezeWanted is one return of one parenthesised chain');
+  const expr = source.slice(open + 'return ('.length, close);
+  const clauses = expr
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  return { expr, clauses };
+}
+
+/** The decision compiled from source text, so a clause can be taken away. */
+function compiled(expr: string): (state: PaneScrollState, limit: number | null, n: number) => boolean {
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+  const fn = new Function('state', 'historyLimit', 'n', 'isDiscarding', `return (${expr});`) as (
+    state: PaneScrollState,
+    limit: number | null,
+    n: number,
+    discarding: typeof isDiscarding
+  ) => boolean;
+  return (state, limit, n) => fn(state, limit, n, isDiscarding);
+}
+
+describe('refreezeWanted, the decision (Phase 294, D294-3)', () => {
+  for (const row of DECISION_ROWS) {
+    it(`${row.want ? 'RE-FREEZES' : 'leaves today\'s path'}: ${row.name}`, () => {
+      assert.equal(refreezeWanted(row.state, row.limit, row.n), row.want);
+    });
+  }
+
+  it('is the same answer compiled from its own source text, so the ablations below read the shipping clauses', () => {
+    const { expr } = decisionSource();
+    const fn = compiled(expr);
+    for (const row of DECISION_ROWS) assert.equal(fn(row.state, row.limit, row.n), row.want, row.name);
+  });
+
+  // One ablation per clause: the clause's line taken out of the SHIPPING
+  // source, and the table read again. Each must go red on the rows it owns.
+  const ABLATIONS: ReadonlyArray<{ owns: string; line: RegExp }> = [
+    { owns: 'in copy mode', line: /^state\.inMode &&$/ },
+    { owns: "the frame's depth", line: /^state\.frameHistory !== null &&$/ },
+    { owns: 'the alternate screen', line: /^!state\.innerAlt &&$/ },
+    { owns: 'the growth', line: /^state\.history > state\.frameHistory &&$/ },
+    { owns: 'the trim band', line: /isDiscarding\(state\.history, historyLimit\) &&$/ },
+    { owns: 'the bottom', line: /^state\.position <= Math\.abs\(n\)$/ }
+  ];
+  for (const ablation of ABLATIONS) {
+    it(`goes red when "${ablation.owns}" is taken out of the shipping source`, () => {
+      const { clauses } = decisionSource();
+      const at = clauses.findIndex((clause) => ablation.line.test(clause));
+      assert.ok(at >= 0, `the clause for ${ablation.owns} is one line of the decision`);
+      const last = at === clauses.length - 1;
+      const ablated = clauses.map((clause, i) => (i === at ? (last ? 'true' : 'true &&') : clause)).join('\n');
+      const fn = compiled(ablated);
+      const owned = DECISION_ROWS.filter((row) => row.owns === ablation.owns);
+      assert.ok(owned.length > 0, `some row owns ${ablation.owns}`);
+      const wrong = owned.filter((row) => fn(row.state, row.limit, row.n) !== row.want);
+      assert.ok(wrong.length > 0, `taking out ${ablation.owns} changed no row it owns`);
+    });
+  }
+
+  it('reads the trim band through isDiscarding, the band\'s one spelling', () => {
+    const { clauses } = decisionSource();
+    assert.ok(clauses.some((clause) => clause.includes('!isDiscarding(state.history, historyLimit)')));
+    const source = readFileSync(join(__dirname, '..', 'scroll.ts'), 'utf8');
+    assert.match(source, /import \{ isDiscarding \} from '\.\.\/scrollback\/watch';/);
+  });
+});
+
+/** A runner that says it is this Mac's session runner (`refreezes`), recording argv. */
+function thisMacs(answer: (args: readonly string[]) => string): {
+  run: TmuxScrollRunner;
+  calls: string[][];
+} {
+  const calls: string[][] = [];
+  const fn = async (args: readonly string[]): Promise<string> => {
+    calls.push([...args]);
+    return answer(args);
+  };
+  return { run: Object.assign(fn, { refreezes: true as const }), calls };
+}
+
+/** One read's answer, tab-separated, with the limit as a ninth field when the read asked for it. */
+function readAnswer(args: readonly string[], fields: string[], limit: string): string {
+  const asked = args[args.length - 1];
+  return [...fields, ...(asked === REFREEZE_READ_FORMAT ? [limit] : [])].join('\t') + '\n';
+}
+
+const REFRESH = ['send-keys', '-t', '$3', '-X', 'refresh-from-pane'];
+const READ_REFREEZE = ['display-message', '-p', '-t', '$3', '-F', REFREEZE_READ_FORMAT];
+const READ_STATE = ['display-message', '-p', '-t', '$3', '-F', STATE_FORMAT];
+const DOWN_3 = ['send-keys', '-t', '$3', '-X', '-N', '3', 'scroll-down'];
+
+describe('the way down on this Mac (Phase 294, D294-4)', () => {
+  /** Parked 3 back over a 400-line frame while the history grew to 520, limit 25,000. */
+  const lagging = (args: readonly string[]): string =>
+    args[0] === 'display-message'
+      ? readAnswer(args, ['1', '3', '520', '40', '0', '0', '120', '400'], '25000')
+      : '';
+
+  it('reads first, re-freezes, then scrolls exactly as today', async () => {
+    const { run, calls } = thisMacs(lagging);
+    await scrollPaneBy(run, '$3', -3);
+    assert.deepEqual(calls, [READ_REFREEZE, REFRESH, DOWN_3, TOP_LINE, READ_STATE]);
+  });
+
+  it('reads first and sends today\'s bytes when the notch does not reach the bottom', async () => {
+    const { run, calls } = thisMacs((args) =>
+      args[0] === 'display-message' ? readAnswer(args, ['1', '30', '520', '40', '0', '0', '120', '400'], '25000') : ''
+    );
+    await scrollPaneBy(run, '$3', -3);
+    assert.deepEqual(calls, [READ_REFREEZE, DOWN_3, TOP_LINE, READ_STATE]);
+  });
+
+  it('keeps 3.6a\'s jump: no frame named, no re-freeze', async () => {
+    const { run, calls } = thisMacs((args) =>
+      args[0] === 'display-message' ? readAnswer(args, ['1', '3', '520', '40', '0', '0', '120', ''], '25000') : ''
+    );
+    await scrollPaneBy(run, '$3', -3);
+    assert.ok(!calls.some((c) => c.includes('refresh-from-pane')));
+  });
+
+  it('keeps today\'s jump for a history at its limit', async () => {
+    const { run, calls } = thisMacs((args) =>
+      args[0] === 'display-message' ? readAnswer(args, ['1', '3', '995', '40', '0', '0', '120', '990'], '1000') : ''
+    );
+    await scrollPaneBy(run, '$3', -3);
+    assert.ok(!calls.some((c) => c.includes('refresh-from-pane')));
+  });
+
+  it('decides nothing when the first read fails, and the notch follows as today', async () => {
+    let reads = 0;
+    const { run, calls } = thisMacs((args) => {
+      if (args[0] !== 'display-message') return '';
+      reads += 1;
+      if (reads === 1) throw new Error('server exited unexpectedly');
+      return readAnswer(args, ['1', '0', '520', '40', '0', '0', '120', '400'], '25000');
+    });
+    await scrollPaneBy(run, '$3', -3);
+    assert.deepEqual(calls, [READ_REFREEZE, DOWN_3, TOP_LINE, READ_STATE]);
+  });
+
+  it('swallows a re-freeze that found the pane already live, and the notch follows as today', async () => {
+    const calls: string[][] = [];
+    const fn = async (args: readonly string[]): Promise<string> => {
+      calls.push([...args]);
+      if (args.includes('refresh-from-pane') || args.includes('scroll-down')) throw new Error('not in a mode');
+      return lagging(args);
+    };
+    const run: TmuxScrollRunner = Object.assign(fn, { refreezes: true as const });
+    await scrollPaneBy(run, '$3', -3);
+    assert.deepEqual(calls, [READ_REFREEZE, REFRESH, DOWN_3, READ_STATE]);
+  });
+
+  it('never re-freezes on the way UP, nor on a read, a cancel or a zero delta', async () => {
+    for (const op of [
+      (run: TmuxScrollRunner) => scrollPaneBy(run, '$3', 3),
+      (run: TmuxScrollRunner) => scrollPaneBy(run, '$3', 0),
+      (run: TmuxScrollRunner) => readPaneScroll(run, '$3'),
+      (run: TmuxScrollRunner) => exitPaneScroll(run, '$3')
+    ]) {
+      const { run, calls } = thisMacs(lagging);
+      await op(run);
+      assert.ok(!calls.some((c) => c.includes('refresh-from-pane')), JSON.stringify(calls));
+      // ...and reads with the eight fields it always has.
+      assert.ok(calls.filter((c) => c[0] === 'display-message').every((c) => c[c.length - 1] === STATE_FORMAT));
+    }
+  });
+
+  it('gains nothing on a runner that does not say it refreezes, which keeps today\'s bytes', async () => {
+    const { run, calls } = recorder([readAnswer([], ['1', '3', '520', '40', '0', '0', '120', '400'], '25000')]);
+    await scrollPaneBy(run, '$3', -3);
+    assert.deepEqual(calls, [DOWN_3, TOP_LINE, READ_STATE]);
+  });
+
+  it('gains nothing on another machine, ordered or not, whatever the runner says', async () => {
+    for (const ordered of [false, true]) {
+      const calls: string[][] = [];
+      const fn = async (args: readonly string[]): Promise<string> => {
+        calls.push([...args]);
+        return args[0] === 'display-message' ? '1 3 520 40 0 0 120 400\n' : '';
+      };
+      const run: TmuxScrollRunner = Object.assign(fn, {
+        refreezes: true as const,
+        server: 'machine:far',
+        ...(ordered ? { ordered: true as const } : {})
+      });
+      await scrollPaneBy(run, '$3', -3);
+      await scrollPaneTo(run, '$3', 1);
+      assert.ok(!calls.some((c) => c.includes('refresh-from-pane')), `ordered ${String(ordered)}`);
+      assert.ok(calls.filter((c) => c[0] === 'display-message').every((c) => c[c.length - 1] === REMOTE_STATE_FORMAT));
+    }
+  });
+
+  it('asks the ninth field of this Mac\'s read alone: the eight fields and another machine\'s read are byte for byte', () => {
+    const eight = [
+      '#{pane_in_mode}', '#{scroll_position}', '#{history_size}', '#{pane_height}',
+      '#{alternate_on}', '#{mouse_any_flag}', '#{pane_width}', '#{copy_position_limit}'
+    ];
+    assert.equal(STATE_FORMAT, eight.join('\t'));
+    assert.equal(REMOTE_STATE_FORMAT, eight.join(' '));
+    assert.equal(REFREEZE_READ_FORMAT, `${STATE_FORMAT}\t#{history_limit}`);
+  });
+
+  it('reads the limit only as a whole number above 0, and the state exactly as the poll reads it', async () => {
+    const fields = ['1', '3', '520', '40', '0', '0', '120', '400'];
+    for (const [limit, re] of [['25000', true], ['', false], ['0', false], ['1e3', false], ['-5', false]] as const) {
+      const { run, calls } = thisMacs((args) => (args[0] === 'display-message' ? readAnswer(args, fields, limit) : ''));
+      await scrollPaneBy(run, '$3', -3);
+      assert.equal(calls.some((c) => c.includes('refresh-from-pane')), re, `limit ${JSON.stringify(limit)}`);
+    }
+  });
+});
+
+describe('the drag\'s band on this Mac (Phase 294, D294-5)', () => {
+  /** Parked at `position` over a 400-line frame, history 520; a re-freeze moves both by the 120 printed. */
+  function band(position: number, frame = '400'): { run: TmuxScrollRunner; calls: string[][] } {
+    let refrozen = false;
+    const recorded = thisMacs((args) => {
+      if (args.includes('refresh-from-pane')) {
+        if (frame !== '') refrozen = true;
+        return '';
+      }
+      if (args[0] !== 'display-message') return '';
+      return refrozen
+        ? readAnswer(args, ['1', String(position + 120), '520', '40', '0', '0', '120', '520'], '25000')
+        : readAnswer(args, ['1', String(position), '520', '40', '0', '0', '120', frame], '25000');
+    });
+    return recorded;
+  }
+
+  it('re-freezes when the drag asks the frame\'s bottom while the frame lags, and keeps the reader on their line', async () => {
+    const { run, calls } = band(1);
+    const s = await scrollPaneTo(run, '$3', 1);
+    // Position 1 of the old frame is position 121 of the new one, which is
+    // where the re-freeze already put the view: no seek is needed.
+    assert.deepEqual(calls, [READ_REFREEZE, REFRESH, READ_STATE]);
+    assert.equal(s.position, 121);
+    assert.equal(s.frameHistory, 520);
+  });
+
+  it('seeks to the asked line plus the frame\'s growth when the drag jumps into the band from further up', async () => {
+    const { run, calls } = band(50);
+    await scrollPaneTo(run, '$3', 1);
+    assert.deepEqual(calls, [
+      READ_REFREEZE,
+      REFRESH,
+      READ_STATE,
+      ['copy-mode', '-e', '-t', '$3'],
+      ['send-keys', '-t', '$3', '-X', 'goto-line', '121'],
+      TOP_LINE,
+      READ_STATE
+    ]);
+  });
+
+  it('does not re-freeze for a drag that asks any line of the frame above its bottom', async () => {
+    const { run, calls } = band(50);
+    await scrollPaneTo(run, '$3', 2);
+    assert.ok(!calls.some((c) => c.includes('refresh-from-pane')));
+  });
+
+  it('keeps today\'s band on 3.6a, which names no frame', async () => {
+    const { run, calls } = band(1, '');
+    await scrollPaneTo(run, '$3', 1);
+    assert.deepEqual(calls, [READ_REFREEZE]);
+  });
+
+  it('leaves the lane\'s foot as today\'s cancel', async () => {
+    const { run, calls } = band(1);
+    await scrollPaneTo(run, '$3', 0);
+    assert.deepEqual(calls[0], ['send-keys', '-t', '$3', '-X', 'cancel']);
+    assert.ok(!calls.some((c) => c.includes('refresh-from-pane')));
+  });
+
+  it('a huge relative scroll, which no caller sends, takes no re-freeze', async () => {
+    const { run, calls } = band(2400);
+    await scrollPaneBy(run, '$3', -2399);
+    assert.ok(!calls.some((c) => c.includes('refresh-from-pane')));
+  });
+});
+
+describe('the production runner opts in (Phase 294)', () => {
+  it('src/main/sessions/core.ts\'s runScrollCommand, this Mac\'s session runner, says it refreezes', () => {
+    // The re-freeze is opt-in so that every other runner keeps the serial
+    // bytes the pipelined code is compared with. The session core's runner is
+    // the one a person's wheel reaches, and without the fact the fix ships
+    // inert.
+    const core = readFileSync(join(REPO_ROOT, 'src/main/sessions/core.ts'), 'utf8');
+    const at = core.indexOf('private readonly runScrollCommand');
+    assert.ok(at > 0, 'core.ts declares runScrollCommand');
+    // The field, up to the next member's doc comment.
+    const next = core.indexOf('\n\n  /**', at);
+    const field = core.slice(at, next === -1 ? undefined : next);
+    assert.match(field, /refreezes:\s*true/);
   });
 });
 

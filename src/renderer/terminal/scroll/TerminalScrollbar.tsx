@@ -48,6 +48,30 @@ import './scrollbar.css';
 /** Never let the thumb shrink below a grabbable target. */
 const MIN_THUMB_PX = 20;
 
+/**
+ * Whether the pointer a drag is holding should be sent again, once, against an
+ * answer that just arrived — Phase 294 (build/p353/SPEC.md D294-5).
+ *
+ * A drag held in the lowest band of the lane asks the frozen frame's bottom,
+ * because the lines printed since the park are not in that frame. On a tmux
+ * that names the frame's depth, main now re-freezes the frame there and keeps
+ * the reader on their line (`scrollFrom` in src/main/tmux/scroll.ts), and the
+ * answer comes back with a DIFFERENT frame: `historyAtEntry`, which on that
+ * tmux is tmux's own depth. The same pointer then names a different line, one
+ * inside what printed, so it is sent again once, and the band narrows to what
+ * printed since. Once per pointer event and never on its own, so a pointer
+ * held still while the agent prints re-freezes nothing after that one re-send.
+ *
+ * Nothing re-sends for an answer that carries a frame where the pointer was
+ * sent against none (the drag that parked the pane), nor while live.
+ */
+export function heldPointerResend(
+  sentAgainst: number | null,
+  answered: number | null
+): boolean {
+  return sentAgainst !== null && answered !== null && answered !== sentAgainst;
+}
+
 export interface TerminalScrollbarProps {
   surface: ScrollSurface;
 }
@@ -117,6 +141,23 @@ export function TerminalScrollbar({
     [total, view]
   );
 
+  // Phase 294. The pointer the drag holds, the frame it was last sent against,
+  // and whether that send may still be sent again once (`heldPointerResend`).
+  const heldY = useRef<number | null>(null);
+  const sentAgainst = useRef<number | null>(null);
+  const resendArmed = useRef(false);
+
+  /** Send the pointer's position, remembering the frame it was sent against. */
+  const sendPointer = useCallback(
+    (clientY: number) => {
+      heldY.current = clientY;
+      sentAgainst.current = view.historyAtEntry;
+      resendArmed.current = true;
+      surface.scrollTo(positionAt(clientY));
+    },
+    [positionAt, surface, view.historyAtEntry]
+  );
+
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (event.button !== 0 || view.history === 0) return;
@@ -124,23 +165,37 @@ export function TerminalScrollbar({
       event.currentTarget.setPointerCapture(event.pointerId);
       setDragging(true);
       surface.setDragging(true);
-      surface.scrollTo(positionAt(event.clientY));
+      sendPointer(event.clientY);
     },
-    [positionAt, surface, view.history]
+    [sendPointer, surface, view.history]
   );
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!dragging) return;
-      surface.scrollTo(positionAt(event.clientY));
+      sendPointer(event.clientY);
     },
-    [dragging, positionAt, surface]
+    [dragging, sendPointer]
   );
+
+  // Phase 294. An answer mid-drag that carries a different frame (main
+  // re-froze it at the drag's band) re-sends the held pointer ONCE, against
+  // the frame the answer carries.
+  useEffect(() => {
+    const y = heldY.current;
+    if (!dragging || y === null || !resendArmed.current) return;
+    if (!heldPointerResend(sentAgainst.current, view.historyAtEntry)) return;
+    resendArmed.current = false;
+    sentAgainst.current = view.historyAtEntry;
+    surface.scrollTo(positionAt(y));
+  }, [dragging, positionAt, surface, view.historyAtEntry]);
 
   const endDrag = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!dragging) return;
       event.currentTarget.releasePointerCapture(event.pointerId);
+      heldY.current = null;
+      resendArmed.current = false;
       setDragging(false);
       surface.setDragging(false);
     },

@@ -33,6 +33,9 @@ import type {
   ClipboardRichInput
 } from '@shared/ipc';
 import * as tmux from '../tmux';
+// PHASE 295. The one invocation a history range is read in. Direct rather
+// than through the barrel, as the clamp below is.
+import { captureHistoryLines } from '../tmux/history-lines';
 // PHASE 320.1. The one clamp, shared with a machine's copy
 // (src/main/machines/remote-pane-history.ts). Direct rather than through the
 // barrel: it is pure and names no process.
@@ -163,29 +166,53 @@ export async function capturePaneText(
 }
 
 /**
- * An exact range of history lines, Phase 209.
+ * An exact range of history lines, Phase 209, read in ONE instant since Phase
+ * 295.
  *
  * The renderer numbers lines from the oldest the server holds, and
  * `capture-pane` numbers them from the top of the live screen, so the
- * conversion needs `#{history_size}` read at this instant rather than the
- * renderer's, which can be a poll old under a streaming pane. THE CLAMP IS
- * OURS, not tmux's, and since Phase 320.1 it is one pure function,
- * `clampHistoryRange` in src/main/tmux/scroll.ts, which carries the account
- * and which a copy from a session on another machine applies too.
+ * conversion needs `#{history_size}` as it is when the lines are captured,
+ * not as the renderer last read it, which can be a poll old under a streaming
+ * pane. Until Phase 295 main read the history in one tmux call and captured in
+ * a second with offsets it had computed, and every line printed between the
+ * two shifted the copy forward by a line (measured off 58 of 300 copies at 80
+ * lines a second on 3.7b). Now ONE invocation reads the extent and captures,
+ * and tmux computes the offsets from the history it holds at that instant
+ * (`captureHistoryLines` in src/main/tmux/history-lines.ts carries the
+ * account).
+ *
+ * THE CLAMP IS OURS, not tmux's, and since Phase 320.1 it is one pure function,
+ * `clampHistoryRange` in src/main/tmux/scroll.ts, which a copy from a session
+ * on another machine applies too. Its two halves now sit either side of the
+ * call: what needs no extent before it (a start above the oldest line starts
+ * at the oldest, an end above the start is gone and asks nothing), and what
+ * needs the extent after it, read from the extent the SAME invocation printed.
+ * A start past the last row answers nothing, and what tmux printed for it,
+ * being the last row, or the live screen for an offset past 32,767, is thrown
+ * away. An end past the last row is cut by tmux exactly where the clamp cuts
+ * it. `firstLine` keeps its meaning.
+ *
+ * A range that is not two whole numbers is refused before anything is asked:
+ * tmux reads a value it cannot parse as the top of the live screen, which
+ * would be a wrong copy rather than an error.
  */
 async function captureHistoryRange(
   target: string,
   range: { start: number; end: number },
   join: boolean
 ): Promise<CapturePaneResult> {
-  const extent = await tmux.readPaneExtent(target);
-  const cut = clampHistoryRange(range, extent);
+  if (!Number.isSafeInteger(range.start) || !Number.isSafeInteger(range.end)) {
+    throw new Error('a history range must be two whole numbers');
+  }
+  // Before the call: the two clamps that need no extent.
+  const start = Math.max(0, range.start);
+  if (range.end < start) return { ansi: '', firstLine: start };
+  const lines = await captureHistoryLines(target, start, range.end, join);
+  // After it: the clamp that needs the extent, over the extent that same
+  // invocation printed, which is the instant the lines came from.
+  const cut = clampHistoryRange({ start, end: range.end }, lines);
   if (cut.paneRange === null) return { ansi: '', firstLine: cut.firstLine };
-  const ansi = await tmux.capturePane(target, 0, {
-    join,
-    range: cut.paneRange
-  });
-  return { ansi, firstLine: cut.firstLine };
+  return { ansi: lines.ansi, firstLine: cut.firstLine };
 }
 
 /**

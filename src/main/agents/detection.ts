@@ -663,25 +663,24 @@ export interface SpawnedFile {
  *
  * `null` when no entry holds one; when the folder is not an absolute folder
  * this process may enter (tmux could not enter it either, and starts the pane
- * in the home folder instead); when the folder holds a `#` anywhere in its
- * path, because tmux reads `new-session -c` as a format, so such a folder is
- * not always the folder the pane starts in, and pi starts there exactly as
- * today (his ruling of 2026-11-03; Phase 353, which hands tmux the folder
- * escaped, takes this clause out); when the folder ends in `;`, because tmux's
- * argument reader ends a command at an argument ending in `;` and reads one
- * ending in `\;` as ending in `;`, so such a folder is not the folder the pane
- * starts in either, and pi starts there exactly as today (his ruling of
- * 2026-11-04; Phase 353 takes this clause out with the `#` one); and when
- * anything the walk must look through cannot be read, a folder it may not
- * search or a link that loops, because then the file the pane runs is not
- * known. A candidate is spelled by joining strings and never normalised, so a
- * `..` is resolved by the kernel through the folder's own links, as the pane's
- * lookup resolves it. FILES ARE READ, NEVER RUN: a stat and an access check
- * per entry, and nothing starts.
+ * in the home folder instead); and when anything the walk must look through
+ * cannot be read, a folder it may not search or a link that loops, because then
+ * the file the pane runs is not known. A candidate is spelled by joining
+ * strings and never normalised, so a `..` is resolved by the kernel through the
+ * folder's own links, as the pane's lookup resolves it. FILES ARE READ, NEVER
+ * RUN: a stat and an access check per entry, and nothing starts.
+ *
+ * A FOLDER HOLDING A `#`, OR ENDING IN `;`, IS WALKED LIKE ANY OTHER since
+ * Phase 353. His rulings of 2026-11-03 and 2026-11-04 read such a folder as
+ * unread, because tmux read `new-session -c` as a format and ended a command at
+ * an argument ending in `;`, so the pane did not start there. The create now
+ * hands tmux the folder held back (`tmuxFolderArgument` in
+ * ../tmux/argument.ts), so the pane starts in exactly the folder this walk
+ * starts from, and the two clauses went with the cause.
  */
 export function bareNameSpawnFile(spawn: BareNameSpawn): SpawnedFile | null {
   const { name, path, folder } = spawn;
-  if (name.length === 0 || name.includes('/') || !folder.startsWith('/') || folder.includes('#') || folder.endsWith(';')) return null;
+  if (name.length === 0 || name.includes('/') || !folder.startsWith('/')) return null;
   try {
     if (!statSync(folder).isDirectory()) return null;
     accessSync(folder, constants.X_OK);

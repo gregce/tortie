@@ -13,7 +13,7 @@
  * by recording the calls and reading them back.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateSessionInput, Session } from '@shared/types';
 
 vi.mock('electron', () => ({
@@ -151,8 +151,14 @@ describe('a row that is still live', () => {
       throw new Error('tmux went away');
     };
     const out = await restartSession(f.host, SESSION_ID);
-    expect(f.calls).toEqual(['create', 'kill', 'discard', 'broadcast']);
+    // PHASE 305 (build/p353/SPEC.md D305-5), RED ON PURPOSE: the parent read
+    // ['create', 'kill', 'discard', 'broadcast'] here. A kill that failed no
+    // longer reaches the delete, because a pane that survived its kill and
+    // then lost its row is the orphan step 3 exists to prevent. The restart
+    // still finishes, the replacement exists and the warning is still said.
+    expect(f.calls).toEqual(['create', 'kill', 'broadcast']);
     expect(out.killedOld).toBe(false);
+    expect(out.oldRow).toBe('kept-kill-failed');
     expect(warned.join('\n')).toContain('could not stop the old');
   });
 });
@@ -381,4 +387,270 @@ describe('a restart that declines capture', () => {
     ).rejects.toThrow(RESTART_ON_MACHINE);
     expect(h.calls).toEqual([]);
   });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 305 (build/p353/SPEC.md §4.2 step 4; the entry's proof 1). A restart
+// never deletes a row the person removed.
+//
+// THE DEFECT, measured at the parent (build/p353/SPEC.md §2.4, M305): `rec` was
+// read ONCE, before the create, and both the liveness test and the delete ran
+// off it across two awaits. A Remove is accepted on an ended row, so one that
+// landed inside the create was written, and the restart then hard deleted the
+// row the person had just removed: GONE in 10 of 10 cells.
+//
+// THE GRID. A row held in a map the fake host's manifest reads, a create and a
+// kill that each take a known width on a fake clock, and a hook that mutates
+// the row mid-flight: tombstoned (`discarded` with a removal date, which is
+// what `markSessionRemoved` writes), deleted outright, or left alone as the
+// control. The hook fires 0, 1, 5, 25 and 100 ms into the create, or into the
+// kill, measured from the moment the create returns. The hook is UNGATED on
+// purpose: it tombstones a running row too, which the real Remove refuses, so
+// the guard is attacked where the product's own gates would not reach.
+//
+// The fake kill does what core.killSession does at this phase's head: it writes
+// `exited` at its end unless the row was removed meanwhile (Phase 302's
+// re-read), and a kill of a removed row throws as `endRefusal` makes it.
+//
+// THE EXPECTED TABLE IS DERIVED BY HAND, from build/p353/SPEC.md §4.2 step 2
+// and D305-1 to D305-5, before the run, and committed here. Every interval
+// falls inside its window (asserted below), so a cell's reading depends on the
+// phase, the starting status and the mutation, and the table is keyed by those
+// three; each interval is a cell of its own and is read against its key.
+//
+// Each cell reads: whether a kill was attempted, the row afterwards as
+// `status,removed_at` (or GONE), what the outcome says happened to the old row,
+// and how many deletes were made.
+// ---------------------------------------------------------------------------
+
+type GridStatus = 'exited' | 'restorable' | 'running' | 'unknown';
+type GridPhase = 'create' | 'kill';
+type GridMutation = 'tombstone' | 'delete' | 'alone';
+
+const GRID_CREATE_MS = 120;
+const GRID_KILL_MS = 120;
+const GRID_INTERVALS = [0, 1, 5, 25, 100] as const;
+const GRID_STATUSES: readonly GridStatus[] = ['exited', 'restorable', 'running', 'unknown'];
+const GRID_REMOVED_AT = 1_800_000_000_000;
+
+/** The hand-derived expectation, keyed `phase status mutation`. */
+const GRID_EXPECTED: Readonly<Record<string, string>> = {
+  // A mutation inside the create: the read after it sees it.
+  'create exited alone': 'kill=no row=GONE oldRow=deleted discards=1',
+  'create exited tombstone': 'kill=no row=discarded,removed_at oldRow=kept-removed discards=0',
+  'create exited delete': 'kill=no row=GONE oldRow=already-gone discards=0',
+  'create restorable alone': 'kill=no row=GONE oldRow=deleted discards=1',
+  'create restorable tombstone': 'kill=no row=discarded,removed_at oldRow=kept-removed discards=0',
+  'create restorable delete': 'kill=no row=GONE oldRow=already-gone discards=0',
+  'create running alone': 'kill=yes row=GONE oldRow=deleted discards=1',
+  'create running tombstone': 'kill=no row=discarded,removed_at oldRow=kept-removed discards=0',
+  'create running delete': 'kill=no row=GONE oldRow=already-gone discards=0',
+  'create unknown alone': 'kill=yes row=GONE oldRow=deleted discards=1',
+  'create unknown tombstone': 'kill=no row=discarded,removed_at oldRow=kept-removed discards=0',
+  'create unknown delete': 'kill=no row=GONE oldRow=already-gone discards=0',
+  // A mutation after the create returns. An ended row needs no kill, so the
+  // restart has finished, and deleted the row, before the hook fires: the
+  // mutation lands on nothing, exactly as an ordinary restart today.
+  'kill exited alone': 'kill=no row=GONE oldRow=deleted discards=1',
+  'kill exited tombstone': 'kill=no row=GONE oldRow=deleted discards=1',
+  'kill exited delete': 'kill=no row=GONE oldRow=deleted discards=1',
+  'kill restorable alone': 'kill=no row=GONE oldRow=deleted discards=1',
+  'kill restorable tombstone': 'kill=no row=GONE oldRow=deleted discards=1',
+  'kill restorable delete': 'kill=no row=GONE oldRow=deleted discards=1',
+  // A live row is killed, and the mutation lands inside the kill's await. The
+  // delete reads the row again after the kill.
+  'kill running alone': 'kill=yes row=GONE oldRow=deleted discards=1',
+  'kill running tombstone': 'kill=yes row=discarded,removed_at oldRow=kept-removed discards=0',
+  'kill running delete': 'kill=yes row=GONE oldRow=already-gone discards=0',
+  'kill unknown alone': 'kill=yes row=GONE oldRow=deleted discards=1',
+  'kill unknown tombstone': 'kill=yes row=discarded,removed_at oldRow=kept-removed discards=0',
+  'kill unknown delete': 'kill=yes row=GONE oldRow=already-gone discards=0'
+};
+
+interface GridWorld {
+  host: RestartHost;
+  rows: Map<string, ManifestSessionRecord>;
+  killAttempted: boolean;
+  discards: number;
+}
+
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+function gridWorld(
+  start: ManifestSessionRecord,
+  phase: GridPhase,
+  mutation: GridMutation,
+  at: number,
+  killThrows = false
+): GridWorld {
+  const rows = new Map<string, ManifestSessionRecord>([[start.id, start]]);
+  const mutate = (): void => {
+    const row = rows.get(start.id);
+    // A row already gone takes no removal, as `markSessionRemoved` throws on it.
+    if (row === undefined) return;
+    if (mutation === 'tombstone') {
+      rows.set(start.id, { ...row, status: 'discarded', removedAt: GRID_REMOVED_AT });
+    } else if (mutation === 'delete') {
+      rows.delete(start.id);
+    }
+  };
+  const w: GridWorld = {
+    rows,
+    killAttempted: false,
+    discards: 0,
+    host: {
+      // A fresh object per read, as the real store's `rowToRecord` is.
+      manifest: {
+        getSession: (id) => {
+          const row = rows.get(id);
+          return row === undefined ? undefined : { ...row };
+        }
+      },
+      createSession: async (input) => {
+        if (phase === 'create') setTimeout(mutate, at);
+        await wait(GRID_CREATE_MS);
+        if (phase === 'kill') setTimeout(mutate, at);
+        return {
+          id: 'new-session',
+          name: input.name,
+          tmuxName: `${input.name}-2`,
+          projectPath: input.projectPath,
+          cwd: input.cwd ?? input.projectPath,
+          agent: input.agent,
+          status: 'running',
+          createdAt: 1
+        };
+      },
+      killSession: async (id) => {
+        w.killAttempted = true;
+        const before = rows.get(id);
+        // `endRefusal` at the top of core.killSession.
+        if (before?.status === 'discarded') {
+          throw new Error('This session was removed, so there is nothing to end. Nothing was changed.');
+        }
+        await wait(GRID_KILL_MS);
+        if (killThrows) throw new Error('tmux went away');
+        const after = rows.get(id);
+        if (after !== undefined && after.status !== 'discarded') {
+          rows.set(id, { ...after, status: 'exited' });
+        }
+      },
+      discardSession: (id) => {
+        w.discards += 1;
+        rows.delete(id);
+      },
+      broadcastSessions: () => undefined
+    }
+  };
+  return w;
+}
+
+function rowReading(w: GridWorld): string {
+  const row = w.rows.get(SESSION_ID);
+  return row === undefined
+    ? 'GONE'
+    : `${row.status},${row.removedAt !== undefined ? 'removed_at' : '-'}`;
+}
+
+async function runGridCell(w: GridWorld): Promise<string> {
+  const pending = restartSession(w.host, SESSION_ID);
+  // Long past both windows, so every timer the cell made has fired.
+  await vi.advanceTimersByTimeAsync(GRID_CREATE_MS + GRID_KILL_MS + 500);
+  const out = await pending;
+  // The outcome's two fields agree with each other in every cell; a cell where
+  // they do not says so in its reading, so the row is still read beside it.
+  const agree = out.keptRemovedRow === (out.oldRow === 'kept-removed');
+  return (
+    `kill=${w.killAttempted ? 'yes' : 'no'} row=${rowReading(w)} oldRow=${String(out.oldRow)} ` +
+    `discards=${String(w.discards)}${agree ? '' : ' OUTCOME-DISAGREES'}`
+  );
+}
+
+describe('a restart while the row is removed, ended or deleted around it (Phase 305)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('every interval falls inside the window it is aimed at', () => {
+    for (const at of GRID_INTERVALS) {
+      expect(at).toBeLessThan(GRID_CREATE_MS);
+      expect(at).toBeLessThan(GRID_KILL_MS);
+    }
+    expect(Object.keys(GRID_EXPECTED)).toHaveLength(2 * GRID_STATUSES.length * 3);
+  });
+
+  for (const phase of ['create', 'kill'] as const) {
+    for (const status of GRID_STATUSES) {
+      for (const mutation of ['tombstone', 'delete', 'alone'] as const) {
+        for (const at of GRID_INTERVALS) {
+          it(`${phase} ${status} ${mutation}@${String(at)}ms`, async () => {
+            const w = gridWorld(record({ status }), phase, mutation, at);
+            const reading = await runGridCell(w);
+            expect(reading).toBe(GRID_EXPECTED[`${phase} ${status} ${mutation}`]);
+          });
+        }
+      }
+    }
+  }
+
+  it('a removed row keeps the replacement and says so in one log line', async () => {
+    // An info line reaches the console through console.log (src/main/log).
+    const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const w = gridWorld(record({ status: 'exited' }), 'create', 'tombstone', 5);
+    const pending = restartSession(w.host, SESSION_ID);
+    await vi.advanceTimersByTimeAsync(1000);
+    const out = await pending;
+    expect(out.session.id).toBe('new-session');
+    expect(out.keptRemovedRow).toBe(true);
+    const said = info.mock.calls.map((c) => c.join(' ')).filter((l) => l.includes('was removed while it restarted'));
+    expect(said).toHaveLength(1);
+    expect(said[0]).toContain('the new session exists and the removed one is still in Past Sessions');
+  });
+
+  it('a row that was ALREADY removed is never killed and never deleted (the charter’s path)', async () => {
+    const w = gridWorld(
+      record({ status: 'discarded', removedAt: GRID_REMOVED_AT }),
+      'create',
+      'alone',
+      0
+    );
+    // The parent read this row as live, killed it into the end refusal,
+    // swallowed that and deleted the tombstone.
+    expect(await runGridCell(w)).toBe('kill=no row=discarded,removed_at oldRow=kept-removed discards=0');
+  });
+
+  // PHASE 353's FIX ROUND (the records lens). A row an earlier build left
+  // ended beside its removal date is in the managed list, not in Past: it is
+  // replaced as at the parent, and nothing says it is in Past Sessions.
+  it.each(['exited', 'restorable'] as const)(
+    'a %s row an earlier build left beside its removal date is replaced, as at the parent',
+    async (status) => {
+      const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      // The spy an earlier row made is the same spy: read only this row's lines.
+      info.mockClear();
+      const w = gridWorld(record({ status, removedAt: GRID_REMOVED_AT }), 'create', 'alone', 0);
+      expect(await runGridCell(w)).toBe('kill=no row=GONE oldRow=deleted discards=1');
+      expect(info.mock.calls.map((c) => c.join(' ')).filter((l) => l.includes('still in Past Sessions'))).toEqual([]);
+    }
+  );
+
+  it('a discarded row with no removal date, which this build cannot write, is ended and not live', async () => {
+    const w = gridWorld(record({ status: 'discarded' }), 'create', 'alone', 0);
+    expect(await runGridCell(w)).toBe('kill=no row=GONE oldRow=deleted discards=1');
+  });
+
+  it.each(['running', 'unknown'] as const)(
+    'a %s row whose kill fails is kept, with its own status',
+    async (status) => {
+      const w = gridWorld(record({ status }), 'create', 'alone', 0, true);
+      expect(await runGridCell(w)).toBe(`kill=yes row=${status},- oldRow=kept-kill-failed discards=0`);
+      expect(warned.join('\n')).toContain('could not stop the old');
+    }
+  );
 });

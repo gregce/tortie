@@ -88,14 +88,15 @@
  * forward with the lines that fall off. The copy says nothing about either
  * and simply stops where the history does.
  *
- * AND THE COPY IS TWO CALLS RATHER THAN ONE INSTANT. Main reads
- * `#{history_size}` and then runs `capture-pane` with offsets computed from
- * it, so lines that land between the two shift the answer forward by however
- * many arrived. tmux offers no absolute line addressing to close that with.
- * The two calls go out back to back, which is why a pane printing ten lines
- * a second moved the answer by one line or none when it was measured on
- * 2026-09-03, while the same pair issued by hand from a shell under a pane
- * printing as fast as it could moved by as much as 137.
+ * AND THE COPY IS ONE INSTANT (Phase 295). It used to be two calls: main read
+ * `#{history_size}` and then ran `capture-pane` with offsets computed from it,
+ * so lines that landed between the two shifted the answer forward by however
+ * many arrived (measured 2026-11-05 at 80 lines a second on tmux 3.7b, 58 of
+ * 300 copies off). tmux offers no absolute line addressing, but it computes an
+ * offset itself at the moment it captures, so main now asks once: the extent
+ * and the capture in one tmux invocation, `-S` and `-E` written as tmux's own
+ * arithmetic over the history it holds then (src/main/tmux/history-lines.ts).
+ * Measured exact at 10, 80 and 700 lines a second on 3.6a and 3.7b.
  *
  * AND ONE CHARACTER IN A THOUSAND COPIES A SPACE WIDER FROM THE HISTORY THAN
  * FROM THE SCREEN. xterm ships the Unicode 6 width table, where an emoji is

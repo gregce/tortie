@@ -82,7 +82,7 @@ const { ManifestStore } = await import('../../manifest/store');
 const { LOCAL_MACHINE_ROW } = await import('../../manifest/codecs');
 const { setRemoteManifest } = await import('../../machines/remote-record');
 const { gmuxErrorPayloadOf } = await import('../../errors');
-const { endRefusal, removeRefusal } = await import('../lifecycle-gate');
+const { endRefusal, removeRefusal, restartKeepsRow } = await import('../lifecycle-gate');
 import type { ManifestSessionRecord } from '../../manifest/store';
 
 // The sentences, byte for byte. The renderer draws them verbatim, so they are
@@ -159,6 +159,32 @@ describe('removeRefusal', () => {
     // writes its own copy of the same five characters. If they ever part, a
     // local row would read as remote here and every refusal above would pass.
     expect(LOCAL_MACHINE_ROW).toBe(LOCAL_MACHINE_ID);
+  });
+});
+
+// Phase 305 (build/p353/SPEC.md D305-2). The one thing a Restart may not do to
+// a row: delete it while it is the person's tombstone, `discarded` with its
+// removal date. `conformance:manager` drives the restart over it (RS1 to RS5);
+// this is its table.
+describe('restartKeepsRow (Phase 305)', () => {
+  it('keeps a tombstone: a discarded row that carries a removal date', () => {
+    expect(restartKeepsRow({ status: 'discarded', removedAt: 1_800_000_000_000 })).toBe(true);
+    expect(restartKeepsRow({ status: 'discarded', removedAt: 0 })).toBe(true);
+  });
+
+  it('does not keep a row with no removal date, so an ordinary ended row is still deleted', () => {
+    for (const status of SESSION_STATUSES) {
+      expect(restartKeepsRow({ status })).toBe(false);
+    }
+  });
+
+  // PHASE 353's FIX ROUND. A row an earlier build left reading another status
+  // beside its removal date is in the managed list, not in Past, and a Restart
+  // replaces it exactly as it did at the parent.
+  it('does not keep a row an earlier build left reading another status beside its removal date', () => {
+    for (const status of SESSION_STATUSES.filter((s) => s !== 'discarded')) {
+      expect(restartKeepsRow({ status, removedAt: 1_800_000_000_000 })).toBe(false);
+    }
   });
 });
 

@@ -108,18 +108,25 @@
  * planted rows of p350-pi-bare-name.test.ts and p350-pi-package.test.ts. P7 and
  * P28 moved their needles with the create's new words.
  *
- * P42 and P43 are the third ruled round's (his ruling of 2026-11-03, "No switch
- * for # folders"): the `#` clause taken out of the resolver's guard, so a
- * folder tmux reads as a format is walked as written (P42); and the walk handed
- * the project's folder instead of the session's (P43, the reverify's B2), red
- * on a DRIVEN row whose session sits in a subfolder of its project. Phase 353,
- * which hands tmux the folder escaped, takes P42 out with the clause.
+ * P43 is the third ruled round's (his ruling of 2026-11-03): the walk handed the
+ * project's folder instead of the session's (the reverify's B2), red on a
+ * DRIVEN row whose session sits in a subfolder of its project.
  *
- * P44 is the fourth ruled round's (his ruling of 2026-11-04, "Treat a trailing
- * ; like #"): the `;` term taken out of the same guard, so a folder ending in
- * `\;`, which tmux's argument reader reads as ending in `;`, is walked as
- * written, red on the DRIVEN `semi\;` and `twin\;` rows and on 11.11. Phase 353
- * takes P44 out with its clause.
+ * PHASE 353 TOOK P42 AND P44 OUT (build/p353/SPEC.md D354-5), with the two
+ * clauses they broke: his rulings of 2026-11-03 and 2026-11-04 read a folder
+ * holding a `#`, or ending in `;`, as unread, because tmux read `-c` as a format
+ * and ended a command at a final `;`. Every create now hands tmux the folder
+ * held back (src/main/tmux/argument.ts), the pane starts in that folder, and
+ * the resolver walks it like any other, so there is no clause left to break.
+ * Their owners went with them: N60, N61 and N63 to N68, whose rows flipped to
+ * holding the token; 11.11 now requires the guard to name neither term.
+ *
+ * P45 to P47 are Phase 353's, the attack on what replaced them: the `#` term
+ * (P45) and the final-`;` term (P46) put back into the resolver's guard, red on
+ * 11.11 and on the flipped rows that now hold the token (N69 to N76); and the
+ * create handing tmux the folder raw (P47), red on 11.11, which requires the
+ * create to hold the folder back because the walk reads the folder the pane
+ * starts in.
  *
  * Usage:
  *   node build/p331/ablation.mjs
@@ -175,6 +182,8 @@ const RESTORE = 'src/main/restore/restore.ts';
 const ARM = 'src/main/machines/remote-arm.ts';
 const REMOTE_SESSIONS = 'src/main/machines/remote-sessions.ts';
 const CREATE = 'src/main/sessions/create-local.ts';
+// Phase 353: the create every local pane starts through, whose `-c` 11.11 now holds.
+const TMUX_SESSIONS = 'src/main/tmux/sessions.ts';
 const TOKEN_TEST = 'src/main/agents/__tests__/p350-pi-token.test.ts';
 const PI_PASS_TEST = 'src/main/sessions/__tests__/p350-pi-pass.test.ts';
 const PI_RESTORE_TEST = 'src/main/restore/__tests__/p350-pi-restore.test.ts';
@@ -296,17 +305,19 @@ const TITLES = {
   // The reverify's nit: pi's unscoped name under another scope, and under its old one.
   N58: shapeRow('someoneScope'),
   N59: shapeRow('oldScope'),
-  // The third ruled round (his ruling of 2026-11-03): a folder holding a `#`, and a session in a subfolder of its project.
-  N60: bareRow('C#Tools, a project with no pi, HOME holding its own pi 0.83.0, node_modules/.bin', 'unread'),
-  N61: bareRow('C#/app, the # in a parent folder, HOME holding its own pi 0.83.0, node_modules/.bin', 'unread'),
+  // The third ruled round (his ruling of 2026-11-03): a session in a subfolder of its project. N60, N61, N63 and N64,
+  // the `#` rows, went with P42 in Phase 353, and N65 to N68, the `;` rows, with P44: their rows flipped to holding
+  // the token, because every create now hands tmux the folder held back.
   N62: [BARE_TEST, 'a session in a subfolder of its project that pins its own pi 0.83.0 reads unread from that subfolder: the desk and Restart spawn pi there as today, and the phone, which starts in the project folder, holds, byte for byte'],
-  N63: [BARE_TEST, "a folder whose name holds a # reads no file, wherever HOME's own pi is: tmux reads -c as a format"],
-  N64: [BARE_TEST, "a # in a parent folder's name counts"],
-  // The fourth ruled round (his ruling of 2026-11-04): a folder whose name ends in `;`.
-  N65: bareRow('semi\\;, a project with no pi whose name ends in a backslash and a semicolon, HOME holding its own pi 0.83.0, node_modules/.bin', 'unread'),
-  N66: bareRow('twin\\;, a project with no pi whose twin twin; pins its own pi 0.83.0, a HOME holding none, node_modules/.bin', 'unread'),
-  N67: [BARE_TEST, "a folder whose name ends in a backslash and a semicolon reads no file, wherever HOME's own pi is: tmux reads it as ending in ;"],
-  N68: [BARE_TEST, 'a folder ending in a backslash and a semicolon whose ; twin pins its own pi reads no file, and neither does the twin']
+  // Phase 353: the rows that flipped to holding the token, owned by P45 (the `#` term back) and P46 (the `;` term back).
+  N69: bareRow('C#Tools, a project with no pi, HOME holding its own pi 0.83.0, node_modules/.bin', 'holds'),
+  N70: bareRow('C#/app, the # in a parent folder, HOME holding its own pi 0.83.0, node_modules/.bin', 'holds'),
+  N71: [BARE_TEST, "a folder whose name holds a # is walked like any other, wherever HOME's own pi is: the create now holds the folder back, so the pane starts there"],
+  N72: [BARE_TEST, "a # in a parent folder's name is walked like any other"],
+  N73: bareRow('semi\\;, a project with no pi whose name ends in a backslash and a semicolon, HOME holding its own pi 0.83.0, node_modules/.bin', 'holds'),
+  N74: bareRow('twin\\;, a project with no pi whose twin twin; pins its own pi 0.83.0, a HOME holding none, node_modules/.bin', 'holds'),
+  N75: [BARE_TEST, "a folder whose name ends in a backslash and a semicolon is walked like any other, wherever HOME's own pi is: the create now hands its final ; held back"],
+  N76: [BARE_TEST, 'a folder ending in a backslash and a semicolon is walked as itself, never as its ; twin, and the twin, which pins its own pi, runs that pi']
 };
 /**
  * The `conformance:agents` rows, owned by the line the gate prints when one
@@ -544,17 +555,21 @@ function arms(registry, overlay) {
     { n: 'P41', name: "pi's package name read by its unscoped half under any scope", file: DETECTION,
       find: '(parsed as { name?: unknown }).name === PI_PACKAGE_NAME', to: "String((parsed as { name?: unknown }).name).split('/').pop() === PI_PACKAGE_NAME.split('/').pop()",
       owners: ['N58', 'N59', 'N44'] },
-    // THE THIRD RULED ROUND'S ARMS (his ruling of 2026-11-03, "No switch for # folders").
-    { n: 'P42', name: 'a folder holding a # walked as written, though tmux reads -c as a format', file: DETECTION,
-      find: " || folder.includes('#')", to: '',
-      owners: ['11.11', 'N60', 'N61', 'N63', 'N64'] },
+    // THE THIRD RULED ROUND'S ARM (his ruling of 2026-11-03). Its sibling P42, and the fourth ruled round's P44,
+    // went in Phase 353 with the two clauses they broke (see the header).
     { n: 'P43', name: "the walk handed the project's folder, not the session's", file: CREATE,
       find: 'folder: cwd }', to: 'folder: input.projectPath }',
       owners: ['11.11', 'N62'] },
-    // THE FOURTH RULED ROUND'S ARM (his ruling of 2026-11-04, "Treat a trailing ; like #").
-    { n: 'P44', name: "a folder ending in ; walked as written, though tmux's argument reader reads \\; as ;", file: DETECTION,
-      find: " || folder.endsWith(';')", to: '',
-      owners: ['11.11', 'N65', 'N66', 'N67', 'N68'] }
+    // PHASE 353'S ARMS (build/p353/SPEC.md D354-5): what replaced P42 and P44, broken in the shipping source.
+    { n: 'P45', name: "the # term of 2026-11-03 put back into the resolver's guard", file: DETECTION,
+      find: "|| !folder.startsWith('/')) return null;", to: "|| !folder.startsWith('/') || folder.includes('#')) return null;",
+      owners: ['11.11', 'N69', 'N70', 'N71', 'N72'] },
+    { n: 'P46', name: "the ; term of 2026-11-04 put back into the resolver's guard", file: DETECTION,
+      find: "|| !folder.startsWith('/')) return null;", to: "|| !folder.startsWith('/') || folder.endsWith(';')) return null;",
+      owners: ['11.11', 'N73', 'N74', 'N75', 'N76'] },
+    { n: 'P47', name: 'the create handing tmux the folder raw, which the walk can no longer start from', file: TMUX_SESSIONS,
+      find: 'input.folderAsRecorded === true ? input.cwd : tmuxFolderArgument(input.cwd)', to: 'input.cwd',
+      owners: ['11.11'] }
   ];
 }
 
@@ -683,7 +698,7 @@ const started = Date.now();
 let ran = 0;
 let owned = 0;
 
-const WATCHED = [REGISTRY, EXTRAS, REMOTE_RECORD, HARVEST, PASS, OVERLAY, SCREEN, CASES, PANE, RESUME, REPORT, CORE, DETECTION, RESTORE, ARM, REMOTE_SESSIONS, CREATE, ...TEST_FILES, 'build/conformance-agents.mjs', 'build/agents-conformance-probe.mts'];
+const WATCHED = [REGISTRY, EXTRAS, REMOTE_RECORD, HARVEST, PASS, OVERLAY, SCREEN, CASES, PANE, RESUME, REPORT, CORE, DETECTION, RESTORE, ARM, REMOTE_SESSIONS, CREATE, TMUX_SESSIONS, ...TEST_FILES, 'build/conformance-agents.mjs', 'build/agents-conformance-probe.mts'];
 const before = new Map(WATCHED.filter((f) => existsSync(join(REPO, f))).map((f) => [f, sha(readFileSync(join(REPO, f)))]));
 
 try {

@@ -46,9 +46,16 @@
  * into the run directory. The flavours are printed before and after and
  * must agree.
  *
- * SAFETY. `-L gmux` appears once, in a read only session count taken before
- * and after. The native menu is never opened. Nothing under the person's
- * home is written: HOME is a scratch directory for the run.
+ * SAFETY. `-L gmux` is not named by this file (Phase 353, D-P2): the launch
+ * names its scratch socket, so build/electron-run.mjs's census reads the
+ * operator's server around it, read only and by identity, and the count this
+ * file used to take itself, with the finding it raised, is gone. No agent is
+ * started, not even for its version: every probed registry row is hidden in
+ * the profile's agents.json before the launch (build/hidden-agents.mjs), and
+ * the app's own `agents:list` is read back before any arm, a row that resolved
+ * being a finding that stops the run. The native menu is never opened.
+ * Nothing under the person's home is written: HOME is a scratch directory for
+ * the run.
  *
  * `node build/probe-p209-selection.mjs --self-test` proves the graders on
  * fixtures and launches nothing at all.
@@ -544,6 +551,9 @@ const { withElectron, withoutDevRenderer } = await import(
   join(REPO, 'build', 'electron-run.mjs')
 );
 const { cdpEval, wsConnect } = await import(join(REPO, 'build', 'cdp-client.mjs'));
+const { AGENTS_LIST_EXPR, hiddenAgentsBesides, standInsOnlyVerdict, writeHiddenAgents } = await import(
+  join(REPO, 'build', 'hidden-agents.mjs')
+);
 
 if (!existsSync(join(REPO, 'out', 'main', 'index.js'))) {
   console.error(`${TAG} out/main/index.js is missing. Run npm run build.`);
@@ -559,6 +569,8 @@ for (const dir of [project, profile, home, pbDir]) {
   mkdirSync(dir, { recursive: true });
 }
 writeFileSync(join(project, 'README.md'), '# p209\n', 'utf8');
+// PHASE 353 (D-P2). Every probed registry row hidden before the launch.
+writeHiddenAgents(profile, 'p209', hiddenAgentsBesides([]));
 
 // The pasteboard keeper, compiled into this run and never shipped.
 const PB = join(root, 'pb');
@@ -578,12 +590,6 @@ const pb = (...args) =>
 const pbpaste = () => spawnSync('pbpaste', [], { encoding: 'utf8' }).stdout ?? '';
 const pbFlavours = (info) => info.replace(/^changeCount=\d+\n?/, '');
 
-function operatorSessions() {
-  const out = spawnSync('tmux', ['-L', 'gmux', 'list-sessions'], {
-    encoding: 'utf8'
-  });
-  return (out.stdout ?? '').split('\n').filter((l) => l.trim() !== '').length;
-}
 function processCount() {
   const out = spawnSync(
     '/bin/sh',
@@ -670,8 +676,6 @@ const report = { hold: {}, down: {}, reverse: {}, top: {}, stream: {}, identity:
 let threw = null;
 
 const processesBefore = processCount();
-const operatorBefore = operatorSessions();
-say(`the operator session count before: ${String(operatorBefore)}`);
 say(`processes of the Electron family before: ${String(processesBefore)}`);
 const pbBefore = pb('info');
 say(`pasteboard saved: ${pb('save', pbDir)}`);
@@ -700,6 +704,22 @@ try {
       const { cdp, url } = await cdpForAppWindow(120_000);
       say(`the app window is at ${url}`);
       await cdp.call('Runtime.enable');
+      // PHASE 353 (D-P2). Nothing resolved in the app's own scan, since this
+      // run has no stand-in; a row that resolved stops the run before any arm.
+      try {
+        report.agents = standInsOnlyVerdict(JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR, 90_000)), { standIns: [] });
+      } catch (err) {
+        report.agents = { ok: false, said: `agents:list could not be read: ${String(err)}` };
+      }
+      say(`agents ${report.agents.ok ? 'ok' : 'NOT OK'}: ${report.agents.said}`);
+      if (!report.agents.ok) {
+        try {
+          cdp.close();
+        } catch {
+          /* already gone */
+        }
+        return false;
+      }
       await cdp.call('Emulation.setFocusEmulationEnabled', { enabled: true });
       for (;;) {
         const done = await cdpEval(
@@ -1280,9 +1300,7 @@ const reportPath = join(root, 'p209-report.json');
 writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 say(`the readings are at ${reportPath}`);
 
-const operatorAfter = operatorSessions();
 const processesAfter = processCount();
-say(`the operator session count after: ${String(operatorAfter)}`);
 say(
   `processes of the Electron family after: ${String(processesAfter)} (before ${String(processesBefore)})`
 );
@@ -1301,11 +1319,8 @@ const findings = [
   ...(report.notes.every((n) => n.includes('identical'))
     ? []
     : ['the pasteboard after the restore is not the pasteboard before']),
-  ...(operatorAfter === operatorBefore
-    ? []
-    : [
-        `the operator session count moved from ${String(operatorBefore)} to ${String(operatorAfter)}`
-      ])
+  // PHASE 353 (D-P2): the app's own scan, read back before any arm.
+  ...(report.agents?.ok === true ? [] : [`agents: ${String(report.agents?.said ?? 'agents:list was not read')}`])
 ];
 for (const f of findings) console.error(`${TAG} FINDING ${f}`);
 if (findings.length === 0) {

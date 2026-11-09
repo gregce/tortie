@@ -48,13 +48,25 @@
  *   { op: 'input', on }           echo what is typed into the agent's own input
  *                                 row, above its footer, and redraw; never submit
  *   { op: 'clear-input' }         empty the input row and redraw
+ *   { op: 'modes', everyMs }      PHASE 353 (328): write the 15 bytes agy 1.2.7
+ *                                 writes at rest, `ESC [ ? 2004 h ESC [ > 4 ; 2 m`,
+ *                                 every `everyMs` (0 stops it), drawing nothing
+ *   { op: 'terminal-tool', seconds, afterMs }
+ *                                 PHASE 353 (328): a tool on a terminal of its
+ *                                 own, as agy runs its tools: `/bin/sleep` under
+ *                                 `/usr/bin/script -q /dev/null`, which is `Ss+`
+ *                                 on the pty script makes (measured), born
+ *                                 `afterMs` from now; script's pid recorded and
+ *                                 the sleep found under it by pid at the end
  *   { op: 'exit' }                leave
  * A `screen` is `{ fixture: '<name>.txt' }` or `{ window: '<source>-<agent>.jsonl', id }`.
  *
  * WHAT IT NEVER DOES. It never submits what is typed (Enter is a new line in
- * its input row), never writes anything but its screens, reads nothing outside
- * this checkout's committed screens and its own directory, and runs no program
- * but `/bin/sleep`. Its helpers and tools are ENDED BY PID in its `finally`
+ * its input row), never writes anything but its screens and, on `modes`, two
+ * terminal modes, reads nothing outside this checkout's committed screens and
+ * its own directory, and runs no program but `/bin/sleep`, `/usr/bin/script`
+ * around one, and `/bin/ps` to find that sleep by its parent's pid at the end.
+ * Its helpers and tools are ENDED BY PID in its `finally`
  * whatever happened, and the probe ends any still standing by pid in its own
  * `finally` besides, because a detached child outlives the hang-up tmux sends.
  * It ends when told to, on SIGHUP, SIGTERM or SIGINT, when its directory is
@@ -65,7 +77,7 @@
  * it runs nothing: the stand-in runs only when this file is the entry point.
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -314,6 +326,7 @@ async function standIn() {
   let narrow = false;
   let widest = 0;
   let repaintTimer = null;
+  let modesTimer = null;
   let workTimer = null;
   let done = null;
   const finished = new Promise((r) => {
@@ -347,6 +360,7 @@ async function standIn() {
           typedLines: typed.length,
           helpers: kids.filter((k) => k.kind === 'helper').map((k) => ({ pid: k.child.pid, live: live(k) })),
           tools: kids.filter((k) => k.kind === 'tool').map((k) => ({ pid: k.child.pid, live: live(k) })),
+          terminals: kids.filter((k) => k.kind === 'terminal').map((k) => ({ pid: k.child.pid, live: live(k) })),
           at: Date.now()
         })
       );
@@ -379,6 +393,26 @@ async function standIn() {
     if (repaintTimer !== null) clearInterval(repaintTimer);
     repaintTimer = everyMs > 0 ? setInterval(paint, Math.max(50, everyMs)) : null;
   }
+  /** PHASE 353 (328): agy's 15 bytes, bracketed paste and modify-other-keys, drawing nothing. */
+  function setModes(everyMs) {
+    if (modesTimer !== null) clearInterval(modesTimer);
+    modesTimer = everyMs > 0 ? setInterval(() => process.stdout.write(`${ESC}[?2004h${ESC}[>4;2m`), Math.max(50, everyMs)) : null;
+  }
+  /**
+   * PHASE 353 (328): a tool on a terminal of its own. `script` stays in this
+   * process's group (so it reads `S+` on the pane's terminal) and runs the
+   * sleep as the session leader of the pty it opens (`Ss+`, measured on this
+   * Mac on 2026-11-05), which is how agy 1.2.7's tool read.
+   */
+  function startTerminalTool(seconds) {
+    const child = spawn('/usr/bin/script', ['-q', '/dev/null', '/bin/sleep', String(Math.max(1, Math.min(3600, Math.round(seconds))))], {
+      stdio: 'ignore'
+    });
+    child.on('error', () => undefined);
+    child.on('exit', () => writeState());
+    kids.push({ kind: 'terminal', child });
+    writeState();
+  }
   /** A detached `/bin/sleep`: its own session, outside the pane's foreground group. */
   function startDetached(kind, seconds) {
     const child = spawn('/bin/sleep', [String(Math.max(1, Math.min(3600, Math.round(seconds))))], {
@@ -392,6 +426,25 @@ async function standIn() {
     writeState();
   }
   function endKids() {
+    // A terminal tool's sleep is script's child: found by its parent's pid,
+    // never by a name, and ended by pid before script itself.
+    const scripts = new Set(kids.filter((k) => k.kind === 'terminal' && k.child.exitCode === null && k.child.signalCode === null).map((k) => k.child.pid));
+    if (scripts.size > 0) {
+      try {
+        const table = spawnSync('/bin/ps', ['-Ao', 'pid=,ppid=,command='], { encoding: 'utf8', timeout: 5_000 }).stdout ?? '';
+        for (const line of table.split('\n')) {
+          const m = /^\s*(\d+)\s+(\d+)\s+\/bin\/sleep \d+$/.exec(line);
+          if (m === null || !scripts.has(Number(m[2]))) continue;
+          try {
+            process.kill(Number(m[1]), 'SIGTERM');
+          } catch {
+            /* already gone */
+          }
+        }
+      } catch {
+        /* no table: the pty closing with script hangs the sleep up */
+      }
+    }
     for (const k of kids) {
       if (k.child.exitCode !== null || k.child.signalCode !== null) continue;
       try {
@@ -433,6 +486,10 @@ async function standIn() {
       echo = op.on === true;
       if (!echo) typed = [];
       paint();
+    } else if (op?.op === 'modes') {
+      setModes(Number(op.everyMs) || 0);
+    } else if (op?.op === 'terminal-tool') {
+      later(Math.max(0, Number(op.afterMs) || 0), () => startTerminalTool(Number(op.seconds) || 5));
     } else if (op?.op === 'clear-input') {
       typed = [];
       paint();
@@ -509,6 +566,7 @@ async function standIn() {
     endKids();
     stopWork();
     setRepaint(0);
+    setModes(0);
     for (const t of timers) {
       clearTimeout(t);
       clearInterval(t);

@@ -13,6 +13,10 @@
  * carries neither `@gmux-id` nor the `GMUX_SESSION_ID` pane stamp is not
  * Tortie's. `./remote-sessions.ts` re-exports all three names, so every existing
  * caller is unchanged.
+ *
+ * PHASE 353 added a fourth name, `tmuxArgument`, the final-`;` rule the stamp
+ * always applied, now a function of its own so every create applies the same
+ * one (`../tmux/argument.ts` re-exports it). Nothing it returns changed.
  */
 
 /** The four options Tortie stamps on a session it created on a machine. */
@@ -39,7 +43,8 @@ export function oneLine(value: string): string {
 }
 
 /**
- * One stamp, aimed at an immutable identifier. Pure.
+ * One argument as tmux's argument reader must be handed it, so it reads back
+ * the value sent. Pure.
  *
  * PHASE 349 (build/p349/SPEC.md D15, §2.1's far stamp, measured on every
  * version from 3.2a to 3.7c): tmux's command parser ENDS a command at an
@@ -49,15 +54,30 @@ export function oneLine(value: string): string {
  * version reads back as the value sent. Nothing else in any value changes: a
  * value beginning with `-`, and `--`, are kept on every version, `#H` is kept
  * as typed and a backslash stays single, and 3.4's `\$` is undone on read by
- * Phase 342's `dollarOnRead`. Every stamp is composed here, so a project path
- * ending in `;` is kept too.
+ * Phase 342's `dollarOnRead`.
+ *
+ * PHASE 353 (build/p353/SPEC.md D354-2) moved the rule out of
+ * {@link remoteStampArgs} into this function, which every create now asks too,
+ * through `../tmux/argument.ts`: a session's folder, each of its `-e` pairs and
+ * every element of its argv, on this Mac and on another machine. The one
+ * spelling stays in this file because this leaf imports nothing (Phase 123),
+ * and `../tmux/argument.ts` re-exports it beside the folder rule.
+ */
+export function tmuxArgument(value: string): string {
+  const backslash = String.fromCharCode(92);
+  return value.endsWith(';') ? `${value.slice(0, -1)}${backslash};` : value;
+}
+
+/**
+ * One stamp, aimed at an immutable identifier. Pure.
+ *
+ * Its value through {@link tmuxArgument}, Phase 349's rule (D15). Every stamp
+ * is composed here, so a project path ending in `;` is kept too.
  */
 export function remoteStampArgs(
   tmuxId: string,
   option: string,
   value: string
 ): string[] {
-  const backslash = String.fromCharCode(92);
-  const sent = value.endsWith(';') ? `${value.slice(0, -1)}${backslash};` : value;
-  return ['set-option', '-t', tmuxId, option, sent];
+  return ['set-option', '-t', tmuxId, option, tmuxArgument(value)];
 }

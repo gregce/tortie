@@ -124,6 +124,22 @@
  *  the shipping sheet and the shipping door over one fixture, with no tab open
  *  and then the same tabs on both sides.
  *
+ *  READ AND DRIVEN, THE RESTART (Phase 305, build/p353/SPEC.md §4.2 step 5). A
+ *  Restart never deletes a row the person removed. T27 holds restart.ts to a
+ *  second read of the row after its create and before its kill and its
+ *  delete, no `rec.status` after the create, and no await between the last
+ *  read and the delete; T28 to ONE `restartKeepsRow`, in lifecycle-gate.ts,
+ *  imported, and asked of a read taken after the create on the delete's path;
+ *  T29 to no refusal in `core.discardSession` or the repository's
+ *  `deleteSession`, because the sweeps and the 90 day prune must still collect
+ *  tombstones. RS1 to RS5 drive the SHIPPING restart.ts and the gate in this
+ *  process (transpiled in memory, nothing spawned) over a fake host whose
+ *  create and kill can remove or delete the row while they run: kept when
+ *  removed (RS1), not deleted again when gone (RS2), kept when its kill fails
+ *  (RS3), the ordinary restart as it was (RS4), and the predicate's table
+ *  (RS5). Phase 302's rules (the repository's clause and the two writers'
+ *  re-reads) are vitest rows inside `npm test`; `ablation:p293` attacks them.
+ *
  * WHAT IT FAILS ON. Every failure is printed as `[p293 <rule>]` with the clause
  * of the spec that owns it, which is what `npm run ablation:p293` reads to
  * prove each rule can go red on its own.
@@ -182,7 +198,12 @@ const TEXT_RULES = [
   ['T25', '§6.2, Phase 317; build/p348/SPEC.md §7.4; build/p349/SPEC.md §4.3 step 9', 'the phone asks both gates: pocket-writes.ts imports sessionActionGates from @shared/session-gates and endRefusal from ./lifecycle-gate, endVerdict asks both, its batch arm is the Mac batch\'s predicate read as text in both files, and neither reads .answering; and (Phase 348) it imports removeRefusal and DOOR_REMOVE_GATE_ENV, and removeVerdict asks removeRefusal( and sessionActionGates( with DOOR_REMOVE_GATE_ENV, reading .canRemove and never .canEnd; and (Phase 349) it imports DOOR_RENAME_GATE_ENV and sessionNameRefusal, renameVerdict asks sessionActionGates( once, with DOOR_RENAME_GATE_ENV, reads .canRename and no other field, asks neither endRefusal( nor removeRefusal(, keeps the far arm after the gate and calls sessionNameRefusal( after both, and renameTargetVerdict asks renameVerdict( and no gate itself'],
   // Phase 316.7, build/p3167/SPEC.md §8.3. The grouping rule moved below the
   // renderer so the phone's door groups by it too.
-  ['T26', '§8.3, Phase 316.7', 'one grouping rule: sessionGroupIdentity, collectSessionGroups, sessionGroupLabel, compareSessionGroups, firstNamed and lifecycleKeeps are declared once, in src/shared/session-list.ts; projection.ts and routes.ts import and call them; routes.ts writes no ??=; no other function compares group labels with localeCompare beside a key; orderGroups hands its tab map and routes.ts an empty one; displayPath and createdOld are declared once, in their shared homes']
+  ['T26', '§8.3, Phase 316.7', 'one grouping rule: sessionGroupIdentity, collectSessionGroups, sessionGroupLabel, compareSessionGroups, firstNamed and lifecycleKeeps are declared once, in src/shared/session-list.ts; projection.ts and routes.ts import and call them; routes.ts writes no ??=; no other function compares group labels with localeCompare beside a key; orderGroups hands its tab map and routes.ts an empty one; displayPath and createdOld are declared once, in their shared homes'],
+  // Phase 305, build/p353/SPEC.md §4.2 step 5. A Restart never deletes a row
+  // the person removed. Read here; RS1 to RS5 below drive the same module.
+  ['T27', 'build/p353/SPEC.md §4.2 step 5, D305-1', 'restart.ts reads the row a second time after createSession( and before killSession( and discardSession(; nothing after the create reads rec.status; and no await stands between the last read of the row and the delete'],
+  ['T28', 'build/p353/SPEC.md §4.2 step 5, D305-2', 'restartKeepsRow is declared once under src/, in src/main/sessions/lifecycle-gate.ts; restart.ts imports it from ../sessions/lifecycle-gate; and discardSession( is reached only past a restartKeepsRow( asked of a read taken after the create, never of rec'],
+  ['T29', 'build/p353/SPEC.md §4.2 step 5, the entry\'s refusals', 'core.discardSession and the repository\'s deleteSession hold no refusal: neither reads a status or a removal date, nor asks restartKeepsRow, removeRefusal or endRefusal, because the smoke and conformance sweeps and the 90 day prune must still collect tombstones']
 ];
 
 if (process.argv.includes('--list')) {
@@ -1912,6 +1933,429 @@ function renamePartitionRule() {
 }
 
 // ---------------------------------------------------------------------------
+// The restart (Phase 305, build/p353/SPEC.md §4.2 step 5): READ (T27 to T29)
+// ---------------------------------------------------------------------------
+
+const RESTART = join(ROOT, 'src', 'main', 'restart', 'restart.ts');
+const CORE = join(ROOT, 'src', 'main', 'sessions', 'core.ts');
+const SESSIONS_REPOSITORY = join(ROOT, 'src', 'main', 'manifest', 'sessions-repository.ts');
+
+/** Every node under a node, the node included, depth first. */
+function nodesUnder(node) {
+  const out = [];
+  const visit = (n) => {
+    out.push(n);
+    ts.forEachChild(n, visit);
+  };
+  visit(node);
+  return out;
+}
+
+/** A class method with a body, by name, or null. */
+function methodDeclared(path, name) {
+  return (
+    nodesOf(path).find(
+      (n) => ts.isMethodDeclaration(n) && n.body !== undefined && n.name !== undefined && ts.isIdentifier(n.name) && n.name.text === name
+    ) ?? null
+  );
+}
+
+function restartTextRules() {
+  checked('T27');
+  checked('T28');
+  if (!existsSync(RESTART)) {
+    fail('T27', `${rel(RESTART)} is missing, so the restart has no rule to keep`);
+    fail('T28', `${rel(RESTART)} is missing, so nothing asks restartKeepsRow`);
+    return;
+  }
+  const fn = functionDeclared(RESTART, 'restartSession');
+  if (fn === null) {
+    fail('T27', `${rel(RESTART)} declares no restartSession`);
+    fail('T28', `${rel(RESTART)} declares no restartSession`);
+    return;
+  }
+  const inside = nodesUnder(fn);
+  const callsTo = (name) => inside.filter((n) => ts.isCallExpression(n) && calleeName(n) === name);
+  const creates = callsTo('createSession');
+  const reads = callsTo('getSession');
+  const kills = callsTo('killSession');
+  const discards = callsTo('discardSession');
+  const at = (n) => n.getStart(astOf(RESTART));
+  checked('T27', 4);
+  if (creates.length !== 1) fail('T27', `restartSession calls createSession( ${String(creates.length)} times, not once`);
+  if (kills.length !== 1) fail('T27', `restartSession calls killSession( ${String(kills.length)} times, not once`);
+  if (discards.length !== 1) fail('T27', `restartSession calls discardSession( ${String(discards.length)} times, not once`);
+  const create = creates[0];
+  if (create !== undefined) {
+    const before = reads.filter((r) => at(r) < at(create));
+    const after = reads.filter((r) => at(r) > at(create));
+    checked('T27', 4);
+    if (before.length === 0) fail('T27', `${where(RESTART, fn)} restartSession reads no row before its create, so step 1 cannot recover the launch flags, the capture choice and the login`);
+    if (after.length === 0) {
+      fail('T27', `${where(RESTART, create)} restartSession reads the row only before createSession(, so a Remove accepted inside the create is never seen and the removed row is deleted (build/p353/SPEC.md D305-1)`);
+    } else {
+      const second = after[0];
+      for (const k of kills) if (at(k) < at(second)) fail('T27', `${where(RESTART, k)} killSession( comes before the row is read again after the create (D305-1)`);
+      for (const d of discards) if (at(d) < at(second)) fail('T27', `${where(RESTART, d)} discardSession( comes before the row is read again after the create (D305-1)`);
+    }
+    for (const n of inside) {
+      if (ts.isPropertyAccessExpression(n) && n.name.text === 'status' && ts.isIdentifier(n.expression) && n.expression.text === 'rec' && at(n) > at(create)) {
+        fail('T27', `${where(RESTART, n)} reads rec.status after the create; whether the row is live is read off the row as it is now (D305-3)`);
+      }
+    }
+  }
+  // No await between the last read of the row and the delete: textual order,
+  // inside one function whose only awaits are the create and the kill.
+  for (const d of discards) {
+    const lastAwait = inside.filter((n) => ts.isAwaitExpression(n) && at(n) < at(d)).map(at).sort((a, b) => a - b).pop();
+    const lastRead = reads.filter((r) => at(r) < at(d)).map(at).sort((a, b) => a - b).pop();
+    checked('T27');
+    if (lastAwait !== undefined && (lastRead === undefined || lastRead < lastAwait)) {
+      fail('T27', `${where(RESTART, d)} an await stands between the last read of the row and discardSession(, so a removal that lands inside it is deleted (D305-1)`);
+    }
+  }
+
+  // T28. One restartKeepsRow, in the gate, imported, and on the delete's path.
+  const declared = [];
+  for (const path of sourcesUnder(join(ROOT, 'src'))) {
+    if (!readFileSync(path, 'utf8').includes('restartKeepsRow')) continue;
+    for (const n of nodesOf(path)) {
+      let named = declaredName(n);
+      if (named === null && (ts.isMethodDeclaration(n) || ts.isPropertyAssignment(n) || ts.isPropertyDeclaration(n)) && n.name !== undefined && ts.isIdentifier(n.name)) named = n.name.text;
+      if (named === 'restartKeepsRow') declared.push({ path, node: n });
+    }
+  }
+  checked('T28', declared.length + 2);
+  if (declared.length === 0) fail('T28', 'no restartKeepsRow is declared anywhere under src/, so the rule has lost its subject');
+  for (const d of declared) {
+    if (d.path !== LIFECYCLE_GATE) fail('T28', `${where(d.path, d.node)} declares a second restartKeepsRow; there is ONE, in src/main/sessions/lifecycle-gate.ts`);
+  }
+  if (declared.filter((d) => d.path === LIFECYCLE_GATE).length > 1) fail('T28', `${rel(LIFECYCLE_GATE)} declares restartKeepsRow more than once`);
+  if (!importsFrom(RESTART, 'restartKeepsRow', '../sessions/lifecycle-gate')) {
+    fail('T28', `${rel(RESTART)} does not import restartKeepsRow from ../sessions/lifecycle-gate`);
+  }
+  // A name is bound to a read taken after the create when its declaration in
+  // restartSession holds such a getSession( or names another that is.
+  const declarations = new Map(
+    inside.filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name)).map((n) => [n.name.text, n])
+  );
+  const readAfterCreate = (name, seen = new Set()) => {
+    if (name === 'rec' || seen.has(name) || create === undefined) return false;
+    seen.add(name);
+    const decl = declarations.get(name);
+    if (decl?.initializer === undefined) return false;
+    const under = nodesUnder(decl.initializer);
+    if (under.some((n) => ts.isCallExpression(n) && calleeName(n) === 'getSession' && at(n) > at(create))) return true;
+    return under.some((n) => ts.isIdentifier(n) && n !== decl.initializer.parent && readAfterCreate(n.text, seen));
+  };
+  for (const d of discards) {
+    const asked = [];
+    for (let n = d; n.parent !== undefined && n !== fn; n = n.parent) {
+      const p = n.parent;
+      if (ts.isIfStatement(p) && p.elseStatement === n) asked.push(p.expression);
+    }
+    checked('T28');
+    const keeps = asked
+      .flatMap((e) => nodesUnder(e))
+      .filter((n) => ts.isCallExpression(n) && calleeName(n) === 'restartKeepsRow');
+    if (keeps.length === 0) {
+      fail('T28', `${where(RESTART, d)} discardSession( is not past a restartKeepsRow( asked in the if before it, so a row the person removed can be deleted (D305-2)`);
+      continue;
+    }
+    const of = keeps.map((k) => k.arguments[0]).filter((a) => a !== undefined && ts.isIdentifier(a));
+    if (!of.some((a) => readAfterCreate(a.text))) {
+      fail('T28', `${where(RESTART, keeps[0])} restartKeepsRow( is asked of ${keeps.map((k) => k.arguments[0]?.getText() ?? 'nothing').join(', ')}, not of a read taken after the create (D305-1)`);
+    }
+  }
+
+  // T29. The two deletes the sweeps and the prune reach hold no refusal.
+  const REFUSING_WORDS = ['.status', 'removedAt', 'removed_at', 'restartKeepsRow', 'removeRefusal', 'endRefusal'];
+  for (const [path, name] of [[CORE, 'discardSession'], [SESSIONS_REPOSITORY, 'deleteSession']]) {
+    checked('T29');
+    if (!existsSync(path)) {
+      fail('T29', `${rel(path)} is missing`);
+      continue;
+    }
+    const m = methodDeclared(path, name);
+    if (m === null) {
+      fail('T29', `${rel(path)} declares no ${name}`);
+      continue;
+    }
+    const code = codeText(path, m.body);
+    for (const word of REFUSING_WORDS) {
+      checked('T29');
+      if (code.includes(word)) fail('T29', `${where(path, m)} ${name} names ${word}: a refusal there leaves tombstoned scratch rows the sweeps cannot remove, and old tombstones the prune cannot collect (build/p353/SPEC.md §4.2 step 5)`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The restart, DRIVEN (RS1 to RS5): restart.ts and the gate in memory
+// ---------------------------------------------------------------------------
+
+const RESTART_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+const REMOVED_AT = 1_800_000_000_000;
+const ENDED = ['exited', 'restorable'];
+const LIVE = ['running', 'idle', 'needs_input', 'unknown'];
+
+/** A row in a map the fake manifest reads, and a host recording what was done to it. */
+function restartWorld(start, { duringCreate, duringKill, killThrows } = {}) {
+  const rows = new Map([[RESTART_ID, { ...start }]]);
+  const calls = [];
+  const host = {
+    manifest: {
+      getSession: (id) => {
+        const row = rows.get(id);
+        return row === undefined ? undefined : { ...row };
+      }
+    },
+    createSession: async (input) => {
+      calls.push('create');
+      duringCreate?.(rows);
+      return { id: 'replacement', name: input.name, tmuxName: `${input.name}-2`, projectPath: input.projectPath, cwd: input.cwd, agent: input.agent, status: 'running', createdAt: 2 };
+    },
+    killSession: async (id) => {
+      calls.push('kill');
+      // `endRefusal` at the top of core.killSession refuses a removed row.
+      if (rows.get(id)?.status === 'discarded') throw new Error('This session was removed, so there is nothing to end. Nothing was changed.');
+      duringKill?.(rows);
+      if (killThrows === true) throw new Error('tmux went away');
+      // core.killSession at this phase's head: `exited`, unless removed meanwhile.
+      const row = rows.get(id);
+      if (row !== undefined && row.status !== 'discarded') rows.set(id, { ...row, status: 'exited' });
+    },
+    discardSession: (id) => {
+      calls.push('discard');
+      rows.delete(id);
+    },
+    broadcastSessions: () => {
+      calls.push('broadcast');
+    }
+  };
+  return { host, rows, calls };
+}
+
+const restartRow = (status, extra = {}) => ({
+  id: RESTART_ID,
+  name: 'auth',
+  tmuxName: 'auth',
+  projectPath: '/repo',
+  cwd: '/repo',
+  agent: 'shell',
+  status,
+  createdAt: 1,
+  argv: ['/bin/zsh', '-l'],
+  lastSeen: 1,
+  ...extra
+});
+const tombstone = (rows) => {
+  const row = rows.get(RESTART_ID);
+  if (row !== undefined) rows.set(RESTART_ID, { ...row, status: 'discarded', removedAt: REMOVED_AT });
+};
+const deleteRow = (rows) => rows.delete(RESTART_ID);
+const pairOf = (rows) => {
+  const row = rows.get(RESTART_ID);
+  return row === undefined ? 'GONE' : `${row.status},${row.removedAt === undefined ? '-' : 'removed_at'}`;
+};
+
+async function restartDrivenRules() {
+  const rules = [
+    { id: 'RS1', owner: 'build/p353/SPEC.md D305-1, D305-4', title: 'a row removed while it restarts is kept beside its replacement: removed inside the create it is neither killed nor deleted, removed inside the kill it is not deleted, a row that was removed before the restart is never killed, the outcome says kept-removed with keptRemovedRow, and one log line says the removed one is still in Past Sessions', checks: 0, failures: [] },
+    { id: 'RS2', owner: 'build/p353/SPEC.md D305-5', title: 'a row another writer deleted inside the create or the kill is not deleted again and nothing throws: already-gone', checks: 0, failures: [] },
+    { id: 'RS3', owner: 'build/p353/SPEC.md D305-5', title: 'a kill that fails keeps the row with its own status and deletes nothing: kept-kill-failed, killedOld false, the warning kept', checks: 0, failures: [] },
+    { id: 'RS4', owner: 'build/p353/SPEC.md D305-3; the entry\'s no-regression table', title: 'an ordinary restart is what it was: an ended row is deleted with no kill, a live or unknown row is killed and then deleted, a discarded row with no removal date is ended and not live, and broadcastSessions runs exactly once on every arm', checks: 0, failures: [] },
+    { id: 'RS5', owner: 'build/p353/SPEC.md D305-2 and its fix round', title: 'restartKeepsRow answers true exactly when the row is a tombstone, discarded and carrying a removal date, for every status with and without one', checks: 0, failures: [] }
+  ];
+  const rule = (id) => rules.find((r) => r.id === id);
+  const lines = [];
+  const logger = {
+    info: (m) => lines.push(['info', String(m)]),
+    warn: (m) => lines.push(['warn', String(m)]),
+    error: (m) => lines.push(['error', String(m)]),
+    debug: () => undefined
+  };
+  const stubs = {
+    'main/log/index': { getLog: () => logger },
+    // The flags a restart recovers are ./extras' business and its own tests'.
+    'main/restart/extras': { recoverLaunchExtras: () => [] }
+  };
+  let restartSession;
+  let restartKeepsRow;
+  let statuses;
+  try {
+    restartSession = loadInMemory(RESTART, new Map(), stubs).restartSession;
+    restartKeepsRow = loadInMemory(LIFECYCLE_GATE, new Map(), stubs).restartKeepsRow;
+    statuses = loadInMemory(SHARED_TYPES, new Map(), stubs).SESSION_STATUSES;
+  } catch (err) {
+    for (const r of rules) {
+      r.checks += 1;
+      r.failures.push(`restart.ts, lifecycle-gate.ts or SESSION_STATUSES could not be loaded in memory: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return rules;
+  }
+  if (typeof restartSession !== 'function' || !Array.isArray(statuses)) {
+    for (const r of rules) {
+      r.checks += 1;
+      r.failures.push('restartSession or SESSION_STATUSES could not be read, so the restart was driven over nothing');
+    }
+    return rules;
+  }
+  // A tree without the predicate (the parent) is still driven: RS1 to RS4 read
+  // what its restart DOES, and RS5 alone says the predicate is missing.
+  if (typeof restartKeepsRow !== 'function') {
+    rule('RS5').checks += 1;
+    rule('RS5').failures.push(`${rel(LIFECYCLE_GATE)} exports no restartKeepsRow, so nothing states which rows a restart keeps`);
+  }
+
+  /** One cell: run the restart, compare what it did with what the cell expects. */
+  const cell = async (id, what, world, want) => {
+    const r = rule(id);
+    lines.length = 0;
+    r.checks += 1;
+    let out;
+    try {
+      out = await restartSession(world.host, RESTART_ID);
+    } catch (err) {
+      r.failures.push(`${what}: the restart threw ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+    const got = {
+      calls: world.calls.join(','),
+      row: pairOf(world.rows),
+      oldRow: String(out?.oldRow),
+      keptRemovedRow: out?.keptRemovedRow,
+      killedOld: out?.killedOld,
+      replacement: out?.session?.id
+    };
+    for (const [key, value] of Object.entries(want)) {
+      if (got[key] !== value) r.failures.push(`${what}: ${key} reads ${JSON.stringify(got[key])}, where ${JSON.stringify(value)} is expected`);
+    }
+    if (got.replacement !== 'replacement') r.failures.push(`${what}: the replacement was not handed back`);
+    if (world.calls.filter((c) => c === 'broadcast').length !== 1) rule('RS4').failures.push(`${what}: broadcastSessions ran ${String(world.calls.filter((c) => c === 'broadcast').length)} times, not once`);
+    return lines.slice();
+  };
+
+  // RS1. Removed inside the create, removed inside the kill, removed before.
+  for (const status of [...ENDED, ...LIVE]) {
+    const said = await cell('RS1', `a ${status} row removed inside the create`, restartWorld(restartRow(status), { duringCreate: tombstone }), {
+      calls: 'create,broadcast',
+      row: 'discarded,removed_at',
+      oldRow: 'kept-removed',
+      keptRemovedRow: true
+    });
+    if (said !== undefined) {
+      const kept = said.filter(([level, line]) => level === 'info' && line.includes('still in Past Sessions'));
+      rule('RS1').checks += 1;
+      if (kept.length !== 1) rule('RS1').failures.push(`a ${status} row removed inside the create: ${String(kept.length)} log lines say the removed one is still in Past Sessions, not one`);
+    }
+  }
+  for (const status of LIVE) {
+    await cell('RS1', `a ${status} row removed inside the kill`, restartWorld(restartRow(status), { duringKill: tombstone }), {
+      calls: 'create,kill,broadcast',
+      row: 'discarded,removed_at',
+      oldRow: 'kept-removed',
+      keptRemovedRow: true,
+      killedOld: true
+    });
+  }
+  await cell('RS1', 'a row that was removed before the restart (the charter\'s path)', restartWorld(restartRow('discarded', { removedAt: REMOVED_AT })), {
+    calls: 'create,broadcast',
+    row: 'discarded,removed_at',
+    oldRow: 'kept-removed',
+    keptRemovedRow: true,
+    killedOld: false
+  });
+
+  // RS2. Deleted by another writer.
+  for (const status of [...ENDED, ...LIVE]) {
+    await cell('RS2', `a ${status} row deleted inside the create`, restartWorld(restartRow(status), { duringCreate: deleteRow }), {
+      calls: 'create,broadcast',
+      row: 'GONE',
+      oldRow: 'already-gone',
+      keptRemovedRow: false
+    });
+  }
+  for (const status of LIVE) {
+    await cell('RS2', `a ${status} row deleted inside the kill`, restartWorld(restartRow(status), { duringKill: deleteRow }), {
+      calls: 'create,kill,broadcast',
+      row: 'GONE',
+      oldRow: 'already-gone',
+      keptRemovedRow: false
+    });
+  }
+
+  // RS3. A kill that fails.
+  for (const status of LIVE) {
+    const said = await cell('RS3', `a ${status} row whose kill fails`, restartWorld(restartRow(status), { killThrows: true }), {
+      calls: 'create,kill,broadcast',
+      row: `${status},-`,
+      oldRow: 'kept-kill-failed',
+      keptRemovedRow: false,
+      killedOld: false
+    });
+    if (said !== undefined) {
+      rule('RS3').checks += 1;
+      if (!said.some(([level, line]) => level === 'warn' && line.includes('could not stop the old'))) rule('RS3').failures.push(`a ${status} row whose kill fails: the warning is not said`);
+    }
+  }
+
+  // RS4. The ordinary restart.
+  for (const status of ENDED) {
+    await cell('RS4', `an ordinary ${status} row`, restartWorld(restartRow(status)), {
+      calls: 'create,discard,broadcast',
+      row: 'GONE',
+      oldRow: 'deleted',
+      keptRemovedRow: false,
+      killedOld: false
+    });
+  }
+  for (const status of LIVE) {
+    await cell('RS4', `an ordinary ${status} row`, restartWorld(restartRow(status)), {
+      calls: 'create,kill,discard,broadcast',
+      row: 'GONE',
+      oldRow: 'deleted',
+      keptRemovedRow: false,
+      killedOld: true
+    });
+  }
+  await cell('RS4', 'a discarded row with no removal date', restartWorld(restartRow('discarded')), {
+    calls: 'create,discard,broadcast',
+    row: 'GONE',
+    oldRow: 'deleted',
+    killedOld: false
+  });
+  // PHASE 353's FIX ROUND: a row an earlier build left ended beside its
+  // removal date sits in the managed list, not in Past, and is replaced as it
+  // was at the parent.
+  for (const status of ENDED) {
+    await cell('RS4', `a ${status} row an earlier build left beside its removal date`, restartWorld(restartRow(status, { removedAt: REMOVED_AT })), {
+      calls: 'create,discard,broadcast',
+      row: 'GONE',
+      oldRow: 'deleted',
+      keptRemovedRow: false,
+      killedOld: false
+    });
+  }
+
+  // RS5. The predicate over every status, with and without a removal date.
+  for (const status of typeof restartKeepsRow === 'function' ? statuses : []) {
+    for (const removedAt of [undefined, REMOVED_AT]) {
+      rule('RS5').checks += 1;
+      let answer;
+      try {
+        answer = restartKeepsRow(removedAt === undefined ? { status } : { status, removedAt });
+      } catch (err) {
+        rule('RS5').failures.push(`restartKeepsRow threw on ${status}: ${err instanceof Error ? err.message : String(err)}`);
+        continue;
+      }
+      const want = removedAt !== undefined && status === 'discarded';
+      if (answer !== want) rule('RS5').failures.push(`restartKeepsRow answers ${String(answer)} for a ${status} row ${removedAt === undefined ? 'with no removal date' : 'carrying a removal date'}`);
+    }
+  }
+  return rules;
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -1945,7 +2389,19 @@ try {
 } catch (err) {
   fail('T24', `the move rules could not read the tree: ${err instanceof Error ? err.message : String(err)}`);
 }
+try {
+  restartTextRules();
+} catch (err) {
+  fail('T27', `the restart rules could not read the tree: ${err instanceof Error ? err.message : String(err)}`);
+}
 const driven = drivenRules();
+// PHASE 305 (build/p353/SPEC.md §4.2 step 5): the restart, driven in this
+// process beside the probe's rules, restart.ts and the gate in memory.
+try {
+  driven.push(...(await restartDrivenRules()));
+} catch (err) {
+  driven.push({ id: 'RS1', owner: 'build/p353/SPEC.md §4.2 step 5', title: 'the restart was driven', checks: 1, failures: [`the restart could not be driven: ${err instanceof Error ? err.message : String(err)}`] });
+}
 // PHASE 348 (build/p348/SPEC.md §7.4, §10.3): G2 gains the Remove partition,
 // driven here beside the probe's End partition, and its self-test.
 {

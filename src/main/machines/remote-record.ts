@@ -431,7 +431,13 @@ export function writeRemoteRow(
       sessionStore: '',
       captureRouteVerified: false,
       flagsVerifiedVersion: null,
-      flagsVerifiedAgainst: 'never'
+      flagsVerifiedAgainst: 'never',
+      // PHASE 353 (build/p353/SPEC.md D354-4). The create this row is written
+      // for hands that machine's tmux the folder held back
+      // (`remoteCreateArgs`), so its pane starts in the folder recorded above.
+      // A row written before this phase carries no such field, and a remote
+      // restore reads that absence (`folderAsRecordedFor`).
+      folderHeld: true
     },
     ...(input.env !== undefined ? { env: { ...input.env } } : {})
   };

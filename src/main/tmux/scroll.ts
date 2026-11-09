@@ -26,10 +26,16 @@
  *     lines above the bottom AS IT WAS WHEN THE PANE ENTERED COPY MODE,
  *     scroll-up clamps at `#{history_size}`, and the `-e` flag makes tmux
  *     LEAVE copy-mode by itself the moment the user scrolls back to the
- *     bottom. (Phase 292 corrected this item. It said "lines above the live
- *     bottom" from Phase 12.3 on, and that one word is what a correction that
- *     dragged every reader's page was built on. `scrollPaneTo` below carries
- *     the account, and nothing else in this file retells it.)
+ *     bottom OF THE FRAME IT FROZE, which is not the live bottom once anything
+ *     printed under a parked reader (tmux 3.7b's `scroll-down` cancels when
+ *     `scroll_exit && oy == 0`, and `oy` counts in the frozen frame). That is
+ *     why the way down used to skip everything printed while the reader read,
+ *     and why the way down now re-freezes the frame first on this Mac's tmux
+ *     (Phase 294, `refreezeWanted` below). (Phase 292 corrected this item. It
+ *     said "lines above the live bottom" from Phase 12.3 on, and that one word
+ *     is what a correction that dragged every reader's page was built on.
+ *     `scrollPaneTo` below carries the account, and nothing else in this file
+ *     retells it.)
  *  4. A REAL alt-screen app inside the pane (vim: `alternate_on` = 1) has no
  *     history to reach — copy-mode over it shows blank `~` rows — so the
  *     wheel must go to the app there instead. That decision is the renderer's
@@ -75,6 +81,10 @@
  *    window between slices instead of one multi-second freeze.
  */
 
+// PHASE 294. The trim band's one spelling, which the re-freeze's guard reads.
+// The module it lives in imports nothing at run time, so this adds no cycle.
+import { isDiscarding } from '../scrollback/watch';
+
 /**
  * Runs one tmux command and resolves its stdout.
  *
@@ -95,11 +105,22 @@
  *  - `server`: which tmux server the runner reaches, when it is not this
  *    Mac's. It exists for the `goto-line` latch alone, which is this Mac's
  *    (see `seekSupport`).
+ *
+ * PHASE 294 (build/p353/SPEC.md D294-1). A third fact, `refreezes`, says the
+ * runner is the one the session core scrolls a session ON THIS MAC with, and
+ * that a gesture toward live may therefore read first and re-freeze a parked
+ * view (`refreezeWanted`). It is stated by that one runner alone, and it
+ * counts only beside the two facts above being absent, so a runner that is
+ * ordered or names a `server` never re-freezes whatever it says. Every other
+ * runner, a test's, a probe's, a gate's, runs the serial code below byte for
+ * byte as it did before Phase 294, which is what lets the pipelined code keep
+ * being compared with it (`__tests__/p3201-scroll-pipeline.test.ts`).
  */
 export interface TmuxScrollRunner {
   (args: readonly string[]): Promise<string>;
   readonly ordered?: boolean;
   readonly server?: string;
+  readonly refreezes?: boolean;
 }
 
 export interface PaneScrollState {
@@ -233,6 +254,121 @@ function parseState(out: string): PaneScrollState {
   const line = out.split('\n').find((l) => l.length > 0);
   if (line === undefined) return EMPTY_STATE;
   return stateOfFields(line.split('\t'));
+}
+
+/**
+ * THE READ A GESTURE THAT MAY RE-FREEZE MAKES, this Mac's alone (Phase 294,
+ * build/p353/SPEC.md D294-2): {@link STATE_FORMAT}'s eight fields, and
+ * `#{history_limit}` appended LAST, so every field keeps its place.
+ *
+ * It is a constant of its own rather than a ninth field of `STATE_FORMAT`
+ * because the eight fields are one reading shared with another machine's read
+ * ({@link REMOTE_STATE_FORMAT} is the same fields with a space, and
+ * `conformance:machines` condition 103 holds that), and because the poll and
+ * every other read stay byte for byte what they were. Only the two gestures
+ * that can reach the bottom of a frozen frame ask with it, and only through
+ * this Mac's runner (`isThisMacsRunner`): a scroll toward live, and the
+ * scrollbar drag. A runner that is ordered or names a `server` never asks
+ * with it.
+ *
+ * The limit is read by {@link readForRefreeze} into a value the decision alone
+ * reads; `PaneScrollState` and the answer the renderer gets do not change.
+ */
+export const REFREEZE_READ_FORMAT = [...STATE_FIELDS, '#{history_limit}'].join('\t');
+
+/** {@link REFREEZE_READ_FORMAT}'s answer: the state, and the pane's history limit. */
+interface RefreezeRead {
+  state: PaneScrollState;
+  /** `#{history_limit}`; null unless tmux answered a whole number above 0. */
+  historyLimit: number | null;
+}
+
+/** This Mac's reader for {@link REFREEZE_READ_FORMAT}: `parseState`'s reading, and the ninth field. */
+function parseRefreezeRead(out: string): RefreezeRead {
+  const line = out.split('\n').find((l) => l.length > 0);
+  if (line === undefined) return { state: EMPTY_STATE, historyLimit: null };
+  const fields = line.split('\t');
+  const limit = fields[STATE_FIELDS.length];
+  return {
+    state: stateOfFields(fields),
+    historyLimit:
+      limit !== undefined && /^\d+$/.test(limit) && Number(limit) > 0 ? Number(limit) : null
+  };
+}
+
+/**
+ * The runner a gesture may re-freeze through (Phase 294, D294-1): the one
+ * that says it `refreezes`, and is not ordered and names no `server`, being
+ * this Mac's. The re-freeze is this Mac's alone: a machine's connection admits
+ * only the closed table's commands (src/main/machines/scroll-shapes.ts), and
+ * `refresh-from-pane` is not among them and is not added.
+ */
+function isThisMacsRunner(run: TmuxScrollRunner): boolean {
+  return run.refreezes === true && run.ordered !== true && run.server === undefined;
+}
+
+/** Read the pane for a gesture that may re-freeze, with this Mac's format and limit. */
+async function readForRefreeze(
+  run: TmuxScrollRunner,
+  target: string
+): Promise<RefreezeRead> {
+  return parseRefreezeRead(
+    await run(['display-message', '-p', '-t', target, '-F', REFREEZE_READ_FORMAT])
+  );
+}
+
+/**
+ * Whether a gesture toward live should RE-FREEZE the parked view in place
+ * before it scrolls (Phase 294, build/p353/SPEC.md D294-3): true only when
+ * every clause holds, and each clause is one line below so a test can take
+ * any one of them away.
+ *
+ *  - the pane is in copy mode;
+ *  - tmux names the frozen frame's depth (`frameHistory`, tmux 3.7 and later),
+ *    because `refresh-from-pane` keeps the reader's line by its index from the
+ *    top of the history on 3.7b and slides it by what printed on 3.6a;
+ *  - the program is not on its alternate screen, because a re-frozen frame
+ *    then puts that screen under the transcript, a frame no terminal ever drew
+ *    (measured: row 1 went from `line 362` to `ALT SCREEN`);
+ *  - the live history is deeper than the frame, so something printed since
+ *    the park and there is something to pass through;
+ *  - the live history is below tmux's trim band, which is THE GUARD: across a
+ *    trim the index the re-freeze keeps names a different line, and past it
+ *    names no line at all, and tmux then puts the reader at the top of the
+ *    history (measured over a 1,000-line history: row 0 went from line 923 to
+ *    line 101). `isDiscarding` is the band's one spelling, and a limit tmux did
+ *    not answer is no band, so it refuses;
+ *  - the gesture reaches the frame's bottom, `position <= |n|`, so a notch
+ *    that would not leave copy mode changes nothing.
+ *
+ * Anything else runs today's path byte for byte.
+ */
+export function refreezeWanted(
+  state: PaneScrollState,
+  historyLimit: number | null,
+  n: number
+): boolean {
+  return (
+    state.inMode &&
+    state.frameHistory !== null &&
+    !state.innerAlt &&
+    state.history > state.frameHistory &&
+    historyLimit !== null && historyLimit > 0 && !isDiscarding(state.history, historyLimit) &&
+    state.position <= Math.abs(n)
+  );
+}
+
+/**
+ * tmux 3.7b's re-freeze in place: copy mode clones the pane again and keeps
+ * the reader's line by its index from the top of the history
+ * (`window_copy_cmd_refresh_from_pane` in window-copy.c). Its failure is
+ * swallowed, because a pane that left copy mode meanwhile answers "not in a
+ * mode" and the scroll after it then behaves exactly as today's.
+ */
+async function refreeze(run: TmuxScrollRunner, target: string): Promise<void> {
+  await run(['send-keys', '-t', target, '-X', 'refresh-from-pane']).catch(
+    () => undefined
+  );
 }
 
 /**
@@ -633,14 +769,44 @@ async function seekPaneTo(
  * reports `history: 0` for a pane whose inner app owns the alternate screen,
  * because copy-mode over vim shows blank `~` rows rather than the shell's
  * transcript, so there is nothing there to seek to.
+ *
+ * THE DRAG'S BAND (Phase 294, D294-5). The scrollbar sends position 1, the
+ * frozen frame's own bottom, for every pixel inside the lines printed since
+ * the park (`positionForDistance` in src/renderer/terminal/scroll/live-
+ * distance.ts), because leaving copy mode mid-drag throws the frame away. So
+ * the lowest band of the lane showed the frame's bottom and stopped following
+ * the pointer. When the drag asks position 1 while the frame lags, under the
+ * same decision as the wheel's (`refreezeWanted`, read with this Mac's limit,
+ * `historyLimit`, which only `scrollPaneTo` on this Mac's runner hands in),
+ * the frame is re-frozen first and the seek lands on the asked line plus the
+ * frame's own growth across the re-freeze, tmux's depth after less its depth
+ * before, so the reader stays where they are. The scrollbar then re-sends the
+ * pointer it holds once, against the new frame, and the band narrows to what
+ * printed since (`TerminalScrollbar.tsx`).
  */
 async function scrollFrom(
   run: TmuxScrollRunner,
   target: string,
   now: PaneScrollState,
-  position: number
+  position: number,
+  historyLimit: number | null = null
 ): Promise<PaneScrollState> {
   const clamped = Math.min(Math.max(0, Math.trunc(position)), now.history);
+  // The drag asks the frame's bottom, which is what a notch of `position`
+  // lines would reach, so the decision's last clause holds by construction.
+  if (
+    clamped === 1 &&
+    isThisMacsRunner(run) &&
+    refreezeWanted(now, historyLimit, now.position)
+  ) {
+    await refreeze(run, target);
+    const after = await readPaneScroll(run, target);
+    const growth =
+      after.frameHistory !== null && now.frameHistory !== null
+        ? Math.max(0, after.frameHistory - now.frameHistory)
+        : 0;
+    return scrollFrom(run, target, after, clamped + growth);
+  }
   if (clamped === now.position) return now;
   // The `-e` auto-exit lives in tmux's scroll-DOWN commands, and `goto-line`
   // is not one of them, so "back to live" is still an explicit cancel.
@@ -719,6 +885,19 @@ export async function scrollPaneBy(
     await run(['send-keys', '-t', target, '-X', '-N', String(n), 'scroll-up']);
     await cursorToTopRow(run, target);
   } else {
+    // PHASE 294 (D294-4): toward live, THIS MAC'S RUNNER reads first, and when
+    // the notch would reach the bottom of a frame the live history has grown
+    // past, re-freezes before it scrolls, so the way down passes through what
+    // printed instead of leaving copy mode at the frozen bottom and jumping to
+    // live. One more `display-message`, about a millisecond over the control
+    // client. A read that fails decides nothing and today's notch follows.
+    // Every runner that is ordered or names a `server` keeps today's bytes.
+    if (isThisMacsRunner(run)) {
+      const before = await readForRefreeze(run, target).catch(() => null);
+      if (before !== null && refreezeWanted(before.state, before.historyLimit, n)) {
+        await refreeze(run, target);
+      }
+    }
     // "not in a mode" is the expected answer when we are already live, and
     // then there is no copy cursor to place either.
     const scrolled = await run([
@@ -824,6 +1003,29 @@ export async function scrollPaneBy(
  * which is what the renderer's `distanceFromLive` draws the thumb from. On
  * tmux 3.7 and later the history at entry is tmux's own number,
  * `frameHistory` above; before 3.7 the renderer infers it.
+ *
+ * ## THE RE-FREEZE IS THE READER'S OWN GESTURE, AND IT IS GUARDED (Phase 294)
+ *
+ * A reader who came back down after reading used to reach the frozen frame's
+ * bottom, where `-e` leaves copy mode, and the next thing drawn was the live
+ * screen: everything printed while they read, past one screen of it, was never
+ * on screen (72 of 120 lines on 3.7b, measured 2026-11-05). So a gesture toward
+ * live that reaches the frame's bottom re-freezes the frame in place first,
+ * with tmux 3.7b's `refresh-from-pane`, which keeps the reader's line by its
+ * own index inside one command, and the way down passes through what printed.
+ * The rule above still stands, that only the reader's own gestures and a
+ * keystroke move a parked reader: the re-freeze runs on a wheel notch,
+ * ⇧PageDown, a selection's edge scroll or a drag toward live, and only at the
+ * frame's bottom, and NEVER on a poll, a resize, a return to the session or a
+ * timer, which is the shape this account's first half deleted.
+ *
+ * IT IS NEVER RUN WITHOUT ITS GUARD (`refreezeWanted`). Across one of tmux's
+ * trims the index it keeps names a different line, and past it no line, and
+ * tmux then puts the reader at the top of the history: measured over a
+ * 1,000-line history, row 0 went from line 923 to line 101, 911 lines from
+ * live. A history at its limit keeps today's jump, and so does a tmux that does
+ * not name the frame's depth (3.6a), where the same command slides the reader
+ * by what printed.
  */
 export async function scrollPaneTo(
   run: TmuxScrollRunner,
@@ -832,6 +1034,12 @@ export async function scrollPaneTo(
 ): Promise<PaneScrollState> {
   const want = Math.max(0, Math.trunc(position));
   if (want === 0) return exitPaneScroll(run, target);
+  if (isThisMacsRunner(run)) {
+    // Phase 294. The same one read as before, with this Mac's limit beside it,
+    // for the drag's band (`scrollFrom`).
+    const read = await readForRefreeze(run, target);
+    return scrollFrom(run, target, read.state, want, read.historyLimit);
+  }
   return scrollFrom(run, target, await readPaneScroll(run, target), want);
 }
 

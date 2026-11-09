@@ -1,6 +1,7 @@
 /**
  * The two refusals main makes for itself at the lifecycle boundary (Phase 293,
- * findings F2 and B2 of build/p293/SPEC.md §4.9).
+ * findings F2 and B2 of build/p293/SPEC.md §4.9), and since Phase 305 the one
+ * thing a Restart may not do to a row, {@link restartKeepsRow}.
  *
  * WHY MAIN ASKS AT ALL. Until the session manager, every surface that could End
  * or Remove a session drew that session in front of the person and acted within
@@ -114,4 +115,35 @@ export function removeRefusal(
     case 'discarded':
       return null;
   }
+}
+
+/**
+ * Must a Restart keep this row rather than delete it? (Phase 305.)
+ *
+ * A ROW CARRYING `removed_at` BELONGS TO THE PERSON, and only a Restore from
+ * Past (`setRestoreResult`'s `clearRemovedAt`) or the 90 day prune may change
+ * that. Phase 302's clause in ../manifest/sessions-repository.ts is the same
+ * sentence asked of a status patch; this one is asked of a delete, by
+ * ../restart/restart.ts on a read taken after its create, because a Remove is
+ * accepted on an ended row and can land inside that create's await. Restart
+ * then deleted, from the read it took before the create, the row the person
+ * had just removed, and with it the only record Tortie held of that
+ * conversation. The replacement is kept either way: a fresh session in that
+ * folder is what Restart asked for.
+ *
+ * A TOMBSTONE IS `discarded` WITH ITS DATE (Phase 353's fix round), the row
+ * Past Sessions draws. A row an earlier build left reading another status
+ * beside its date sits in the managed list, not in Past, and a Restart
+ * replaces it exactly as it did there; kept, it stayed beside each replacement
+ * while the log said it was in Past Sessions, where it was not.
+ *
+ * Never asked by `core.discardSession` or `manifest.deleteSession`: the smoke
+ * and conformance sweeps hard delete tombstoned scratch rows through the first,
+ * and the 90 day prune deletes old tombstones through the second, so a refusal
+ * in either would strand exactly the rows those two exist to collect.
+ */
+export function restartKeepsRow(
+  record: Pick<ManifestSessionRecord, 'removedAt' | 'status'>
+): boolean {
+  return record.removedAt !== undefined && record.status === 'discarded';
 }

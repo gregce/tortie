@@ -140,6 +140,26 @@ export function hasToolChild(snap: ProcSnapshot, root: number): boolean {
   return false;
 }
 
+/**
+ * PHASE 328 (build/p353/SPEC.md D328-4). A descendant that is a session leader
+ * (`s`), WITH OR WITHOUT `+`: a tool an agent runs on a terminal of its own.
+ *
+ * `hasToolChild` above counts a session leader only outside the foreground
+ * group, so it never sees one that holds a terminal of its own. Antigravity
+ * 1.2.7 runs its tools exactly that way: its `sleep` was `Ss+` in 179 of the
+ * 184 half-second samples of its tool stretch (research 129's recording,
+ * docs/BACKLOG.md Phase 328), with nothing under it at rest in 648 samples.
+ * The same snapshot, the same `descendants`, no new `ps`, and no list of
+ * process names. It is asked only for a row whose compiled profile sets
+ * `terminalTools`, and only as weak evidence (src/main/activity/state-machine.ts).
+ */
+export function hasTerminalTool(snap: ProcSnapshot, root: number): boolean {
+  for (const pid of descendants(snap, root)) {
+    if ((snap.stat.get(pid) ?? '').includes('s')) return true;
+  }
+  return false;
+}
+
 /** True when `pid` is `ancestor` or lives underneath it. */
 export function isDescendantOf(
   snap: ProcSnapshot,

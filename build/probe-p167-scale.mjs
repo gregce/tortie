@@ -100,17 +100,25 @@
  *   - The profile, HOME and both repositories are under GMUX_HARNESS_DIR, so
  *     no file under the person's home is opened or written.
  *   - Every session is `shell`. No agent binary is spawned and no token is
- *     spent.
- *   - `-L gmux` is named in exactly one place, a read only `list-sessions`
- *     count taken before and after, which must match.
+ *     spent, and since Phase 353 no agent is started for its version either:
+ *     every probed registry row is hidden in the profile's agents.json before
+ *     any launch (build/hidden-agents.mjs), and the app's own `agents:list`
+ *     is read back before any profile runs, a row that resolved being a
+ *     finding that stops the run.
+ *   - `-L gmux` is not named by this file on this Mac (Phase 353, D-P2). Its
+ *     own before and after count is gone: the main launch names its scratch
+ *     socket, so build/electron-run.mjs's census reads the operator's server,
+ *     read only and by identity, around it. The far machine's own server is
+ *     still only listed, on a run that names one.
  *   - It signals nothing itself. The one Electron is ended by withElectron's
  *     finally block, and the script exits through process.exit after that
  *     returns.
  *
  * Usage:
  *   npm run probe:p167
- *   node build/probe-p167-scale.mjs --self-test    grades twelve fixtures and
- *                                                  launches nothing
+ *   node build/probe-p167-scale.mjs --self-test    grades its fixtures (the
+ *                                                  starving arm's six among
+ *                                                  them) and launches nothing
  *
  * ## WHY THE SURFACE PROFILE RUNS THROTTLED (Phase 200 fix round)
  *
@@ -212,7 +220,39 @@
  * typed-and-taken-back words per redline open (default 2), and P167_ACCEPTS,
  * per-change accepts per redline open (default 2; each moves the tab's shadow
  * baseline and its generation and rebuilds the whole run list, and none of
- * them writes the person's file).
+ * them writes the person's file), and P167_STARVE=1, the starving arm of
+ * Phase 301 (below), which applies to profile d.
+ *
+ * ## PHASE 301. THE STARVING ARM, AND THE THIRD OWNER
+ *
+ * A closed terminal's glyph atlas was held by its own pending idle callback:
+ * `TextureAtlas._doWarmUp` queued 93 rasterizations on an idle queue held only
+ * by that callback, so nothing could clear it, `dispose()` never touched it,
+ * and the atlas, two canvases one of them 512x512, lived until the renderer
+ * next had idle time. MEASURED 2026-11-05 at b1a557b8 with this file's profile
+ * d starved for each block's whole life: `canvas x36` after block 1 and
+ * `canvas x72` after block 2, the renderer 66.8 to 101.8 to 130.3 MB, every
+ * atlas held by its warm-up queue and none by the atlas cache, which was
+ * empty. The same profile read 0 detached in every block at full speed, at
+ * 1/8 CPU and starved only through the census (the spec step's runs, the same
+ * day), because the warm-up drains the moment the renderer is idle. That is
+ * why the verdict was intermittent, and why this arm exists:
+ *
+ *   P167_STARVE=1 keeps the renderer busy with back-to-back 40 ms MESSAGE
+ *   tasks (a `MessageChannel`, which has no timer clamp, so no idle period
+ *   opens between them) from before each of profile d's blocks through its
+ *   census, ended by the run right after the census and bounded by a deadline
+ *   the page itself checks. An idle callback requested as the starve begins
+ *   must not have run by the census, or the block is a finding about the
+ *   instrument rather than the app. GRADED: no `canvas` tree in the census
+ *   after any starved block, and the detached count at its floor, the
+ *   profile's own reading before its first block.
+ *
+ * The repair is a third hunk in patches/@xterm+addon-webgl+0.19.0.patch: the
+ * warm-up queue is a field, and `dispose()` clears it. Its deterministic
+ * clause is the third owner in `shippedRendererFixes()`, the cleared queue as
+ * a literal of the built bundle, red when that hunk is reverted and the
+ * renderer rebuilt.
  *
  * PHASE 243. Each of those accepts now also RECORDS the baseline it moved to,
  * through main, into `<userData>/gmux/baselines/` — so the redline's churn per
@@ -236,6 +276,7 @@ import {
   withElectron,
   withoutDevRenderer
 } from './electron-run.mjs';
+import { AGENTS_LIST_EXPR, hiddenAgentsBesides, standInsOnlyVerdict, writeHiddenAgents } from './hidden-agents.mjs';
 import { seedArchSwitchOn } from './probe-arch-switch.mjs';
 import {
   assertReachable,
@@ -528,6 +569,47 @@ function selfTest() {
     if (!ok) bad += 1;
     say(`self-test ${ok ? 'ok  ' : 'BAD '} ${c.name}: ${red ? 'red' : 'green'}${failures.length > 0 ? ` (${failures[0]})` : ''}`);
   }
+  // PHASE 301. The starving arm's grader, on the parent's own reading of
+  // 2026-11-05 (canvas x36, then x72) and on the shapes that must not pass.
+  const held = { tasks: 1700, idleFired: false, deadlinePassed: false };
+  const atlas = (n) => ({ detached: n, censusRoots: n === 0 ? [] : [{ what: 'canvas', trees: n, nodes: n }] });
+  const starveCases = [
+    { name: 'starved, the parent: canvas x36 then x72', before: { detached: 0 }, blocks: [atlas(36), atlas(72)], starves: [held, held], red: true },
+    { name: 'starved, this build: the census at its floor', before: { detached: 0 }, blocks: [atlas(0), atlas(0)], starves: [held, held], red: false },
+    { name: 'starved, but an idle callback ran, so the block says nothing', before: { detached: 0 }, blocks: [atlas(0), atlas(0)], starves: [held, { ...held, idleFired: true }], red: true },
+    { name: 'starved, but the page deadline passed before the census', before: { detached: 0 }, blocks: [atlas(0), atlas(0)], starves: [{ ...held, deadlinePassed: true }, held], red: true },
+    { name: 'starved, a starve that could not be read back', before: { detached: 0 }, blocks: [atlas(0), atlas(0)], starves: [held, null], red: true },
+    { name: 'starved, no canvas but another tree above the floor', before: { detached: 0 }, blocks: [atlas(0), { detached: 13, censusRoots: [{ what: 'div.xterm-scrollable-element.mac', trees: 1, nodes: 9 }] }], starves: [held, held], red: true }
+  ];
+  for (const c of starveCases) {
+    const found = starveFindings(c.before, c.blocks, c.starves);
+    const red = found.length > 0;
+    const ok = red === c.red;
+    if (!ok) bad += 1;
+    say(`self-test ${ok ? 'ok  ' : 'BAD '} ${c.name}: ${red ? 'red' : 'green'}${found.length > 0 ? ` (${found[0]})` : ''}`);
+  }
+  // THE PROBE REVIEW (Phase 353). The third owner's two literals, on the built
+  // renderer's own spelling (out/renderer/assets/index-R0Asdbl3.js, read
+  // 2026-11-05) and on the pristine addon's (lib/addon-webgl.mjs before the
+  // third hunk): green only with BOTH, red on the parent's bytes.
+  const shippedWarm = '_doWarmUp(){this._warmUpQueue?.clear();let e=this._warmUpQueue=new wn2;for(let t=33;t<126;t++)e.enqueue(()=>{';
+  const shippedDispose = 'dispose(){this._warmUpQueue?.clear();this._tmpCanvas.remove();for(let e of this.pages)e.canvas.remove();this._onAddTextureAtlasCanvas.dispose()';
+  const pristineWarm = '_doWarmUp(){let e=new wn;for(let t=33;t<126;t++)e.enqueue(()=>{';
+  const pristineDispose = 'dispose(){this._tmpCanvas.remove();for(let e of this.pages)e.canvas.remove();this._onAddTextureAtlasCanvas.dispose()';
+  const owner3Cases = [
+    { name: 'owner 3 review: the shipped bundle holds both literals', body: `${shippedWarm}x;${shippedDispose}`, want: true },
+    { name: 'owner 3 review: the parent (pristine addon) holds neither', body: `${pristineWarm}x;${pristineDispose}`, want: false },
+    { name: 'owner 3 review: the queue kept as a field but never cleared in dispose is red', body: `${shippedWarm}x;${pristineDispose}`, want: false },
+    { name: 'owner 3 review: dispose clearing it while the warm-up still makes a local is red', body: `${pristineWarm}x;${shippedDispose}`, want: false },
+    { name: 'owner 3 review: another queue cleared is not this one', body: `${shippedWarm.replace(/_warmUpQueue/g, '_otherQueue')}x;${shippedDispose.replace('_warmUpQueue', '_otherQueue')}`, want: false }
+  ];
+  for (const c of owner3Cases) {
+    const got = owner3Of(c.body);
+    const both = got.field && got.clear;
+    const ok = both === c.want;
+    if (!ok) bad += 1;
+    say(`self-test ${ok ? 'ok  ' : 'BAD '} ${c.name}: field ${String(got.field)}, clear ${String(got.clear)}`);
+  }
   if (bad > 0) {
     say(`self-test: ${String(bad)} fixture(s) misjudged`);
     process.exit(1);
@@ -623,6 +705,89 @@ function sayRetainers(path) {
  * something. `P167_PLANT=0` turns it off and the run says nothing was proved.
  */
 const plantArm = process.env['P167_PLANT'] !== '0';
+
+/**
+ * PHASE 301 (D301-4). The starving arm, profile d only, off by default: see
+ * the header's Phase 301 section. `P167_STARVE_MS` is the page's own deadline
+ * on one block's starve, a bound and not a duration (default ten minutes);
+ * the run ends each starve itself right after that block's census.
+ */
+const starveArm = process.env['P167_STARVE'] === '1';
+const starveMs = Math.max(10_000, Number(process.env['P167_STARVE_MS'] ?? '600000') || 600_000);
+/*
+ * THE PROBE REVIEW (Phase 353). The starving arm's floor is profile d's own
+ * reading before its first block. A run that opens the editor first (profile
+ * c, the default list's second) leaves Monaco's focus tracker holding the tree
+ * of the last terminal pane that had the keyboard: the Phase 301 entry's
+ * BOUNDED second holder, 13 detached elements flat on both builds, which it
+ * says is not this phase's proof. Over a floor read after c that holder reads
+ * as d's blocks sitting above it whatever the atlas does (Phase 293's head:
+ * before 4, then 13 and 13), so the arm runs on profile d alone, as the spec
+ * step measured it (build/p353/SPEC.md §2.3).
+ */
+if (starveArm && !(profilesWanted.length === 1 && profilesWanted[0] === 'd')) {
+  refuse(`P167_STARVE=1 measures profile d alone; run it with P167_PROFILES=d (asked for ${profilesWanted.join(',')}). A profile that opens the editor first leaves Monaco's bounded focus holder above d's floor, which is not this arm's reading.`);
+}
+/**
+ * Back-to-back 40 ms MESSAGE tasks until the run says stop or the page's own
+ * deadline passes. A `MessageChannel` and not `setTimeout`: a timer chain
+ * leaves the browser's 4 ms clamp between tasks, and on 2026-11-05 one chain
+ * left idle time enough for the 93-task warm-up to drain. The idle callback
+ * asked for here must not run while the starve holds; whether it did is read
+ * at the stop.
+ */
+const STARVE_START = (ms) => `(() => {
+  const s = { stop: false, until: performance.now() + ${String(ms)}, tasks: 0, idleFired: false };
+  window.__p167Starve = s;
+  requestIdleCallback(() => { s.idleFired = true; });
+  const ch = new MessageChannel();
+  ch.port1.onmessage = () => {
+    const t = performance.now();
+    while (performance.now() - t < 40) {}
+    s.tasks += 1;
+    if (!s.stop && performance.now() < s.until) ch.port2.postMessage(0);
+    else ch.port1.close();
+  };
+  ch.port2.postMessage(0);
+  return true;
+})()`;
+const STARVE_STOP = `(() => {
+  const s = window.__p167Starve;
+  if (!s) return 'null';
+  const out = { tasks: s.tasks, idleFired: s.idleFired, deadlinePassed: performance.now() >= s.until };
+  s.stop = true;
+  delete window.__p167Starve;
+  return JSON.stringify(out);
+})()`;
+
+/** How many detached `canvas` trees a census row names: the atlases' own canvases. */
+function canvasTrees(row) {
+  return (row.censusRoots ?? []).filter((r) => /^canvas\b/.test(String(r.what))).reduce((n, r) => n + (r.trees ?? 0), 0);
+}
+
+/**
+ * The starving arm's grader, pure so --self-test can fail it: per starved
+ * block, the starve held (tasks ran, no idle callback ran, the deadline did not
+ * pass first), no canvas tree is held, and the detached count is at the floor
+ * the profile read before its first block.
+ */
+export function starveFindings(before, blocks, starves) {
+  const out = [];
+  blocks.forEach((row, i) => {
+    const s = starves[i] ?? null;
+    const b = `block ${String(i + 1)}`;
+    if (s === null || !(s.tasks > 0) || s.idleFired !== false || s.deadlinePassed === true) {
+      out.push(`d (starved): ${b}'s starve did not hold through its census (${JSON.stringify(s)}), so it says nothing about a renderer with no idle time`);
+      return;
+    }
+    const canvases = canvasTrees(row);
+    if (canvases > 0) out.push(`d (starved): the renderer held ${String(canvases)} detached canvas tree(s) after ${b} with no idle time, being closed terminals' glyph atlases`);
+    if (typeof row.detached !== 'number' || typeof before.detached !== 'number' || row.detached > before.detached) {
+      out.push(`d (starved): ${String(row.detached)} detached element(s) after ${b}, above the floor of ${String(before.detached)} this profile read before its first block`);
+    }
+  });
+  return out;
+}
 /**
  * PHASE 265. The scheduling ledger arm, on by default, a mirror of P167_PLANT.
  * `P167_LEDGER=0` skips it and the run says nothing was proved about
@@ -747,6 +912,10 @@ const profile = join(root, 'profile');
 const repoA = join(root, 'repo-a');
 const repoB = join(root, 'repo-b');
 for (const d of [home, profile]) mkdirSync(d, { recursive: true });
+// PHASE 353 (D-P2). Every probed registry row hidden before ANY launch on this
+// profile, so no agent is started even for its version; the app's own
+// `agents:list` is read back on the main launch before any profile runs.
+writeHiddenAgents(profile, 'p167', hiddenAgentsBesides([]));
 
 /** A small repository with a committed file, a modified file and a markdown page. */
 function makeRepo(path, name) {
@@ -790,13 +959,11 @@ function countBaselineRecords() {
   }
 }
 
-/** The operator's server is read only: one count before, one after. */
-function liveGmuxSessionCount() {
-  const r = spawnSync('tmux', ['-L', 'gmux', 'list-sessions', '-F', '#{session_id}'], { encoding: 'utf8' });
-  if (r.status !== 0) return 0;
-  return r.stdout.split('\n').filter((l) => l.trim() !== '').length;
-}
-const liveBefore = liveGmuxSessionCount();
+// PHASE 353 (D-P2). The count of the operator's own server this file used to
+// take before and after is gone, and so is the finding it raised: the main
+// launch names its scratch socket, so build/electron-run.mjs's census reads his
+// server around it, read only and by identity, which is his allowance of
+// 2026-11-02 and the one reader of that server.
 
 // ---------------------------------------------------------------------------
 // PHASE 230. The machine, when one is named, and the far scratch it gets
@@ -1317,11 +1484,34 @@ async function detachedCensus(cdp) {
  * rebuilding removes its substring, so the matching clause goes red — the
  * independent-revert proof the phase requires. It reads files only; it launches
  * nothing.
+ *
+ * PHASE 301, THE THIRD OWNER. `TextureAtlas`'s glyph warm-up queue, which a
+ * pending idle callback held and nothing could clear, so a closed terminal's
+ * atlas lived until the renderer next went idle. The repair keeps the queue as
+ * a field and clears it in `dispose()` (the third hunk of
+ * patches/@xterm+addon-webgl+0.19.0.patch), so its two literals are the field
+ * being set where the warm-up makes it and the clear that opens `dispose()`
+ * before the canvases are removed. Both are asked, because one alone could be
+ * a different queue.
  */
+/**
+ * THE PROBE REVIEW (Phase 353). The third owner's two literals over one file's
+ * text, pure, so --self-test can hold them to the shipped bundle's own spelling
+ * (out/renderer/assets, 2026-11-05) and to the pristine addon's.
+ */
+function owner3Of(body) {
+  return {
+    field: /_doWarmUp\(\)\s*\{\s*this\._warmUpQueue\?\.clear\(\);\s*let [A-Za-z_$][\w$]*\s*=\s*this\._warmUpQueue\s*=\s*new /.test(body),
+    clear: /dispose\(\)\s*\{\s*this\._warmUpQueue\?\.clear\(\);\s*this\._tmpCanvas\.remove\(\)/.test(body)
+  };
+}
+
 function shippedRendererFixes() {
   const dir = join(REPO, 'out', 'renderer', 'assets');
   let owner1 = false;
   let owner2 = false;
+  let owner3Field = false;
+  let owner3Clear = false;
   let scanned = 0;
   try {
     for (const name of readdirSync(dir)) {
@@ -1330,11 +1520,14 @@ function shippedRendererFixes() {
       scanned += 1;
       if (body.includes('cancelAnimationFrame(this._refreshAnimationFrame)')) owner1 = true;
       if (/_cursorBlinkStateManager\s*=\s*this\._register\(/.test(body)) owner2 = true;
+      const o3 = owner3Of(body);
+      if (o3.field) owner3Field = true;
+      if (o3.clear) owner3Clear = true;
     }
   } catch (err) {
-    return { owner1: null, owner2: null, scanned, failed: String(err) };
+    return { owner1: null, owner2: null, owner3: null, scanned, failed: String(err) };
   }
-  return { owner1, owner2, scanned };
+  return { owner1, owner2, owner3: owner3Field && owner3Clear, owner3Field, owner3Clear, scanned };
 }
 
 /**
@@ -1839,7 +2032,9 @@ await withElectron(
   {
     label: 'p167',
     userDataDir: profile,
-    tmuxSocket: null,
+    // PHASE 353 (D-P2): named, so the helper's census guards this launch and
+    // ends the scratch server in its finally. Nothing reads that server after.
+    tmuxSocket: socket,
     args: ['--remote-debugging-port=0', '--use-mock-keychain'],
     // PHASE 200: the development renderer variables are stripped HERE, so
     // this command measures the built renderer whatever shell it is typed in.
@@ -1854,6 +2049,24 @@ await withElectron(
     const { cdp, url } = await cdpForAppWindow(60_000);
     say(`p167: app window at ${url}`);
     await cdp.call('Runtime.enable');
+    // PHASE 353 (D-P2). The app's own scan, read back: nothing resolved, since
+    // this run has no stand-in. A row that resolved is a finding, and nothing
+    // below is measured, because the app may already have run it.
+    {
+      let agents = { ok: false, said: 'agents:list was not read' };
+      try {
+        agents = standInsOnlyVerdict(JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR, 90_000)), { standIns: [] });
+      } catch (err) {
+        agents = { ok: false, said: `agents:list could not be read: ${String(err)}` };
+      }
+      say(`p167: agents ${agents.ok ? 'ok' : 'NOT OK'}: ${agents.said}`);
+      report.agents = agents;
+      if (!agents.ok) {
+        failures.push(`agents: ${agents.said}; every probed row was to be hidden, so nothing was measured`);
+        cdp.close();
+        return;
+      }
+    }
     await cdp.call('Performance.enable');
     await cdp.call('HeapProfiler.enable');
     // The surface flights ride a 200 ms fade whose final frame waits on
@@ -1967,8 +2180,16 @@ await withElectron(
       say(`  before      ${fmt(before)}`);
       say(`  census      ${censusLine(before)}`);
       const blocks = [];
+      // PHASE 301 (D301-4). Profile d's blocks starved for their whole life
+      // under P167_STARVE=1, from before the first cycle through the census
+      // (and the snapshot, when one is taken), each starve ended right after.
+      const starved = key === 'd' && starveArm;
+      const starves = [];
+      if (starved) say(`  starved: back-to-back 40 ms message tasks from before each block's first cycle through its census (P167_STARVE=1, a page deadline of ${String(starveMs)} ms)`);
       for (let b = 1; b <= blocksWanted; b += 1) {
         const started = Date.now();
+        if (starved) await cdpEval(cdp, STARVE_START(starveMs));
+        try {
         for (let c = 0; c < cyclesWanted; c += 1) await cycle(cdp, log);
         await sleep(1500);
         const row = await readAll(descriptors);
@@ -2019,6 +2240,18 @@ await withElectron(
           say(`  snapshot    ${path} (${(bytes / (1024 * 1024)).toFixed(1)} MB)`);
           if (finding !== null) sayRetainers(path);
         }
+        } finally {
+          if (starved) {
+            let held = null;
+            try {
+              held = JSON.parse(await cdpEval(cdp, STARVE_STOP));
+            } catch {
+              held = null;
+            }
+            starves.push(held);
+            say(`  starve      ${held === null ? 'could not be read back' : `${String(held.tasks)} task(s) of 40 ms, an idle callback ${held.idleFired ? 'RAN' : 'never ran'}${held.deadlinePassed ? ', and the page deadline passed first' : ''}`}; canvas trees held: ${String(canvasTrees(blocks[blocks.length - 1] ?? {}))}`);
+          }
+        }
       }
       if (descriptors && blocks.length > 0) {
         const last = blocks[blocks.length - 1];
@@ -2037,6 +2270,10 @@ await withElectron(
       // floor is set a little under that so one session the app records late is
       // not read as a workload that did not land.
       const verdicts = judge(key, before, blocks, budgets, rules);
+      if (starved) {
+        verdicts.push(...starveFindings(before, blocks, starves));
+        report.starved = { blocks: blocks.map((row, i) => ({ detached: row.detached, canvas: canvasTrees(row), rendererMb: row.rendererFootprintMb, starve: starves[i] ?? null })), floor: before.detached };
+      }
       if (log.openMisses.length > 0) verdicts.push(`${key}: ${String(log.openMisses.length)} surface open(s) did not land: ${[...new Set(log.openMisses)].join(', ')}`);
       if (log.closeMisses.length > 0) verdicts.push(`${key}: ${String(log.closeMisses.length)} surface close(s) did not land: ${[...new Set(log.closeMisses)].join(', ')}`);
       // PHASE 227. The redline was rewritten under, and every rewrite must
@@ -2227,6 +2464,7 @@ await withElectron(
       say(`  clause 1 (SelectionService)  outstanding ()=>this._refresh() after cleanup: ${String(refreshB)}  (must be 0) [behavioural]`);
       say(`  clause 2 (WebglRenderer)     shipped renderer registers _cursorBlinkStateManager: ${String(fixes.owner2)} (must be true) [bundle, ${String(fixes.scanned)} file(s)]; live 600 ms blink intervals after cleanup: ${String(blinkB)} (best-effort, armed=${String(armedBefore)})`);
       say(`  owner 1 also in shipped bundle: ${String(fixes.owner1)}; self-check ${String(sc.scheduled)} - ${String(sc.cancelled)} - ${String(sc.served)} = ${String(sc.scheduled - sc.cancelled - sc.served)}, outstanding() ${String(sc.outstanding)}`);
+      say(`  clause 3 (TextureAtlas warm-up queue) shipped renderer keeps the queue as a field: ${String(fixes.owner3Field)} and clears it in dispose: ${String(fixes.owner3Clear)} (both must be true) [bundle]`);
 
       if (!reached) {
         failures.push('p265: arm B never reached a four-pane grid, so no terminal was disposed and clause 1 says nothing');
@@ -2234,6 +2472,10 @@ await withElectron(
       // Clause 1 — behavioural, owner 1.
       if (typeof refreshB !== 'number' || refreshB !== 0) {
         failures.push(`p265 clause 1 (SelectionService._refreshAnimationFrame): ${String(refreshB)} outstanding ()=>this._refresh() frame(s) outlived the panes that scheduled them; a disposed selection service left a permanent animation-frame root`);
+      }
+      // Clause 3 — deterministic shipped-bundle pin, owner 3 (Phase 301).
+      if (fixes.owner3 !== true) {
+        failures.push(`p301 clause 3 (TextureAtlas warm-up queue): the shipped renderer bundle does not keep the glyph warm-up queue as a field cleared in dispose (${JSON.stringify(fixes)}); a closed terminal's atlas stays held by its pending idle callback until the renderer next goes idle, and this build ships that`);
       }
       // Clause 2 — deterministic shipped-bundle pin, owner 2.
       if (fixes.owner2 !== true) {
@@ -2369,13 +2611,8 @@ await withElectron(
   }
 }
 
-const liveAfter = liveGmuxSessionCount();
-if (liveAfter !== liveBefore) {
-  failures.push(`the operator's gmux server counted ${String(liveBefore)} sessions before and ${String(liveAfter)} after; this probe must never touch it`);
-}
 report.mainPid = mainPidSeen;
 report.failures = failures;
-report.liveGmuxSessions = { before: liveBefore, after: liveAfter };
 report.remote = {
   armed: remoteArmed,
   skipped: remote.skipped,

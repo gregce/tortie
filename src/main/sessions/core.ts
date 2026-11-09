@@ -2782,13 +2782,31 @@ export class GmuxCore {
       // words under the second death's exit code.
       const exitDetail =
         captured.text === null ? null : (exitDetailFrom(captured.text) ?? null);
-      this.manifest.updateSession(sessionId, {
-        status: 'exited',
-        lastSeen: Date.now(),
-        exitDetail,
-        ...(exitCode !== undefined ? { exitCode } : {}),
-        ...(deadSignal !== undefined ? { exitSignal: deadSignal } : {})
-      });
+      // PHASE 302. THE ROW AGAIN, IMMEDIATELY BEFORE THE WRITE, and the position
+      // is the rule: the guard at the top read the row before two awaits, and
+      // the monitor reads its sessions before its own awaits and reports a dead
+      // pane after them, so a Remove can land between that read and this line
+      // with no await here at all. A row the person removed meanwhile keeps its
+      // tombstone: no status written over it and no `exited` sent to any window,
+      // because writing one moved the row out of Past Sessions and back under
+      // the managed list with its saved output already deleted. Everything else
+      // below stands, because the pane did die. The read is inside Phase 357's
+      // try on purpose: a list that stopped reading correctly during the awaits
+      // refuses here, before the write, and records nothing more, as it does at
+      // the write.
+      const fresh = this.manifest.getSession(sessionId);
+      const removedSinceRead = fresh?.status === 'discarded';
+      if (removedSinceRead) {
+        sessionsLog.info(`a removed session's pane died: id=${sessionId}; it stays in Past Sessions`);
+      } else {
+        this.manifest.updateSession(sessionId, {
+          status: 'exited',
+          lastSeen: Date.now(),
+          exitDetail,
+          ...(exitCode !== undefined ? { exitCode } : {}),
+          ...(deadSignal !== undefined ? { exitSignal: deadSignal } : {})
+        });
+      }
       // The wrapper's own flush is the one that did NOT happen here (a
       // non-zero exit takes the CLI's os.Exit mirror path), so this is the
       // sync that keeps the last turn of the conversation.
@@ -2816,7 +2834,7 @@ export class GmuxCore {
       // than leaving it for the next sweep.
       this.resumeInPlace.forget(sessionId);
       this.hookServer.revoke(sessionId);
-      broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
+      if (!removedSinceRead) broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
     } catch (err) {
       if (!isManifestStopped(err)) throw err;
     }
@@ -2883,15 +2901,21 @@ export class GmuxCore {
    * `;`-joined sequence emits one %begin/%end block per command and would
    * desync the control client's pending queue (measured on 3.6a).
    */
-  private readonly runScrollCommand: tmux.TmuxScrollRunner = async (args) => {
-    if (this.control.connected) {
-      const lines = await this.control.sendCommand(
-        args.map(tmux.quoteTmuxArg).join(' ')
-      );
-      return lines.join('\n');
-    }
-    return tmux.execTmux([...args]);
-  };
+  private readonly runScrollCommand: tmux.TmuxScrollRunner = Object.assign(
+    async (args: readonly string[]): Promise<string> => {
+      if (this.control.connected) {
+        const lines = await this.control.sendCommand(
+          args.map(tmux.quoteTmuxArg).join(' ')
+        );
+        return lines.join('\n');
+      }
+      return tmux.execTmux([...args]);
+    },
+    // Phase 294: this Mac's session runner, the one runner a gesture toward
+    // live may re-freeze a parked view through (`refreezes` on
+    // TmuxScrollRunner in src/main/tmux/scroll.ts).
+    { refreezes: true as const }
+  );
 
   /**
    * Pane-addressable tmux target for a session: its live `$-id`, which is
@@ -3653,7 +3677,21 @@ export class GmuxCore {
       this.byTmuxId.delete(target);
     }
     this.liveIds.delete(sessionId);
-    this.manifest.setStatus(sessionId, 'exited');
+    // PHASE 302. THE GATE ASKED AGAIN, ON A FRESH READ, IMMEDIATELY BEFORE THE
+    // WRITE. The one at the top of this method read the row before the capture
+    // and the hang-up, and a row that ended on its own or was already ended is
+    // one a Remove is accepted on, so the Remove can land inside those awaits.
+    // Writing `exited` then moved the removed row out of Past Sessions and back
+    // under the managed list with its saved output already deleted. The session
+    // was still ended, which is what the person asked for, so the End resolves;
+    // what is not written is a status over the removal, and no window is told
+    // the session ended, because it is in Past Sessions already.
+    const endedRemoved = endRefusal(this.manifest.getSession(sessionId)) !== null;
+    if (endedRemoved) {
+      sessionsLog.info(`a session was removed while it ended: id=${sessionId}; it stays in Past Sessions`);
+    } else {
+      this.manifest.setStatus(sessionId, 'exited');
+    }
     // kill-session is a SIGHUP, which `specstory run` does not handle at all —
     // without this the debounced tail of the conversation is simply lost.
     this.queueCaptureSync(rec);
@@ -3663,7 +3701,7 @@ export class GmuxCore {
     // than leaving it for the next sweep.
     this.resumeInPlace.forget(sessionId);
     this.hookServer.revoke(sessionId);
-    broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
+    if (!endedRemoved) broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
     this.broadcastSessions();
     // PHASE 323. LAST, and not awaited: the End answers the window before the
     // waits, and a quit does not wait for them either (the fix round).

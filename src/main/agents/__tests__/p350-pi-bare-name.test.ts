@@ -30,18 +30,27 @@
  *      parent's own, the token-free composition, so pi starts exactly as today.
  *
  * His ruling of 2026-11-03, the third ruled round: "No switch for # folders.
- * When the folder name has a #, pi starts exactly as today." tmux reads
- * `new-session -c` as a format, so the pane of a folder holding a `#` may start
- * in the tmux server's HOME. Planted: `C#Tools`, a `#` in a parent folder, the
- * `CTools` control, and the reverify's nit, a session in a subfolder of its
+ * When the folder name has a #, pi starts exactly as today." tmux read
+ * `new-session -c` as a format, so the pane of a folder holding a `#` could
+ * start in the tmux server's HOME. Planted: `C#Tools`, a `#` in a parent folder,
+ * the `CTools` control, and the reverify's nit, a session in a subfolder of its
  * project, which is walked from the subfolder.
  *
  * His ruling of 2026-11-04, the fourth ruled round: "Treat a trailing ; like #.
  * If the folder name ends in ;, pi starts exactly as it does today." tmux's
- * argument reader ends a command at an argument ending in `;` and reads one
- * ending in `\;` as ending in `;`, so the pane of `semi\;` starts in HOME, or
- * in its `;` twin when one exists. Planted: `semi\;`, `twin\;` beside a `twin;`
+ * argument reader ended a command at an argument ending in `;` and read one
+ * ending in `\;` as ending in `;`, so the pane of `semi\;` started in HOME, or
+ * in its `;` twin when one existed. Planted: `semi\;`, `twin\;` beside a `twin;`
  * that pins its own pi, and the control `x;y`, a `;` that is not last.
+ *
+ * PHASE 353 (build/p353/SPEC.md D354-5) TOOK BOTH CLAUSES OUT. Every create now
+ * hands tmux the folder held back (`tmuxFolderArgument`,
+ * src/main/tmux/argument.ts), so the pane starts in exactly the folder the walk
+ * starts from, and the `#` and `\;` rows above FLIPPED: each is walked like any
+ * other folder, and where it holds no pi of its own the global pi the scan read
+ * is the file that runs, so it holds the token. HOME's own pi is never reached
+ * from them now, and the `;` twin is walked as its own folder, where its own pi
+ * runs. The planted world is unchanged.
  *
  * HERMETIC. Every file is under one temp folder, and every pi is a `/bin/sh`
  * stand-in that prints its band and that nothing here runs but the scan's `-v`.
@@ -225,11 +234,12 @@ const PLAIN_LINK = join(P, 'plain-link');
 symlinkSync('plain', PLAIN_LINK);
 
 /**
- * HIS RULING OF 2026-11-03, the third ruled round. tmux reads `new-session -c` as a format, so a session folder
- * holding a `#` is not always the folder the pane starts in: measured on 3.7b and 3.6a, `C#Tools` starts in the
- * tmux server's HOME, and a pane there finds HOME's own pi behind `node_modules/.bin`. His words: "When the folder
+ * HIS RULING OF 2026-11-03, the third ruled round. tmux read `new-session -c` as a format, so a session folder
+ * holding a `#` was not always the folder the pane started in: measured on 3.7b and 3.6a, `C#Tools` started in the
+ * tmux server's HOME, and a pane there found HOME's own pi behind `node_modules/.bin`. His words: "When the folder
  * name has a #, pi starts exactly as today." HOME holds its own pi 0.83.0 as `npm install` in a home folder lays
- * it out; a second HOME holds none, because the verdict may not depend on where tmux would start the pane.
+ * it out; a second HOME holds none, because the verdict may not depend on HOME. Since Phase 353 the create holds the
+ * folder back, the pane starts in it, and these folders are walked like any other: HOME's own pi is never reached.
  */
 const HOME_PI = join(root, 'home');
 npmInstalledIn(HOME_PI, '0.83.0');
@@ -252,9 +262,10 @@ npmInstalledIn(MONO_SUB, '0.83.0');
 
 /**
  * HIS RULING OF 2026-11-04, the fourth ruled round. tmux's argument reader ends a command at an argument ending in
- * `;` and reads one ending in `\;` as ending in `;`, so `new-session -c …/semi\;` starts its pane in `…/semi;`:
- * measured on 3.7b and 3.6a, in HOME when no `semi;` exists, and in the twin when one does. His words: "Treat a
- * trailing ; like #. If the folder name ends in ;, pi starts exactly as it does today."
+ * `;` and reads one ending in `\;` as ending in `;`, so `new-session -c …/semi\;` started its pane in `…/semi;`:
+ * measured on 3.7b and 3.6a, in HOME when no `semi;` existed, and in the twin when one did. His words: "Treat a
+ * trailing ; like #. If the folder name ends in ;, pi starts exactly as it does today." Since Phase 353 the create
+ * hands a final `;` held back, the pane starts in the folder itself, and each is walked as its own folder.
  */
 const BSEMI = join(P, 'semi\\;');
 const TWIN = join(P, 'twin\\;');
@@ -389,21 +400,24 @@ describe("the one resolver walks the pane's PATH from the session's own folder, 
   });
 });
 
-describe('his ruling of 2026-11-03: a folder holding a #, and a session in a subfolder of its project', () => {
+describe('his ruling of 2026-11-03, taken out by Phase 353: a folder holding a #, and a session in a subfolder of its project', () => {
   const path = `node_modules/.bin:${GDIR}:${SYS}`;
 
-  it("a folder whose name holds a # reads no file, wherever HOME's own pi is: tmux reads -c as a format", () => {
+  it("a folder whose name holds a # is walked like any other, wherever HOME's own pi is: the create now holds the folder back, so the pane starts there", () => {
     for (const home of [HOME_PI, HOME_BARE]) {
       vi.stubEnv('HOME', home);
-      expect(found(path, HASH)).toBeNull();
-      expect(runs(path, HASH)).toBe(false);
+      expect(found(path, HASH)).toBe('g/bin/pi');
+      expect(runs(path, HASH)).toBe(true);
     }
-    for (const dir of HASH_SPELLINGS) expect(found(path, dir)).toBeNull();
+    for (const dir of HASH_SPELLINGS) {
+      expect(found(path, dir)).toBe('g/bin/pi');
+      expect(runs(path, dir)).toBe(true);
+    }
   });
 
-  it("a # in a parent folder's name counts", () => {
-    expect(found(path, HASH_PARENT)).toBeNull();
-    expect(runs(path, HASH_PARENT)).toBe(false);
+  it("a # in a parent folder's name is walked like any other", () => {
+    expect(found(path, HASH_PARENT)).toBe('g/bin/pi');
+    expect(runs(path, HASH_PARENT)).toBe(true);
   });
 
   it("the control CTools is walked as before, and so is a link to C#Tools, which tmux is handed by the link's own name", () => {
@@ -421,21 +435,21 @@ describe('his ruling of 2026-11-03: a folder holding a #, and a session in a sub
   });
 });
 
-describe('his ruling of 2026-11-04: a folder whose name ends in ;', () => {
+describe('his ruling of 2026-11-04, taken out by Phase 353: a folder whose name ends in ;', () => {
   const path = `node_modules/.bin:${GDIR}:${SYS}`;
 
-  it("a folder whose name ends in a backslash and a semicolon reads no file, wherever HOME's own pi is: tmux reads it as ending in ;", () => {
+  it("a folder whose name ends in a backslash and a semicolon is walked like any other, wherever HOME's own pi is: the create now hands its final ; held back", () => {
     for (const home of [HOME_PI, HOME_BARE]) {
       vi.stubEnv('HOME', home);
-      expect(found(path, BSEMI)).toBeNull();
-      expect(runs(path, BSEMI)).toBe(false);
+      expect(found(path, BSEMI)).toBe('g/bin/pi');
+      expect(runs(path, BSEMI)).toBe(true);
     }
   });
 
-  it('a folder ending in a backslash and a semicolon whose ; twin pins its own pi reads no file, and neither does the twin', () => {
-    expect(found(path, TWIN)).toBeNull();
-    expect(runs(path, TWIN)).toBe(false);
-    expect(found(path, TWIN_READ)).toBeNull();
+  it('a folder ending in a backslash and a semicolon is walked as itself, never as its ; twin, and the twin, which pins its own pi, runs that pi', () => {
+    expect(found(path, TWIN)).toBe('g/bin/pi');
+    expect(runs(path, TWIN)).toBe(true);
+    expect(found(path, TWIN_READ)).toBe('projects/twin;/node_modules/.bin/pi');
     expect(runs(path, TWIN_READ)).toBe(false);
   });
 
@@ -647,15 +661,19 @@ const ROWS: Row[] = [
     absolute: true,
     probe: [join(root, 'probed', 'bin')]
   },
-  // His ruling of 2026-11-03: a folder holding a `#`, in its own name or a parent's, reads unread and pi starts as
-  // today, where the pane would have run HOME's own 0.83.0; the control beside it keeps the token.
-  { id: 'C#Tools, a project with no pi, HOME holding its own pi 0.83.0, node_modules/.bin', folder: HASH, path: SHAPES['node_modules/.bin']!, verdict: 'unread', bin: G.bin, home: HOME_PI },
-  { id: 'C#/app, the # in a parent folder, HOME holding its own pi 0.83.0, node_modules/.bin', folder: HASH_PARENT, path: SHAPES['node_modules/.bin']!, verdict: 'unread', bin: G.bin, home: HOME_PI },
+  // His ruling of 2026-11-03 read a folder holding a `#`, in its own name or a parent's, as unread, because the pane
+  // would have run HOME's own 0.83.0. PHASE 353 holds the folder back at the create, so the pane starts in the
+  // folder, which holds no pi, and the global pi the scan read is the file that runs: these rows HOLD the token now,
+  // as the control beside them always did.
+  { id: 'C#Tools, a project with no pi, HOME holding its own pi 0.83.0, node_modules/.bin', folder: HASH, path: SHAPES['node_modules/.bin']!, verdict: 'holds', bin: G.bin, home: HOME_PI },
+  { id: 'C#/app, the # in a parent folder, HOME holding its own pi 0.83.0, node_modules/.bin', folder: HASH_PARENT, path: SHAPES['node_modules/.bin']!, verdict: 'holds', bin: G.bin, home: HOME_PI },
   { id: 'CTools, the control, HOME holding its own pi 0.83.0, node_modules/.bin', folder: NO_HASH, path: SHAPES['node_modules/.bin']!, verdict: 'holds', bin: G.bin, home: HOME_PI },
-  // His ruling of 2026-11-04: a folder whose name ends in `;` reads unread and pi starts as today, where the pane
-  // would have run HOME's own 0.83.0, or its `;` twin's; the control beside it, a `;` that is not last, keeps the token.
-  { id: 'semi\\;, a project with no pi whose name ends in a backslash and a semicolon, HOME holding its own pi 0.83.0, node_modules/.bin', folder: BSEMI, path: SHAPES['node_modules/.bin']!, verdict: 'unread', bin: G.bin, home: HOME_PI },
-  { id: 'twin\\;, a project with no pi whose twin twin; pins its own pi 0.83.0, a HOME holding none, node_modules/.bin', folder: TWIN, path: SHAPES['node_modules/.bin']!, verdict: 'unread', bin: G.bin, home: HOME_BARE },
+  // His ruling of 2026-11-04 read a folder whose name ends in `;` as unread, because the pane would have run HOME's
+  // own 0.83.0, or its `;` twin's. PHASE 353 hands the final `;` held back, so the pane starts in the folder itself
+  // and these rows HOLD the token; a `;` twin that pins its own pi is its own folder, walked to its own pi, unread.
+  { id: 'semi\\;, a project with no pi whose name ends in a backslash and a semicolon, HOME holding its own pi 0.83.0, node_modules/.bin', folder: BSEMI, path: SHAPES['node_modules/.bin']!, verdict: 'holds', bin: G.bin, home: HOME_PI },
+  { id: 'twin\\;, a project with no pi whose twin twin; pins its own pi 0.83.0, a HOME holding none, node_modules/.bin', folder: TWIN, path: SHAPES['node_modules/.bin']!, verdict: 'holds', bin: G.bin, home: HOME_BARE },
+  { id: 'twin;, a project ending in a plain ; that pins its own pi 0.83.0, node_modules/.bin', folder: TWIN_READ, path: SHAPES['node_modules/.bin']!, verdict: 'unread', bin: G.bin, home: HOME_BARE },
   { id: 'x;y, the control, a ; that is not last, HOME holding its own pi 0.83.0, node_modules/.bin', folder: SEMI_MID, path: SHAPES['node_modules/.bin']!, verdict: 'holds', bin: G.bin, home: HOME_PI }
 ];
 
