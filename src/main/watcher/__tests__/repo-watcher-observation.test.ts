@@ -9,7 +9,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type FakeCb = (err: Error | null, events: { type: string; path: string }[]) => void;
 const subs: { dir: string; cb: FakeCb }[] = [];
@@ -33,10 +33,29 @@ vi.mock('../../log', () => ({
 }));
 
 const { RepoWatcher } = await import('../repo-watcher');
+const { watchFolder } = await import('../host');
 
 const DEBOUNCE_MS = 20;
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const DROP = new Error('Events were dropped by the FSEvents client. File system must be re-scanned.');
+
+/**
+ * PHASE 365. A watch that waited longer than its debounce window for its start
+ * now schedules one flush (build/p365/SPEC.md D9), and the host's FIRST watch in
+ * a file loads its in-process queue by a dynamic import (D7), 7 to 11 ms on an
+ * idle machine and more than this file's 20 ms window under load. The counts
+ * below are read with no window open, so under load the first case read
+ * `rescansScheduled` 0 in 18 of 18 runs. The load is paid once, here.
+ */
+beforeAll(async () => {
+  const warm = mkdtempSync(join(tmpdir(), 'gmux-watch-obs-warm-'));
+  try {
+    const watch = await watchFolder(warm, {}, () => undefined);
+    await watch?.close();
+  } finally {
+    rmSync(warm, { recursive: true, force: true });
+  }
+});
 
 let dir = '';
 beforeEach(() => {

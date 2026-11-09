@@ -1,0 +1,21 @@
+{
+ "about": "A CONSTRUCTED SK run (a host that waits for a stopped process to end itself): the lines this probe's storm app writes, with a SIGKILL at 29.4 s and a SIGSTOP at 91.1 s. No SK run exists before HEAD's host does.",
+ "recorded": [],
+ "constructed": [
+  "stdout.txt, every line",
+  "exit",
+  "the signals the probe sent (fixture extra)",
+  "the host source (fixture extra)"
+ ],
+ "exit": {
+  "code": 0,
+  "signal": null
+ },
+ "env": {
+  "P365_DEL_ORDER": "before",
+  "P365_SCENARIO": "storm"
+ },
+ "dumps": [],
+ "dumpsFound": 0,
+ "reportsAdded": []
+}

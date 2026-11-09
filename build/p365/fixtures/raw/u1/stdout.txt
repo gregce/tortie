@@ -1,0 +1,37 @@
+P365 {"kind":"child","t":1794213829339,"event":"spawn","gen":1,"ms":3,"pid":84932}
+P365 {"kind":"child","t":1794213829406,"event":"ready","gen":1,"ms":70,"loadMs":3,"pid":84932}
+P365 {"kind":"keeper","t":1794213829407,"dir":"/private/var/tmp/tortie-wt/scratch/p365/spec/runs/u1/root/keeper"}
+P365 {"kind":"start","t":1794213829407,"mode":"utility","keep":true,"durationMs":300000,"tickMs":60,"slots":12,"failPct":10,"delPct":30,"churnMs":10,"quit":"drain","seed":41,"pid":84925,"electron":"43.3.0"}
+P365 {"kind":"stats","t":1794213830408,"elapsed":1001,"live":1,"subIssued":16,"subOk":15,"subFail":1,"subSkipped":0,"subRefused":0,"unsubIssued":14,"unsubOk":14,"unsubFail":0,"events":1,"errors":0,"rootGone":0,"deletes":10,"churnOps":71,"maxTurnMs":0,"turnTimeouts":0,"inFlight":0,"maxQueue":0,"childExits":0,"errorKinds":{},"latP50":1,"latP99":1,"latN":1}
+P365 {"kind":"stats","t":1794213831409,"elapsed":2002,"live":1,"subIssued":32,"subOk":30,"subFail":2,"subSkipped":0,"subRefused":0,"unsubIssued":29,"unsubOk":29,"unsubFail":0,"events":5,"errors":0,"rootGone":0,"deletes":16,"churnOps":108,"maxTurnMs":0,"turnTimeouts":0,"inFlight":0,"maxQueue":0,"childExits":0,"errorKinds":{},"latP50":0,"latP99":0,"latN":4}
+P365 {"kind":"stats","t":1794213832409,"elapsed":3002,"live":1,"subIssued":49,"subOk":45,"subFail":4,"subSkipped":0,"subRefused":0,"unsubIssued":44,"unsubOk":44,"unsubFail":0,"events":6,"errors":0,"rootGone":0,"deletes":20,"churnOps":174,"maxTurnMs":0,"turnTimeouts":0,"inFlight":0,"maxQueue":0,"childExits":0,"errorKinds":{},"latP50":0,"latP99":0,"latN":1}
+[1109/034449.382333:WARNING:third_party/crashpad/crashpad/util/process/process_memory_mac.cc:94] mach_vm_read(0x16af20000, 0x8000): (os/kern) invalid address (1)
+P365 {"kind":"child","t":1794213889537,"event":"exit","gen":1,"code":5,"after":60201}
+P365 {"kind":"child","t":1794213889790,"event":"spawn","gen":2,"ms":1,"pid":88220}
+P365 {"kind":"child","t":1794213889848,"event":"ready","gen":2,"ms":59,"loadMs":2,"pid":88220}
+P365 {"kind":"child","t":1794213889849,"event":"rebound","gen":2,"watches":2,"ok":2,"ms":1,"sinceFork":60}
+[1109/034605.463502:WARNING:third_party/crashpad/crashpad/util/process/process_memory_mac.cc:94] mach_vm_read(0x16b024000, 0x8000): (os/kern) invalid address (1)
+P365 {"kind":"child","t":1794213965619,"event":"exit","gen":2,"code":5,"after":75830}
+P365 {"kind":"child","t":1794213965872,"event":"spawn","gen":3,"ms":1,"pid":92617}
+P365 {"kind":"child","t":1794213965939,"event":"ready","gen":3,"ms":68,"loadMs":2,"pid":92617}
+P365 {"kind":"child","t":1794213965940,"event":"rebound","gen":3,"watches":2,"ok":2,"ms":1,"sinceFork":69}
+[1109/034652.606163:WARNING:third_party/crashpad/crashpad/util/process/process_memory_mac.cc:94] mach_vm_read(0x16d0bc000, 0x8000): (os/kern) invalid address (1)
+P365 {"kind":"child","t":1794214012901,"event":"exit","gen":3,"code":5,"after":47030}
+P365 {"kind":"child","t":1794214013153,"event":"spawn","gen":4,"ms":1,"pid":96430}
+P365 {"kind":"child","t":1794214013228,"event":"ready","gen":4,"ms":76,"loadMs":3,"pid":96430}
+P365 {"kind":"child","t":1794214013229,"event":"rebound","gen":4,"watches":2,"ok":2,"ms":1,"sinceFork":77}
+[1109/034742.274801:WARNING:third_party/crashpad/crashpad/util/process/process_memory_mac.cc:94] mach_vm_read(0x16f614000, 0x8000): (os/kern) invalid address (1)
+P365 {"kind":"child","t":1794214062493,"event":"exit","gen":4,"code":5,"after":49341}
+P365 {"kind":"child","t":1794214062751,"event":"spawn","gen":5,"ms":1,"pid":17423}
+P365 {"kind":"child","t":1794214062907,"event":"ready","gen":5,"ms":157,"loadMs":3,"pid":17423}
+P365 {"kind":"child","t":1794214062911,"event":"rebound","gen":5,"watches":4,"ok":4,"ms":4,"sinceFork":161}
+[1109/034842.959393:WARNING:third_party/crashpad/crashpad/util/process/process_memory_mac.cc:94] mach_vm_read(0x16cf38000, 0x8000): (os/kern) invalid address (1)
+P365 {"kind":"child","t":1794214123137,"event":"exit","gen":5,"code":5,"after":60387}
+P365 {"kind":"child","t":1794214123388,"event":"spawn","gen":6,"ms":1,"pid":36093}
+P365 {"kind":"child","t":1794214123462,"event":"ready","gen":6,"ms":75,"loadMs":3,"pid":36093}
+P365 {"kind":"child","t":1794214123463,"event":"rebound","gen":6,"watches":2,"ok":2,"ms":1,"sinceFork":76}
+P365 {"kind":"stats","t":1794214127750,"elapsed":298343,"live":1,"subIssued":4892,"subOk":4372,"subFail":520,"subSkipped":0,"subRefused":0,"unsubIssued":4371,"unsubOk":4371,"unsubFail":0,"events":601,"errors":12,"rootGone":0,"deletes":1350,"churnOps":17791,"maxTurnMs":0,"turnTimeouts":0,"inFlight":0,"maxQueue":0,"childExits":5,"errorKinds":{"Events were dropped by the watcher process. File system must be re-scanned.":12},"latP50":0,"latP99":0,"latN":1}
+P365 {"kind":"stats","t":1794214128751,"elapsed":299344,"live":1,"subIssued":4909,"subOk":4388,"subFail":521,"subSkipped":0,"subRefused":0,"unsubIssued":4387,"unsubOk":4387,"unsubFail":0,"events":602,"errors":12,"rootGone":0,"deletes":1355,"churnOps":17840,"maxTurnMs":0,"turnTimeouts":0,"inFlight":0,"maxQueue":0,"childExits":5,"errorKinds":{"Events were dropped by the watcher process. File system must be re-scanned.":12},"latP50":0,"latP99":0,"latN":1}
+P365 {"kind":"quitting","t":1794214129433,"how":"drain","drainMs":22,"elapsed":300026,"subIssued":4919,"subOk":4398,"subFail":521,"subSkipped":0,"subRefused":0,"unsubIssued":4398,"unsubOk":4398,"unsubFail":0,"events":604,"errors":12,"rootGone":0,"deletes":1358,"churnOps":17880,"maxTurnMs":0,"turnTimeouts":0,"inFlight":0,"maxQueue":0,"childExits":5}
+P365 {"kind":"exit","t":1794214129433,"code":0}
+P365 {"kind":"child","t":1794214129433,"event":"exit","gen":6,"code":0,"after":6046}

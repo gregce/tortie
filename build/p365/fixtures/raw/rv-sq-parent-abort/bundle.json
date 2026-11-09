@@ -1,0 +1,53 @@
+{
+ "about": "a parent SQ run: the quit marked mid-storm with main’s pool held, then SIGABRT and napi_fatal_error on CrBrowserMain named from its dump",
+ "by": "the probe review",
+ "constructed": [
+  "every line: built by the probe review from the storm app’s own line shapes, no run made it"
+ ],
+ "exit": {
+  "code": null,
+  "signal": "SIGABRT"
+ },
+ "dumps": [
+  {
+   "file": "constructed-main.dmp",
+   "kind": "main",
+   "firstModule": "Electron",
+   "threadNames": [
+    "CrBrowserMain"
+   ],
+   "threadCount": 34,
+   "watcherLoaded": true,
+   "modules": 640,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x115b75f7c",
+    "params": [
+     "0xa",
+     "0x6000001",
+     "0x18e0c6720"
+    ],
+    "signal": "SIGABRT"
+   },
+   "thread": {
+    "id": 9002,
+    "name": "CrBrowserMain"
+   },
+   "frames": [
+    "libsystem_kernel.dylib+0x9388",
+    "lr libsystem_pthread.dylib+0x688c",
+    "EF napi_fatal_error+0x28",
+    "watcher.node PromiseRunner::onWorkComplete(napi_env__*, napi_status, void*)+0x5c"
+   ],
+   "inWatcher": []
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "env": {
+  "P365_SCENARIO": "quit",
+  "P365_QUIT": "mid",
+  "P365_SATURATE": "1"
+ }
+}

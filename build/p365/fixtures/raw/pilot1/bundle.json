@@ -1,0 +1,79 @@
+{
+ "about": "The spec step's run pilot1 (build/p365/SPEC.md §2), its stdout and its dump readings (the spec reader's JSON, no dump).",
+ "recorded": [
+  "stdout.txt (the storm app’s P365 lines and stderr)",
+  "exit",
+  "env (report.json’s extra)",
+  "dumps (the reader’s JSON)",
+  "reportsAdded"
+ ],
+ "constructed": [
+  "dumps[].kind: the spec step's reader did not record which process a dump was; pilot1's main ended by SIGTRAP and this is its one dump, read before Electron's symbols were fetched",
+  "addLines: a 'loaded' line the storm app of this probe writes and the spec step's did not; it says which build's sites ran and that the recorders were in, which the spec step's app did by its own code. The spec step's own 'loaded' line (its t and its load time) was taken out of stdout.txt and merged into it"
+ ],
+ "exit": {
+  "code": null,
+  "signal": "SIGTRAP"
+ },
+ "env": {
+  "P365_QUIT": "drain"
+ },
+ "dumps": [
+  {
+   "path": "43f24e44-6648-4a15-826f-f8c1fbab3623.dmp",
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x110e75f7c",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x110e75f7c"
+    ]
+   },
+   "thread": {
+    "id": 49326714,
+    "name": "",
+    "crashedIsFirst": false
+   },
+   "registers": {
+    "pc": "0x110e75f7c",
+    "lr": "0x110e75f7c",
+    "sp": "0x16fd16e10",
+    "fp": "0x16fd16e20",
+    "x0": "0x16fd16e10",
+    "x8": "0x65"
+   },
+   "frames": [
+    "Electron Framework+0x53cdf7c",
+    "lr Electron Framework+0x53cdf7c",
+    "Electron Framework+0x23f60",
+    "Electron Framework+0xf6c004",
+    "Electron Framework+0xf6bdd0",
+    "libsystem_pthread.dylib+0x45f8",
+    "libsystem_pthread.dylib+0x72a8",
+    "libsystem_pthread.dylib+0x6bd4"
+   ],
+   "watcherLoaded": true,
+   "modules": 963,
+   "kind": "main"
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "addLines": [
+  {
+   "kind": "loaded",
+   "t": 1794213198154,
+   "ms": 117,
+   "constructed": true,
+   "host": false,
+   "observation": false,
+   "nativeWrapped": true,
+   "forkWrapped": true,
+   "forkWrap": "direct",
+   "bounds": null,
+   "restartError": null
+  }
+ ]
+}

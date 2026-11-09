@@ -7,7 +7,9 @@
  *
  * Strategy, inherited from the shipped codex harvester and now shared:
  *  - @parcel/watcher (FSEvents) subscriptions on the descriptor's roots — the
- *    fast channel,
+ *    fast channel, asked for through the watcher host's `watchFolder` since
+ *    Phase 365, which runs every watch in Tortie one at a time in a process of
+ *    its own and answers `null` for a root that is not there at its turn,
  *  - plus a readdir poll that BACKS OFF, because a native watcher can fail to
  *    initialize or drop events and the id is the whole point,
  *  - disambiguation by the descriptor's key: a confirmed candidate wins as
@@ -38,10 +40,9 @@ import { existsSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import * as parcelWatcher from '@parcel/watcher';
 import type { LaunchableAgentId } from '@shared/types';
 import { getRegistryEntry } from '../../agents/registry';
-import { trackWatcherClose } from '../../watcher/teardown';
+import { watchFolder, type FolderEvents, type FolderWatch } from '../../watcher';
 import {
   claimRank,
   claimStrengthForKey,
@@ -521,7 +522,7 @@ export function watchForSessionId(
   const myMatchRank = claimRank(matchStrength);
 
   const candidates = new Map<string, Candidate>();
-  const subscriptions: parcelWatcher.AsyncSubscription[] = [];
+  const subscriptions: FolderWatch[] = [];
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
   let pollDelay = pollIntervalMs;
   let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
@@ -555,10 +556,10 @@ export function watchForSessionId(
     if (pollTimer !== undefined) clearTimeout(pollTimer);
     if (timeoutTimer !== undefined) clearTimeout(timeoutTimer);
     for (const sub of subscriptions) {
-      // Phase 36: tracked so the before-quit drain can wait for this close.
-      // A fire-and-forget unsubscribe whose completion lands during
-      // FreeEnvironment is a SIGABRT, not a quit.
-      void trackWatcherClose(sub.unsubscribe().catch(() => undefined));
+      // Phase 36 tracked this close so the before-quit drain could wait for
+      // it. Phase 365: `FolderWatch.close()` is tracked by the host itself,
+      // so it is fired here and tracked nowhere else.
+      void sub.close().catch(() => undefined);
     }
     subscriptions.length = 0;
   };
@@ -890,9 +891,9 @@ export function watchForSessionId(
     } catch {
       // A listing that could not finish has proved nothing about the
       // directory, so `scannedAt` is deliberately left where it was and the
-      // next one is still required. Swallowed rather than rethrown: the two
-      // callers below both start this with `void`, and an unhandled rejection
-      // in main is a worse outcome than one missed listing.
+      // next one is still required. Swallowed rather than rethrown: every
+      // caller below starts this with `void`, and an unhandled rejection in
+      // main is a worse outcome than one missed listing.
     } finally {
       scanning = false;
     }
@@ -903,7 +904,7 @@ export function watchForSessionId(
     }
   };
 
-  const onEvents: parcelWatcher.SubscribeCallback = (err, events) => {
+  const onEvents: FolderEvents = (err, events) => {
     if (settled) return;
     if (err) return; // the poll is the guaranteed path
     // PHASE 266. For a SQLite store the watcher subscribes to the db's PARENT
@@ -930,14 +931,25 @@ export function watchForSessionId(
   const subscribeTo = async (dir: string): Promise<void> => {
     try {
       if (!existsSync(dir)) return; // the poll picks it up once it exists
-      const sub = await parcelWatcher.subscribe(dir, onEvents);
+      const sub = await watchFolder(dir, {}, onEvents);
+      // Phase 365: `null` is "nothing to watch", the root having gone before
+      // the watch's turn (or the app quitting). The poll covers it, exactly
+      // as it covers a root that was never there.
+      if (sub === null) return;
       if (settled) {
         // Phase 36: the watch settled while this subscribe was in flight.
-        // The close still has to be awaitable at quit, so track it.
-        void trackWatcherClose(sub.unsubscribe().catch(() => undefined));
+        // The host tracks the close for the quit's drains.
+        void sub.close().catch(() => undefined);
         return;
       }
       subscriptions.push(sub);
+      // Phase 365, the fix round: the stream is live now, and a stream sees
+      // nothing written before it started. The first listing ran when the
+      // watch was armed, and the first watch of a launch waits for the watcher
+      // process to start (about 60 ms against the parent's 2 to 4), so a record
+      // written in between was found only by the poll, a second later (1,003 ms
+      // against 48, measured). One listing here closes that window.
+      void runScan();
     } catch {
       // FSEvents unavailable or a dir race — polling covers us.
     }

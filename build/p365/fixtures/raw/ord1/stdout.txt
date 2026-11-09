@@ -1,0 +1,7 @@
+P365 {"kind":"ordinary","t":1794214461552,"phase":"boot","subscribe":52,"unsubscribe":0,"maxInFlight":17,"failed":0,"bootMs":57}
+P365 {"kind":"ordinary","t":1794214481597,"phase":"quiet","subscribe":52,"unsubscribe":0,"maxInFlight":0,"failed":0,"onChange":20}
+P365 {"kind":"ordinary","t":1794214481599,"phase":"close10","subscribe":52,"unsubscribe":20,"maxInFlight":10,"failed":0,"closeMs":2}
+P365 {"kind":"ordinary","t":1794214483673,"phase":"branch5","subscribe":52,"unsubscribe":20,"maxInFlight":10,"failed":0,"onChange":25}
+P365 {"kind":"ordinary","t":1794214484176,"phase":"rescues-settled","subscribe":52,"unsubscribe":30,"maxInFlight":10,"failed":0}
+P365 {"kind":"ordinary","t":1794214484187,"phase":"quit","subscribe":52,"unsubscribe":52,"maxInFlight":10,"failed":0,"quitDrainMs":10,"left":0,"peakPerSecond":52}
+P365 {"kind":"exit","t":1794214484187,"code":0}

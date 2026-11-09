@@ -1,0 +1,385 @@
+{
+ "about": "The spec step's run u1 (build/p365/SPEC.md §2), its stdout and its dump readings (the spec reader's JSON, no dump).",
+ "recorded": [
+  "stdout.txt (the storm app’s P365 lines and stderr)",
+  "exit",
+  "env (report.json’s extra)",
+  "dumps (the reader’s JSON)",
+  "reportsAdded"
+ ],
+ "constructed": [
+  "stdout.txt: 294 stats lines between the third and the last two were left out; the reader reads the last stats line and the quit line, which are kept",
+  "dumps[].kind: the spec step's reader did not record which process a dump was; u1's main exited 0 and its process crashed 5 times, so every dump is the watcher process's",
+  "addLines: a 'loaded' line the storm app of this probe writes and the spec step's did not; it says which build's sites ran and that the recorders were in, which the spec step's app did by its own code"
+ ],
+ "exit": {
+  "code": 0,
+  "signal": null
+ },
+ "env": {
+  "P365_KEEP": "1",
+  "P365_SEED": "41",
+  "P365_FAIL_PCT": "10",
+  "P365_DEL_PCT": "30",
+  "P365_CHILD_QUEUE": "0",
+  "P365_QUIT": "drain"
+ },
+ "dumps": [
+  {
+   "path": "01969b93-0b5f-4d48-a5b4-3bfc64fa6377.dmp",
+   "inWatcher": [
+    {
+     "id": 49531486,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0x43cc",
+      "libsystem_pthread.dylib+0x709c",
+      "libc++.1.dylib+0x1e268",
+      "watcher.node Debounce::loop()+0x74",
+      "watcher.node Debounce::wait()+0x1dc",
+      "libsystem_pthread.dylib+0x6bc8",
+      "libsystem_pthread.dylib+0x1b80"
+     ]
+    }
+   ],
+   "threadCount": 23,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x115f3df7c",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x115f3df7c"
+    ]
+   },
+   "thread": {
+    "id": 49531487,
+    "name": "",
+    "crashedIsFirst": false
+   },
+   "registers": {
+    "pc": "0x115f3df7c",
+    "lr": "0x115f3df7c",
+    "sp": "0x16fa1c540",
+    "fp": "0x16fa1c550",
+    "x0": "0x16fa1c540",
+    "x8": "0x65"
+   },
+   "frames": [
+    "EF partition_alloc::internal::FreelistCorruptionDetected(unsigned long)+0x2c",
+    "lr EF partition_alloc::internal::FreelistCorruptionDetected(unsigned long)+0x2c",
+    "EF partition_alloc::internal::FreelistEntry::CheckFreeListForThreadCache(unsigned long) const+0xdc",
+    "EF partition_alloc::internal::ThreadCache::PurgeInternal()+0x1c0",
+    "EF void partition_alloc::PartitionRoot::FreeInUnknownRoot<(partition_alloc::internal::FreeFlags)2>(void*)+0x3fc",
+    "watcher.node Watcher::isIgnored(string)+0x4f0",
+    "watcher.node FSEventsCallback(__FSEventStream const*, void*, unsigned long, void*, unsigned int const*, unsigned long long const*)+0x27c",
+    "FSEvents+0x29f8",
+    "FSEvents+0x1cb8",
+    "FSEvents+0x1bac",
+    "FSEvents+0x4fd4",
+    "CoreFoundation+0xa8e80",
+    "CoreFoundation+0x7ce50",
+    "CoreFoundation+0x7cd78",
+    "CoreFoundation+0x7b778",
+    "CoreFoundation+0x7a858",
+    "CoreFoundation+0xf4314",
+    "watcher.node FSEventsBackend::start()+0x74",
+    "watcher.node Backend::handleError(std::exception&)+0xb5c",
+    "libsystem_pthread.dylib+0x6bc8"
+   ],
+   "watcherLoaded": true,
+   "modules": 954,
+   "kind": "watcher"
+  },
+  {
+   "path": "28e01544-fdbc-491e-8c31-ff1b97b08e2d.dmp",
+   "inWatcher": [
+    {
+     "id": 49538410,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0x43cc",
+      "libsystem_pthread.dylib+0x709c",
+      "libc++.1.dylib+0x1e300",
+      "watcher.node Debounce::wait()+0x128",
+      "watcher.node Debounce::loop()+0xc0",
+      "watcher.node Debounce::wait()+0x1dc",
+      "libsystem_pthread.dylib+0x6bc8",
+      "libsystem_pthread.dylib+0x1b80"
+     ]
+    },
+    {
+     "id": 49538411,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0xc34",
+      "libsystem_kernel.dylib+0x13338",
+      "libsystem_kernel.dylib+0x9764",
+      "libsystem_kernel.dylib+0xfa8",
+      "CoreFoundation+0x7ca7c",
+      "CoreFoundation+0x7b398",
+      "CoreFoundation+0x7a858",
+      "CoreFoundation+0xf4314",
+      "watcher.node FSEventsBackend::start()+0x74",
+      "watcher.node Backend::handleError(std::exception&)+0xb5c"
+     ]
+    }
+   ],
+   "threadCount": 24,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x195bc6d74",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x195bc6d74"
+    ]
+   },
+   "thread": {
+    "id": 49538413,
+    "name": "libuv-worker",
+    "crashedIsFirst": false
+   },
+   "registers": {
+    "pc": "0x195bc6d74",
+    "lr": "0x1959e469c",
+    "sp": "0x34383ae00",
+    "fp": "0x34383ae10",
+    "x0": "0x0",
+    "x8": "0x195d94d1c"
+   },
+   "frames": [
+    "CoreFoundation+0x1ecd74",
+    "lr CoreFoundation+0xa69c",
+    "FSEvents+0x31d8",
+    "watcher.node FSEventsBackend::unsubscribe(std::__1::shared_ptr<Watcher>)+0x70",
+    "watcher.node Backend::unwatch(std::__1::shared_ptr<Watcher>)+0xc8",
+    "watcher.node PromiseRunner::onWorkComplete(napi_env__*, napi_status, void*)+0x2978",
+    "watcher.node PromiseRunner::onExecute(napi_env__*, void*)+0x20",
+    "EF node::ThreadPoolWork::ScheduleWork()::'lambda'(uv_work_s*)::__invoke(uv_work_s*)+0x38",
+    "EF worker+0x108",
+    "libsystem_pthread.dylib+0x6bc8"
+   ],
+   "watcherLoaded": true,
+   "modules": 954,
+   "kind": "watcher"
+  },
+  {
+   "path": "5e3a74ba-0afd-418c-8520-56747aad2e6e.dmp",
+   "inWatcher": [
+    {
+     "id": 49554889,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0x43cc",
+      "libsystem_pthread.dylib+0x709c",
+      "libc++.1.dylib+0x1e268",
+      "watcher.node Debounce::loop()+0x74",
+      "watcher.node Debounce::wait()+0x1dc",
+      "libsystem_pthread.dylib+0x6bc8",
+      "libsystem_pthread.dylib+0x1b80"
+     ]
+    }
+   ],
+   "threadCount": 24,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x111621f7c",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x111621f7c"
+    ]
+   },
+   "thread": {
+    "id": 49554890,
+    "name": "",
+    "crashedIsFirst": false
+   },
+   "registers": {
+    "pc": "0x111621f7c",
+    "lr": "0x111621f7c",
+    "sp": "0x1769385b0",
+    "fp": "0x1769385c0",
+    "x0": "0x1769385b0",
+    "x8": "0x65"
+   },
+   "frames": [
+    "EF partition_alloc::internal::FreelistCorruptionDetected(unsigned long)+0x2c",
+    "lr EF partition_alloc::internal::FreelistCorruptionDetected(unsigned long)+0x2c",
+    "EF partition_alloc::internal::FreelistEntry::CheckFreeListForThreadCache(unsigned long) const+0xdc",
+    "EF partition_alloc::internal::ThreadCache::ClearBucket(partition_alloc::internal::ThreadCache::Bucket&, unsigned long)+0x54",
+    "EF void partition_alloc::PartitionRoot::FreeInUnknownRoot<(partition_alloc::internal::FreeFlags)2>(void*)+0x250",
+    "FSEvents+0x3834",
+    "watcher.node FSEventsCallback(__FSEventStream const*, void*, unsigned long, void*, unsigned int const*, unsigned long long const*)+0xb68",
+    "FSEvents+0x29f8",
+    "FSEvents+0x1cb8",
+    "FSEvents+0x1bac",
+    "FSEvents+0x4fd4",
+    "CoreFoundation+0xa8e80",
+    "CoreFoundation+0x7ce50",
+    "CoreFoundation+0x7cd78",
+    "CoreFoundation+0x7b778",
+    "CoreFoundation+0x7a858",
+    "CoreFoundation+0xf4314",
+    "watcher.node FSEventsBackend::start()+0x74",
+    "watcher.node Backend::handleError(std::exception&)+0xb5c",
+    "libsystem_pthread.dylib+0x6bc8"
+   ],
+   "watcherLoaded": true,
+   "modules": 954,
+   "kind": "watcher"
+  },
+  {
+   "path": "7657deb4-09e7-49cd-b865-a0b5e1486ce9.dmp",
+   "inWatcher": [
+    {
+     "id": 49545790,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0x43cc",
+      "libsystem_pthread.dylib+0x709c",
+      "libc++.1.dylib+0x1e300",
+      "watcher.node Debounce::wait()+0x128",
+      "watcher.node Debounce::loop()+0xc0",
+      "watcher.node Debounce::wait()+0x1dc",
+      "libsystem_pthread.dylib+0x6bc8",
+      "libsystem_pthread.dylib+0x1b80"
+     ]
+    }
+   ],
+   "threadCount": 23,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x195bc6d74",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x195bc6d74"
+    ]
+   },
+   "thread": {
+    "id": 49545791,
+    "name": "",
+    "crashedIsFirst": false
+   },
+   "registers": {
+    "pc": "0x195bc6d74",
+    "lr": "0x1959e469c",
+    "sp": "0x173c64720",
+    "fp": "0x173c64730",
+    "x0": "0x0",
+    "x8": "0x195d94d1c"
+   },
+   "frames": [
+    "CoreFoundation+0x1ecd74",
+    "lr CoreFoundation+0xa69c",
+    "FSEvents+0x31d8",
+    "watcher.node FSEventsCallback(__FSEventStream const*, void*, unsigned long, void*, unsigned int const*, unsigned long long const*)+0xb60",
+    "FSEvents+0x29f8",
+    "FSEvents+0x1cb8",
+    "FSEvents+0x1bac",
+    "FSEvents+0x4fd4",
+    "CoreFoundation+0xa8e80",
+    "CoreFoundation+0x7ce50",
+    "CoreFoundation+0x7cd78",
+    "CoreFoundation+0x7b778",
+    "CoreFoundation+0x7a858",
+    "CoreFoundation+0xf4314",
+    "watcher.node FSEventsBackend::start()+0x74",
+    "watcher.node Backend::handleError(std::exception&)+0xb5c",
+    "libsystem_pthread.dylib+0x6bc8"
+   ],
+   "watcherLoaded": true,
+   "modules": 954,
+   "kind": "watcher"
+  },
+  {
+   "path": "e6f6d1e8-92ba-40cc-9f15-5f1c57f0704c.dmp",
+   "inWatcher": [
+    {
+     "id": 49585597,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0x43cc",
+      "libsystem_pthread.dylib+0x709c",
+      "libc++.1.dylib+0x1e268",
+      "watcher.node Debounce::loop()+0x74",
+      "watcher.node Debounce::wait()+0x1dc",
+      "libsystem_pthread.dylib+0x6bc8",
+      "libsystem_pthread.dylib+0x1b80"
+     ]
+    }
+   ],
+   "threadCount": 24,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x113dddf7c",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x113dddf7c"
+    ]
+   },
+   "thread": {
+    "id": 49585598,
+    "name": "",
+    "crashedIsFirst": false
+   },
+   "registers": {
+    "pc": "0x113dddf7c",
+    "lr": "0x113dddf7c",
+    "sp": "0x17425c540",
+    "fp": "0x17425c550",
+    "x0": "0x17425c540",
+    "x8": "0x65"
+   },
+   "frames": [
+    "EF partition_alloc::internal::FreelistCorruptionDetected(unsigned long)+0x2c",
+    "lr EF partition_alloc::internal::FreelistCorruptionDetected(unsigned long)+0x2c",
+    "EF partition_alloc::internal::FreelistEntry::CheckFreeListForThreadCache(unsigned long) const+0xdc",
+    "EF partition_alloc::internal::ThreadCache::PurgeInternal()+0x1c0",
+    "EF void partition_alloc::PartitionRoot::FreeInUnknownRoot<(partition_alloc::internal::FreeFlags)2>(void*)+0x3fc",
+    "watcher.node Watcher::isIgnored(string)+0x4f0",
+    "watcher.node FSEventsCallback(__FSEventStream const*, void*, unsigned long, void*, unsigned int const*, unsigned long long const*)+0x27c",
+    "FSEvents+0x29f8",
+    "FSEvents+0x1cb8",
+    "FSEvents+0x1bac",
+    "FSEvents+0x4fd4",
+    "CoreFoundation+0xa8e80",
+    "CoreFoundation+0x7ce50",
+    "CoreFoundation+0x7cd78",
+    "CoreFoundation+0x7b778",
+    "CoreFoundation+0x7a858",
+    "CoreFoundation+0xf4314",
+    "watcher.node FSEventsBackend::start()+0x74",
+    "watcher.node Backend::handleError(std::exception&)+0xb5c",
+    "libsystem_pthread.dylib+0x6bc8"
+   ],
+   "watcherLoaded": true,
+   "modules": 954,
+   "kind": "watcher"
+  }
+ ],
+ "dumpsFound": 5,
+ "reportsAdded": [],
+ "addLines": [
+  {
+   "kind": "loaded",
+   "t": 1794213829406,
+   "constructed": true,
+   "host": true,
+   "observation": false,
+   "nativeWrapped": true,
+   "forkWrapped": true,
+   "forkWrap": "direct",
+   "bounds": null,
+   "restartError": null
+  }
+ ]
+}

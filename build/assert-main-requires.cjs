@@ -36,7 +36,11 @@ const { join } = require('node:path');
 
 const asar = require('@electron/asar');
 
-const BUNDLES = ['out/main/index.js', 'out/preload/index.js'];
+// PHASE 365: the watcher process's entry. Since that phase it is the one bundle
+// that requires @parcel/watcher (main's index.js reaches it in plain Node
+// alone, through a dynamic import), so without it here the packed app would
+// never be asked whether the package the watcher process loads is inside it.
+const BUNDLES = ['out/main/index.js', 'out/preload/index.js', 'out/main/watcher-process.js'];
 
 /** Bare package name from a require argument: "@scope/pkg/sub" -> "@scope/pkg". */
 function packageName(spec) {

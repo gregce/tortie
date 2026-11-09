@@ -101,7 +101,19 @@ export default defineConfig({
           // What it may import is held twice: by the allow-only wall in
           // build/assert-import-boundaries.mjs over the source, and by
           // conformance:pocket U5 over this entry's built chunks.
-          'pocket-door': resolve(__dirname, 'src/main/pocket/door-process.ts')
+          'pocket-door': resolve(__dirname, 'src/main/pocket/door-process.ts'),
+          // Phase 365: the file watcher, in its own `utilityProcess`, because
+          // @parcel/watcher 2.6.0 races itself and the spec step measured the
+          // damage landing in main's own heap (research 143 §2.5, §7). Emitted
+          // as out/main/watcher-process.js, forked lazily by
+          // src/main/watcher/host.ts, and the ONLY entry that requires
+          // @parcel/watcher: main reaches it in plain Node alone, through a
+          // dynamic import, so out/main/index.js loads no watcher.node. Like
+          // the door it is a PROCESS, outside research 19 §O5's worker budget.
+          // What it may import is held by the allow-only wall in
+          // build/assert-import-boundaries.mjs, and conformance:watcher W365-1
+          // and W365-2 hold the rest.
+          'watcher-process': resolve(__dirname, 'src/main/watcher/watcher-process.ts')
         }
       }
     }

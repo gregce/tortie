@@ -1,0 +1,27 @@
+P365 {"kind":"loaded","t":1000,"host":true,"observation":true,"nativeWrapped":true,"forkWrapped":true,"forkWrap":"direct","bounds":{"start":10000,"close":2000,"backoff":[250,1000,5000,30000],"giveUpExits":5,"giveUpWindowMs":600000},"restartError":"The file watcher restarted. File system must be re-scanned.","scenario":"storm","order":"before","constructed":true}
+P365 {"kind":"child","t":1010,"event":"fork","gen":1,"script":"watcher-process.js","stdio":"ignore","envKeys":["TORTIE_WATCHER"],"serviceName":"Tortie Watcher","prevGen":null,"prevAlive":false,"prevPending":null}
+P365 {"kind":"child","t":1013,"event":"spawn","gen":1,"ms":3,"pid":50001}
+P365 {"kind":"child","t":1075,"event":"ready","gen":1,"ms":65,"pid":50001}
+P365 {"kind":"product-start","t":1090,"pending":0}
+P365 {"kind":"start","t":1100,"mode":"product","scenario":"storm","durationMs":150000,"tickMs":180,"slots":12,"failPct":10,"delPct":30,"order":"before","churnMs":10,"quit":"drain","pid":49999}
+P365 {"kind":"stats","t":2100,"elapsed":1000,"watchIssued":6,"disposeIssued":5,"harvestArmed":3,"harvestCancelled":2,"native":{"loaded":false,"subscribe":0,"unsubscribe":0,"maxInFlight":0},"obs":{"pid":50001,"restarts":0,"gaveUp":false,"live":9}}
+P365 {"kind":"paused","t":29300,"seq":1,"quiet":true,"waitedMs":200,"gen":1,"pid":50001,"live":9,"pending":0,"projects":[{"slot":0,"known":true,"subs":2,"restartErrors":0,"otherErrors":0},{"slot":3,"known":true,"subs":2,"restartErrors":0,"otherErrors":0},{"slot":7,"known":true,"subs":2,"restartErrors":0,"otherErrors":0}],"obs":{"pid":50001,"restarts":0,"gaveUp":false,"live":9}}
+P365 {"kind":"child","t":29405,"event":"exit","gen":1,"code":9,"after":28392,"live":9,"obsLive":9,"pending":{"count":0,"oldestAt":null,"oldestKind":null,"deadlineAt":null},"unexpected":true,"replaced":false,"quitting":false}
+P365 {"kind":"log","t":29406,"level":"warn","line":"[gmux-watcher] the file watcher process exited (code 9)"}
+P365 {"kind":"child","t":29656,"event":"fork","gen":2,"script":"watcher-process.js","stdio":"ignore","envKeys":["TORTIE_WATCHER"],"serviceName":"Tortie Watcher","prevGen":1,"prevAlive":false,"prevPending":{"count":0,"oldestAt":null,"oldestKind":null,"deadlineAt":null}}
+P365 {"kind":"child","t":29657,"event":"spawn","gen":2,"ms":1,"pid":50002}
+P365 {"kind":"child","t":29720,"event":"ready","gen":2,"ms":64,"pid":50002}
+P365 {"kind":"child","t":29724,"event":"rebound","gen":2,"fromGen":1,"watches":9,"obsLive":9,"asked":9,"ok":9,"nulls":0,"timedOut":false,"sinceExit":319,"sinceFork":68,"sinceReady":4}
+P365 {"kind":"log","t":29725,"level":"log","line":"[gmux-watcher] the file watcher restarted (generation 2, 9 watches re-bound)"}
+P365 {"kind":"log","t":30100,"level":"warn","line":"[gmux-watcher] repo watcher (/x/repo-3): The file watcher restarted. File system must be re-scanned."}
+P365 {"kind":"rescan","t":31800,"seq":2,"projects":[{"slot":0,"known":true,"subs":2,"restartErrors":2,"otherErrors":0},{"slot":3,"known":true,"subs":2,"restartErrors":2,"otherErrors":0},{"slot":7,"known":true,"subs":2,"restartErrors":2,"otherErrors":0}],"obs":{"pid":50002,"restarts":1,"gaveUp":false,"live":9}}
+P365 {"kind":"resumed","t":31801,"seq":2}
+P365 {"kind":"log","t":93250,"level":"warn","line":"[gmux-watcher] the file watcher did not answer a close within 2000 ms; replacing it"}
+P365 {"kind":"child","t":93251,"event":"exit","gen":2,"code":9,"after":63594,"live":8,"obsLive":8,"pending":{"count":3,"oldestAt":91240,"oldestKind":"close","deadlineAt":93240},"unexpected":true,"replaced":false,"quitting":false}
+P365 {"kind":"log","t":93252,"level":"warn","line":"[gmux-watcher] the file watcher process exited (code 9)"}
+P365 {"kind":"child","t":94252,"event":"fork","gen":3,"script":"watcher-process.js","stdio":"ignore","envKeys":["TORTIE_WATCHER"],"serviceName":"Tortie Watcher","prevGen":2,"prevAlive":false,"prevPending":{"count":3,"oldestAt":91240,"oldestKind":"close","deadlineAt":93240}}
+P365 {"kind":"child","t":94253,"event":"spawn","gen":3,"ms":1,"pid":50003}
+P365 {"kind":"child","t":94320,"event":"ready","gen":3,"ms":68,"pid":50003}
+P365 {"kind":"child","t":94330,"event":"rebound","gen":3,"fromGen":2,"watches":8,"obsLive":8,"asked":8,"ok":8,"nulls":0,"timedOut":false,"sinceExit":1079,"sinceFork":78,"sinceReady":10}
+P365 {"kind":"log","t":94331,"level":"log","line":"[gmux-watcher] the file watcher restarted (generation 3, 8 watches re-bound)"}
+P365 {"kind":"stats","t":150100,"elapsed":149000,"watchIssued":790,"disposeIssued":780,"harvestArmed":410,"harvestCancelled":400,"native":{"loaded":false,"subscribe":0,"unsubscribe":0,"maxInFlight":0},"obs":{"pid":50003,"restarts":2,"gaveUp":false,"live":7}}

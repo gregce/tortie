@@ -456,6 +456,17 @@ export const CHECKS = [
   // launches no Electron, starts no tmux server, spawns only the pinned tsx
   // and reads nothing under the person's home.
   pure('conformance:preview'),
+  // PHASES 151, 347 AND 365. build/conformance-watcher.mjs holds the FSEvents
+  // exclusion budget, the open file watch and, since Phase 365
+  // (build/p365/SPEC.md §7.1), the watcher process, its one queue and the five
+  // sites that ask it: rules W365-1 to W365-10 read the shipping source with
+  // comments blanked, and build/watcher-conformance-probe.mts DRIVES the queue
+  // and main's host over a fake native module, a fake process and a fake clock;
+  // every rule is then proved by in-memory plants laid over the tree, each red
+  // on its own rule. When out/ is built it also reads which modules the built
+  // bundles require at load. It spawns only the pinned tsx, opens no FSEvents
+  // stream, loads no native module, launches no Electron, starts no tmux
+  // server and reads nothing under the person's home.
   pure('conformance:watcher'),
   // PHASE 215. The shared question every harvest descriptor must answer, the
   // codex sub agent predicate, the chain walk and the boot repair.
@@ -1713,6 +1724,28 @@ export const CHECKS = [
   // named by P3571_BS3. `--grader-self-test` grades build/p362/fixtures/ and
   // starts nothing; `--preflight` and `--list-graders` start nothing.
   electron('probe:p362'),
+  // PHASE 365 (build/p365/SPEC.md §8): Tortie's file watches, at the parent
+  // and at HEAD. Electrons through build/electron-run.mjs ONE AT A TIME and
+  // never at once, the parent's (`P365_PARENT_CHECKOUT`, a clone of ce4c77f6,
+  // required) first in every pair, each run on its own scratch profile, HOME
+  // and ZDOTDIR with HISTFILE=/dev/null and SHELL=/bin/sh and the socket
+  // gmux-p365…, the tokens and sockets a crash dump would carry taken out of
+  // its environment before anything is launched. The storm arms launch a
+  // scratch storm app it writes into its run folder, never a file under src/
+  // (`program: 'app'`, no window, the Dock icon hidden, Crashpad's dumps in the
+  // run's own profile with ignoreSystemCrashHandler), over each build's OWN
+  // five watch sites bundled by that build's esbuild, and grade a crash by the
+  // app's exit signal and by those dumps, each read and then deleted. The
+  // real-app arms hide every probed registry row but a stand-in `codex` (a
+  // /bin/sh script it writes) through build/hidden-agents.mjs and read
+  // `agents:list` back, with the Tailscale stand-in
+  // (build/p330/tailscale-standin.mjs, behind its preflight and sampler) named
+  // to the app and the DNS stand-in (build/p332/dns-standin.mjs) in the probe's
+  // own process, so no agent runs, no token is spent and nothing leaves the
+  // Mac; every stand-in pid is ended in its `finally`.
+  // `--grader-self-test` grades build/p365/fixtures/ and starts nothing;
+  // `--preflight` starts nothing.
+  electron('probe:p365'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

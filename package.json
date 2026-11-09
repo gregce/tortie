@@ -137,6 +137,7 @@
     "probe:p353:starts": "npm run build && node build/p353/probe-starts.mjs --preflight && node build/harness-socket.mjs --fresh gmux-p353t 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; export SCRATCH_MACHINE_QUIET_SHELL=1; export SCRATCH_MACHINE_SCRATCH_HOME=1; export SCRATCH_MACHINE_NO_OWN_KEYS=1; node build/with-scratch-machine.mjs -- node build/p353/probe-starts.mjs'",
     "probe:p357": "node build/harness-socket.mjs --fresh gmux-p357 'node build/p357/probe-p357.mjs'",
     "probe:p362": "node build/harness-socket.mjs --fresh gmux-p362 'node build/p362/probe-p362.mjs'",
+    "probe:p365": "node build/harness-socket.mjs --fresh gmux-p365 'node build/p365/probe-p365.mjs'",
     "measure:p337": "node build/p337/measure-screen.mjs",
     "measure:p342": "node build/p342/measure-p342.mjs",
     "measure:p3471": "node build/p3471/corpora.mjs",

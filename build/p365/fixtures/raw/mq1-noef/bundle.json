@@ -1,0 +1,137 @@
+{
+ "about": "The spec step's run mq1 (build/p365/SPEC.md §2), its stdout and its dump readings (the spec reader's JSON, no dump).",
+ "recorded": [
+  "stdout.txt (the storm app’s P365 lines and stderr)",
+  "exit",
+  "env (report.json’s extra)",
+  "dumps (the reader’s JSON)",
+  "reportsAdded"
+ ],
+ "constructed": [
+  "stdout.txt: 14 stats lines between the third and the last two were left out; the reader reads the last stats line and the quit line, which are kept",
+  "addLines: a 'loaded' line the storm app of this probe writes and the spec step's did not; it says which build's sites ran and that the recorders were in, which the spec step's app did by its own code. The spec step's own 'loaded' line (its t and its load time) was taken out of stdout.txt and merged into it",
+  "dumps[].frames: every Electron Framework name was turned back into an offset, as a reading without P365_EF_SYMBOLS gives it"
+ ],
+ "exit": {
+  "code": null,
+  "signal": "SIGABRT"
+ },
+ "env": {
+  "P365_KEEP": "1",
+  "P365_SEED": "71",
+  "P365_FAIL_PCT": "0",
+  "P365_DEL_PCT": "0",
+  "P365_QUIT": "mid",
+  "P365_SATURATE": "1"
+ },
+ "dumps": [
+  {
+   "path": "beab49d1-8189-444a-89bb-b9d7adc7a4ba.dmp",
+   "inWatcher": [
+    {
+     "id": 49622425,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0x43cc",
+      "libsystem_pthread.dylib+0x709c",
+      "libc++.1.dylib+0x1e268",
+      "watcher.node Debounce::loop()+0x74",
+      "watcher.node Debounce::wait()+0x1dc",
+      "libsystem_pthread.dylib+0x6bc8",
+      "libsystem_pthread.dylib+0x1b80"
+     ]
+    },
+    {
+     "id": 49622426,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0xc34",
+      "libsystem_kernel.dylib+0x13338",
+      "libsystem_kernel.dylib+0x9764",
+      "libsystem_kernel.dylib+0xfa8",
+      "CoreFoundation+0x7ca7c",
+      "CoreFoundation+0x7b398",
+      "CoreFoundation+0x7a858",
+      "CoreFoundation+0xf4314",
+      "watcher.node FSEventsBackend::start()+0x74",
+      "watcher.node Backend::handleError(std::exception&)+0xb5c"
+     ]
+    }
+   ],
+   "threadCount": 33,
+   "exception": {
+    "code": "0x0",
+    "flags": "0x0",
+    "address": "0x195932388",
+    "params": [
+     "0xa",
+     "0x6000000",
+     "0x0"
+    ]
+   },
+   "thread": {
+    "id": 49622315,
+    "name": "CrBrowserMain",
+    "crashedIsFirst": true
+   },
+   "registers": {
+    "pc": "0x195932388",
+    "lr": "0x19596b848",
+    "sp": "0x16dd392f0",
+    "fp": "0x16dd39310",
+    "x0": "0x0",
+    "x8": "0x343129b084df1eb9"
+   },
+   "frames": [
+    "libsystem_kernel.dylib+0x9388",
+    "lr libsystem_pthread.dylib+0x6848",
+    "libsystem_c.dylib+0x78af0",
+    "Electron Framework+0x109d",
+    "Electron Framework+0x1018",
+    "watcher.node Init(Napi::Env, Napi::Object)+0x61c",
+    "watcher.node getIgnoreGlobs(Napi::Env, Napi::Value)+0x408",
+    "watcher.node PromiseRunner::onWorkComplete(napi_env__*, napi_status, void*)+0x430",
+    "watcher.node PromiseRunner::onWorkComplete(napi_env__*, napi_status, void*)+0x210",
+    "Electron Framework+0x1045",
+    "Electron Framework+0x1062",
+    "Electron Framework+0x1015",
+    "Electron Framework+0x1014",
+    "Electron Framework+0x1014",
+    "Electron Framework+0x100e",
+    "Electron Framework+0x102b",
+    "Electron Framework+0x1027",
+    "Electron Framework+0x1031",
+    "Electron Framework+0x10a8",
+    "Electron Framework+0x1045",
+    "Electron Framework+0x103e",
+    "Electron Framework+0x1032",
+    "Electron Framework+0x1039",
+    "Electron Framework+0x1062",
+    "Electron Framework+0x1056",
+    "Electron Framework+0x102e",
+    "Electron Framework+0x1039",
+    "Electron Framework+0x1015",
+    "dyld+0x6b98"
+   ],
+   "watcherLoaded": true,
+   "modules": 963
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "addLines": [
+  {
+   "kind": "loaded",
+   "t": 1794214134430,
+   "ms": 4,
+   "constructed": true,
+   "host": false,
+   "observation": false,
+   "nativeWrapped": true,
+   "forkWrapped": true,
+   "forkWrap": "direct",
+   "bounds": null,
+   "restartError": null
+  }
+ ]
+}

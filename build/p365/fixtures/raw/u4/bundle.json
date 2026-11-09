@@ -1,0 +1,115 @@
+{
+ "about": "The spec step's run u4 (build/p365/SPEC.md §2), its stdout and its dump readings (the spec reader's JSON, no dump).",
+ "recorded": [
+  "stdout.txt (the storm app’s P365 lines and stderr)",
+  "exit",
+  "env (report.json’s extra)",
+  "dumps (the reader’s JSON)",
+  "reportsAdded"
+ ],
+ "constructed": [
+  "stdout.txt: 294 stats lines between the third and the last two were left out; the reader reads the last stats line and the quit line, which are kept",
+  "dumps[].kind: the spec step's reader did not record which process a dump was; u4's main exited 0 and its process crashed once, so the dump is the watcher process's",
+  "addLines: a 'loaded' line the storm app of this probe writes and the spec step's did not; it says which build's sites ran and that the recorders were in, which the spec step's app did by its own code"
+ ],
+ "exit": {
+  "code": 0,
+  "signal": null
+ },
+ "env": {
+  "P365_KEEP": "1",
+  "P365_LATENCY": "1",
+  "P365_SEED": "84",
+  "P365_FAIL_PCT": "10",
+  "P365_DEL_PCT": "30",
+  "P365_CHILD_QUEUE": "1",
+  "P365_GRACE_MS": "2000",
+  "P365_DEL_ORDER": "after",
+  "P365_QUIT": "drain"
+ },
+ "dumps": [
+  {
+   "path": "2e65ba1d-47b9-4d85-ae07-081326209842.dmp",
+   "inWatcher": [
+    {
+     "id": 49727743,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0x43cc",
+      "libsystem_pthread.dylib+0x709c",
+      "libc++.1.dylib+0x1e300",
+      "watcher.node Debounce::wait()+0x128",
+      "watcher.node Debounce::loop()+0xc0",
+      "watcher.node Debounce::wait()+0x1dc",
+      "libsystem_pthread.dylib+0x6bc8",
+      "libsystem_pthread.dylib+0x1b80"
+     ]
+    }
+   ],
+   "threadCount": 23,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x113cedf7c",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x113cedf7c"
+    ]
+   },
+   "thread": {
+    "id": 49727744,
+    "name": "",
+    "crashedIsFirst": false
+   },
+   "registers": {
+    "pc": "0x113cedf7c",
+    "lr": "0x113cedf7c",
+    "sp": "0x173b90c70",
+    "fp": "0x173b90c80",
+    "x0": "0x173b90c70",
+    "x8": "0x65"
+   },
+   "frames": [
+    "EF partition_alloc::internal::FreelistCorruptionDetected(unsigned long)+0x2c",
+    "lr EF partition_alloc::internal::FreelistCorruptionDetected(unsigned long)+0x2c",
+    "EF partition_alloc::internal::FreelistEntry::CheckFreeListForThreadCache(unsigned long) const+0xdc",
+    "EF partition_alloc::internal::ThreadCache::ClearBucket(partition_alloc::internal::ThreadCache::Bucket&, unsigned long)+0x54",
+    "EF void partition_alloc::PartitionRoot::FreeInUnknownRoot<(partition_alloc::internal::FreeFlags)2>(void*)+0x250",
+    "FSEvents+0x3834",
+    "FSEvents+0x2bd8",
+    "FSEvents+0x1cb8",
+    "FSEvents+0x1bac",
+    "FSEvents+0x4fd4",
+    "CoreFoundation+0xa8e80",
+    "CoreFoundation+0x7ce50",
+    "CoreFoundation+0x7cd78",
+    "CoreFoundation+0x7b778",
+    "CoreFoundation+0x7a858",
+    "CoreFoundation+0xf4314",
+    "watcher.node FSEventsBackend::start()+0x74",
+    "watcher.node Backend::handleError(std::exception&)+0xb5c",
+    "libsystem_pthread.dylib+0x6bc8"
+   ],
+   "watcherLoaded": true,
+   "modules": 954,
+   "kind": "watcher"
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "addLines": [
+  {
+   "kind": "loaded",
+   "t": 1794214510470,
+   "constructed": true,
+   "host": true,
+   "observation": false,
+   "nativeWrapped": true,
+   "forkWrapped": true,
+   "forkWrap": "direct",
+   "bounds": null,
+   "restartError": null
+  }
+ ]
+}

@@ -17,6 +17,12 @@
  * bus: ./open-files.ts watches, one file each, the open files the bus cannot
  * see because the running watcher's own plan excludes them. It is `node:fs`'s
  * watch on a file, so it adds no subscription and no exclusion path either.
+ *
+ * Phase 365 moved `@parcel/watcher` out of main. It runs only in the watcher
+ * process (./watcher-process.ts), behind ONE queue that makes one native call
+ * at a time and never subscribes to a folder that is not there
+ * (./process/queue.ts), and every site that watches a folder asks
+ * `watchFolder` in ./host.ts, which forwards to that process.
  */
 
 export {
@@ -61,3 +67,16 @@ export {
   onRepoChanged,
   resetRepoChangedListeners
 } from './bus';
+export {
+  WATCHER_GIVE_UP_EXITS,
+  WATCHER_GIVE_UP_WINDOW_MS,
+  WATCHER_RESTART_BACKOFF_MS,
+  WATCHER_RESTART_ERROR,
+  WATCH_CLOSE_REPLY_MS,
+  WATCH_START_REPLY_MS,
+  watchFolder,
+  watcherProcessObservation,
+  type FolderEvent,
+  type FolderEvents,
+  type FolderWatch
+} from './host';

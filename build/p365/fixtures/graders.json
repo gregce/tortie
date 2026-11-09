@@ -1,0 +1,6272 @@
+{
+ "readings": 251,
+ "about": "probe:p365’s grader fixtures (build/p365/probe-p365.mjs --grader-self-test): one honest reading per grader; every clause broken alone and every need left unmet alone; variants a grader must not mistake; raw fixtures in raw/ driven through the one reader and laid over their grader’s honest reading; the one reader’s own numbers over the recorded raw against SPEC §2’s tables; and host sources whose lines must be read and classified. raw/<run>/bundle.json says what in each folder is recorded (the spec step’s runs, their stdout and their dump readings, no dump) and what is constructed. Written by the probe builder from the spec step’s recorded runs and the probe’s own grader names. The probe review added the entries marked \"by\": \"the probe review\" and the raw/rv-* runs (constructed, each bundle says so): a hang read as a clean exit, a run cut short, a storm slower than its rate, a storm that never reached the native module, torn lines that hid a crash, an unread reports folder, and parents that are no baseline.",
+ "honest": {
+  "SP-parent": {
+   "bundle": {
+    "head": false
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "storm": {
+    "runsWanted": 2,
+    "runsRead": 2,
+    "rateOk": true,
+    "minRate": 15.9,
+    "orderAfter": false,
+    "orderBefore": true,
+    "cutShort": 0,
+    "processRateOk": false,
+    "minProcessRate": 0
+   },
+   "main": {
+    "exit0Runs": 0,
+    "signalRuns": 2,
+    "namedSignalRuns": 2,
+    "dumps": 2,
+    "faults": [
+     "freelist check",
+     "freelist check"
+    ],
+    "nativeCalls": 2416,
+    "nativeLoaded": true
+   },
+   "watcherProcess": {
+    "forks": 0,
+    "ready": 0,
+    "crashes": 0,
+    "rebound": 0,
+    "gaveUp": false
+   },
+   "dumps": {
+    "found": 2,
+    "read": 2
+   },
+   "reportsAdded": 0,
+   "lines": {
+    "torn": 0
+   }
+  },
+  "SP-head": {
+   "bundle": {
+    "head": true
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "storm": {
+    "runsWanted": 2,
+    "runsRead": 2,
+    "rateOk": true,
+    "minRate": 16.4,
+    "orderAfter": false,
+    "orderBefore": true,
+    "cutShort": 0,
+    "processRateOk": true,
+    "minProcessRate": 15.1
+   },
+   "main": {
+    "exit0Runs": 2,
+    "signalRuns": 0,
+    "namedSignalRuns": 0,
+    "dumps": 0,
+    "faults": [],
+    "nativeCalls": 0,
+    "nativeLoaded": false
+   },
+   "watcherProcess": {
+    "forks": 3,
+    "ready": 3,
+    "crashes": 1,
+    "rebound": 1,
+    "gaveUp": false
+   },
+   "dumps": {
+    "found": 1,
+    "read": 1
+   },
+   "reportsAdded": 0,
+   "lines": {
+    "torn": 0
+   }
+  },
+  "SA-parent": {
+   "bundle": {
+    "head": false
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "storm": {
+    "runsWanted": 2,
+    "runsRead": 2,
+    "rateOk": true,
+    "minRate": 15.9,
+    "orderAfter": true,
+    "orderBefore": false,
+    "cutShort": 0,
+    "processRateOk": false,
+    "minProcessRate": 0
+   },
+   "main": {
+    "exit0Runs": 0,
+    "signalRuns": 2,
+    "namedSignalRuns": 2,
+    "dumps": 2,
+    "faults": [
+     "freelist check",
+     "freelist check"
+    ],
+    "nativeCalls": 2416,
+    "nativeLoaded": true
+   },
+   "watcherProcess": {
+    "forks": 0,
+    "ready": 0,
+    "crashes": 0,
+    "rebound": 0,
+    "gaveUp": false
+   },
+   "dumps": {
+    "found": 2,
+    "read": 2
+   },
+   "reportsAdded": 0,
+   "lines": {
+    "torn": 0
+   }
+  },
+  "SA-head": {
+   "bundle": {
+    "head": true
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "storm": {
+    "runsWanted": 2,
+    "runsRead": 2,
+    "rateOk": true,
+    "minRate": 16.4,
+    "orderAfter": true,
+    "orderBefore": false,
+    "cutShort": 0,
+    "processRateOk": true,
+    "minProcessRate": 15.1
+   },
+   "main": {
+    "exit0Runs": 2,
+    "signalRuns": 0,
+    "namedSignalRuns": 0,
+    "dumps": 0,
+    "faults": [],
+    "nativeCalls": 0,
+    "nativeLoaded": false
+   },
+   "watcherProcess": {
+    "forks": 3,
+    "ready": 3,
+    "crashes": 1,
+    "rebound": 1,
+    "gaveUp": false
+   },
+   "dumps": {
+    "found": 1,
+    "read": 1
+   },
+   "reportsAdded": 0,
+   "lines": {
+    "torn": 0
+   }
+  },
+  "SQ-parent": {
+   "bundle": {
+    "head": false
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "sq": {
+    "stormMs": 20003,
+    "quit": {
+     "asked": true,
+     "saturated": true,
+     "marked": true
+    },
+    "lsof": {
+     "mainReads": 2,
+     "mainHolds": true,
+     "watcherReads": 0,
+     "watcherHolds": false
+    }
+   },
+   "exit": {
+    "code": null,
+    "signal": "SIGABRT",
+    "clean": false,
+    "ceiling": false
+   },
+   "main": {
+    "dumps": 1,
+    "faults": [
+     "napi_fatal_error"
+    ]
+   },
+   "dumps": {
+    "found": 1,
+    "read": 1
+   }
+  },
+  "SQ-head": {
+   "bundle": {
+    "head": true
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "sq": {
+    "stormMs": 20004,
+    "quit": {
+     "asked": true,
+     "saturated": true,
+     "marked": true
+    },
+    "lsof": {
+     "mainReads": 2,
+     "mainHolds": false,
+     "watcherReads": 2,
+     "watcherHolds": true
+    }
+   },
+   "exit": {
+    "code": 0,
+    "signal": null,
+    "clean": true,
+    "ceiling": false
+   },
+   "main": {
+    "dumps": 0,
+    "faults": []
+   },
+   "dumps": {
+    "found": 0,
+    "read": 0
+   },
+   "watcher": {
+    "quitDumps": 0
+   }
+  },
+  "SK-head": {
+   "bundle": {
+    "head": true
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "host": {
+    "linesRead": true
+   },
+   "sk": {
+    "paused": true,
+    "kill": {
+     "sent": true,
+     "verified": true,
+     "gen": 1
+    },
+    "rebind": {
+     "watches": 9,
+     "asked": 9,
+     "answered": 9,
+     "sinceExit": 319
+    },
+    "restartLines": 1,
+    "rescan": {
+     "projects": 3,
+     "known": true,
+     "pairs": [
+      {
+       "slot": 0,
+       "subs": 2,
+       "handed": 2
+      },
+      {
+       "slot": 3,
+       "subs": 2,
+       "handed": 2
+      },
+      {
+       "slot": 7,
+       "subs": 2,
+       "handed": 2
+      }
+     ],
+     "exact": true
+    },
+    "stop": {
+     "sent": true,
+     "verified": true,
+     "gen": 2
+    },
+    "replacement": {
+     "at": 93251,
+     "deadlineAt": 93240,
+     "oldestKind": "close",
+     "ok": true
+    },
+    "boundLines": 1,
+    "stoppedGone": {
+     "goneAt": 93300,
+     "beforeCont": true
+    },
+    "cutShort": 0
+   },
+   "exit": {
+    "code": 0,
+    "signal": null,
+    "clean": true,
+    "ceiling": false
+   },
+   "main": {
+    "dumps": 0
+   },
+   "dumps": {
+    "found": 0,
+    "read": 0
+   },
+   "lines": {
+    "torn": 0
+   }
+  },
+  "SO-parent": {
+   "bundle": {
+    "head": false
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "exit": {
+    "code": 0,
+    "signal": null,
+    "clean": true
+   },
+   "so": {
+    "native": {
+     "loaded": true,
+     "subscribe": 52,
+     "unsubscribe": 52,
+     "maxInFlight": 17
+    },
+    "boot": {
+     "ms": 57,
+     "started": 52,
+     "expected": 52,
+     "forkMs": null
+    },
+    "quiet": {
+     "changes": 20
+    },
+    "branch": {
+     "changes": 25
+    },
+    "quit": {
+     "drainMs": 10,
+     "left": 0
+    }
+   }
+  },
+  "SO-head": {
+   "bundle": {
+    "head": true
+   },
+   "recorder": {
+    "nativeWrapped": true,
+    "forkWrapped": true
+   },
+   "exit": {
+    "code": 0,
+    "signal": null,
+    "clean": true
+   },
+   "so": {
+    "native": {
+     "loaded": false,
+     "subscribe": 0,
+     "unsubscribe": 0,
+     "maxInFlight": 0
+    },
+    "boot": {
+     "ms": 162,
+     "started": 52,
+     "expected": 52,
+     "forkMs": 71
+    },
+    "quiet": {
+     "changes": 20
+    },
+    "branch": {
+     "changes": 25
+    },
+    "quit": {
+     "drainMs": 3,
+     "left": 0
+    }
+   },
+   "parent": {
+    "verdict": "pass",
+    "bootMs": 57,
+    "quietChanges": 20,
+    "branchChanges": 25
+   }
+  },
+  "RA-parent": {
+   "agents": {
+    "ok": true,
+    "said": "nothing resolved in the app's own scan but the stand-ins "
+   },
+   "ra": {
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": {
+     "n": 20,
+     "heard": 20,
+     "latencies": [
+      372,
+      381,
+      377,
+      390,
+      385,
+      379,
+      388,
+      376,
+      383,
+      391,
+      380,
+      386,
+      374,
+      389,
+      382,
+      378,
+      387,
+      384,
+      375,
+      392
+     ],
+     "median": 382.5
+    },
+    "branches": {
+     "n": 5,
+     "heard": 5,
+     "latencies": [
+      420,
+      417,
+      424,
+      421,
+      426
+     ],
+     "median": 421
+    },
+    "quit": {
+     "pressed": true,
+     "wallMs": 2140
+    },
+    "lsof": {
+     "mainRead": true,
+     "mainHolds": true,
+     "processRead": true,
+     "processHolds": false,
+     "holders": []
+    },
+    "processGone": true,
+    "dumps": 0
+   },
+   "census": {
+    "clean": true
+   }
+  },
+  "RA-head": {
+   "agents": {
+    "ok": true,
+    "said": "nothing resolved in the app's own scan but the stand-ins "
+   },
+   "ra": {
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": {
+     "n": 20,
+     "heard": 20,
+     "latencies": [
+      372,
+      382,
+      379,
+      390,
+      386,
+      381,
+      388,
+      377,
+      385,
+      391,
+      381,
+      388,
+      374,
+      390,
+      384,
+      378,
+      388,
+      386,
+      375,
+      393
+     ],
+     "median": 384.5
+    },
+    "branches": {
+     "n": 5,
+     "heard": 5,
+     "latencies": [
+      431,
+      418,
+      425,
+      422,
+      429
+     ],
+     "median": 425
+    },
+    "quit": {
+     "pressed": true,
+     "wallMs": 2190
+    },
+    "lsof": {
+     "mainRead": true,
+     "mainHolds": false,
+     "processRead": true,
+     "processHolds": true,
+     "holders": [
+      4343
+     ]
+    },
+    "processGone": true,
+    "dumps": 0
+   },
+   "census": {
+    "clean": true
+   },
+   "parent": {
+    "verdict": "pass",
+    "editMedian": 382.5,
+    "branchMedian": 421,
+    "quitMs": 2140
+   }
+  },
+  "RH-parent": {
+   "agents": {
+    "ok": true,
+    "said": "nothing resolved in the app's own scan but the stand-ins codex"
+   },
+   "rh": {
+    "resolved": true,
+    "created": 2,
+    "first": {
+     "a": "0365a000-0000-4000-8000-00000000000a",
+     "b": null
+    },
+    "second": {
+     "a": "0365a000-0000-4000-8000-00000000000a",
+     "b": "0365b000-0000-4000-8000-00000000000b"
+    },
+    "chosen": {
+     "a": "0365a000-0000-4000-8000-00000000000a",
+     "b": "0365b000-0000-4000-8000-00000000000b"
+    },
+    "bWritten": true
+   }
+  },
+  "RH-head": {
+   "agents": {
+    "ok": true,
+    "said": "nothing resolved in the app's own scan but the stand-ins codex"
+   },
+   "rh": {
+    "resolved": true,
+    "created": 2,
+    "first": {
+     "a": "0365a000-0000-4000-8000-00000000000a",
+     "b": null
+    },
+    "second": {
+     "a": "0365a000-0000-4000-8000-00000000000a",
+     "b": "0365b000-0000-4000-8000-00000000000b"
+    },
+    "chosen": {
+     "a": "0365a000-0000-4000-8000-00000000000a",
+     "b": "0365b000-0000-4000-8000-00000000000b"
+    },
+    "bWritten": true
+   },
+   "parent": {
+    "verdict": "pass",
+    "firstA": "0365a000-0000-4000-8000-00000000000a",
+    "secondA": "0365a000-0000-4000-8000-00000000000a",
+    "secondB": "0365b000-0000-4000-8000-00000000000b"
+   }
+  },
+  "RUN": {
+   "preflight": {
+    "ok": true
+   },
+   "agentsHeld": [
+    true,
+    true,
+    true,
+    true
+   ],
+   "censusFailures": [],
+   "tailscale": {
+    "real": 0
+   },
+   "processTableRead": true,
+   "electronsLeft": 0,
+   "watchersLeft": 0,
+   "reportsRead": true,
+   "newReports": [],
+   "dumpsLeft": 0,
+   "history": {
+    "before": "743319 1794200266|23166 1790702242",
+    "after": "743319 1794200266|23166 1790702242",
+    "quiet": null,
+    "moves": []
+   }
+  }
+ },
+ "broken": [
+  {
+   "arm": "SP-parent",
+   "name": "clause broken: main ended by a signal in at least one run, its fault named from its dump",
+   "mustFail": [
+    "main ended by a signal in at least one run, its fault named from its dump"
+   ],
+   "ops": [
+    {
+     "set": "main.namedSignalRuns",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "clause broken: main exited 0 in every run",
+   "mustFail": [
+    "main exited 0 in every run"
+   ],
+   "ops": [
+    {
+     "set": "main.exit0Runs",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "clause broken: no dump of main",
+   "mustFail": [
+    "no dump of main"
+   ],
+   "ops": [
+    {
+     "set": "main.dumps",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "clause broken: main made no native call and never loaded the module",
+   "mustFail": [
+    "main made no native call and never loaded the module"
+   ],
+   "ops": [
+    {
+     "set": "main.nativeCalls",
+     "value": 4
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "clause broken: every watcher process crash was followed by a re-bind of every live watch within the backoff plus 1 s",
+   "mustFail": [
+    "every watcher process crash was followed by a re-bind of every live watch within the backoff plus 1 s"
+   ],
+   "ops": [
+    {
+     "set": "watcherProcess.rebound",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "clause broken: no report in his folder",
+   "mustFail": [
+    "no report in his folder"
+   ],
+   "ops": [
+    {
+     "set": "reportsAdded",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SA-parent",
+   "name": "clause broken: main ended by a signal in at least one run, its fault named from its dump",
+   "mustFail": [
+    "main ended by a signal in at least one run, its fault named from its dump"
+   ],
+   "ops": [
+    {
+     "set": "main.namedSignalRuns",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "clause broken: main exited 0 in every run",
+   "mustFail": [
+    "main exited 0 in every run"
+   ],
+   "ops": [
+    {
+     "set": "main.exit0Runs",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "clause broken: no dump of main",
+   "mustFail": [
+    "no dump of main"
+   ],
+   "ops": [
+    {
+     "set": "main.dumps",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "clause broken: main made no native call and never loaded the module",
+   "mustFail": [
+    "main made no native call and never loaded the module"
+   ],
+   "ops": [
+    {
+     "set": "main.nativeCalls",
+     "value": 4
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "clause broken: every watcher process crash was followed by a re-bind of every live watch within the backoff plus 1 s",
+   "mustFail": [
+    "every watcher process crash was followed by a re-bind of every live watch within the backoff plus 1 s"
+   ],
+   "ops": [
+    {
+     "set": "watcherProcess.rebound",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "clause broken: no report in his folder",
+   "mustFail": [
+    "no report in his folder"
+   ],
+   "ops": [
+    {
+     "set": "reportsAdded",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "clause broken: main ended by SIGABRT with napi_fatal_error named on main",
+   "mustFail": [
+    "main ended by SIGABRT with napi_fatal_error named on main"
+   ],
+   "ops": [
+    {
+     "set": "exit.signal",
+     "value": "SIGTRAP"
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "clause broken: main exited 0",
+   "mustFail": [
+    "main exited 0"
+   ],
+   "ops": [
+    {
+     "set": "exit.code",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "clause broken: no dump of main",
+   "mustFail": [
+    "no dump of main"
+   ],
+   "ops": [
+    {
+     "set": "main.dumps",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "clause broken: lsof never listed watcher.node in main during the storm",
+   "mustFail": [
+    "lsof never listed watcher.node in main during the storm"
+   ],
+   "ops": [
+    {
+     "set": "sq.lsof.mainHolds",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "clause broken: the watcher process held watcher.node",
+   "mustFail": [
+    "the watcher process held watcher.node"
+   ],
+   "ops": [
+    {
+     "set": "sq.lsof.watcherHolds",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "clause broken: main never faulted: exit 0 and no dump of main",
+   "mustFail": [
+    "main never faulted: exit 0 and no dump of main"
+   ],
+   "ops": [
+    {
+     "set": "exit.code",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "clause broken: one restart line after the kill",
+   "mustFail": [
+    "one restart line after the kill"
+   ],
+   "ops": [
+    {
+     "set": "sk.restartLines",
+     "value": 2
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "clause broken: every live watch re-bound after the kill",
+   "mustFail": [
+    "every live watch re-bound after the kill"
+   ],
+   "ops": [
+    {
+     "set": "sk.rebind.asked",
+     "value": 8
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "clause broken: each open project’s live watches were handed one re-scan error each",
+   "mustFail": [
+    "each open project’s live watches were handed one re-scan error each"
+   ],
+   "ops": [
+    {
+     "set": "sk.rescan.exact",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "clause broken: after SIGSTOP the process was replaced within the reply bound of the first unanswered request",
+   "mustFail": [
+    "after SIGSTOP the process was replaced within the reply bound of the first unanswered request"
+   ],
+   "ops": [
+    {
+     "set": "sk.replacement.ok",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "clause broken: with one reply-bound line",
+   "mustFail": [
+    "with one reply-bound line"
+   ],
+   "ops": [
+    {
+     "set": "sk.boundLines",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "clause broken: the stopped process was ended by the host before the probe’s SIGCONT",
+   "mustFail": [
+    "the stopped process was ended by the host before the probe’s SIGCONT"
+   ],
+   "ops": [
+    {
+     "set": "sk.stoppedGone.beforeCont",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SO-parent",
+   "name": "clause broken: main made the native calls itself",
+   "mustFail": [
+    "main made the native calls itself"
+   ],
+   "ops": [
+    {
+     "set": "so.native.subscribe",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "clause broken: no native call in main, the module never loaded there",
+   "mustFail": [
+    "no native call in main, the module never loaded there"
+   ],
+   "ops": [
+    {
+     "set": "so.native.loaded",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "clause broken: every watch started (52 of 52)",
+   "mustFail": [
+    "every watch started (52 of 52)"
+   ],
+   "ops": [
+    {
+     "set": "so.boot.started",
+     "value": 51
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "clause broken: the boot within twice the parent’s time plus the fork",
+   "mustFail": [
+    "the boot within twice the parent’s time plus the fork"
+   ],
+   "ops": [
+    {
+     "set": "so.boot.ms",
+     "value": 300
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "clause broken: the 20 edits and the 5 branch switches reached their projects as at the parent",
+   "mustFail": [
+    "the 20 edits and the 5 branch switches reached their projects as at the parent"
+   ],
+   "ops": [
+    {
+     "set": "so.quiet.changes",
+     "value": 19
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "clause broken: the quit’s closes settled within 2 s, none left",
+   "mustFail": [
+    "the quit’s closes settled within 2 s, none left"
+   ],
+   "ops": [
+    {
+     "set": "so.quit.drainMs",
+     "value": 2500
+    }
+   ]
+  },
+  {
+   "arm": "RA-parent",
+   "name": "clause broken: main holds watcher.node (lsof)",
+   "mustFail": [
+    "main holds watcher.node (lsof)"
+   ],
+   "ops": [
+    {
+     "set": "ra.lsof.mainHolds",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "clause broken: each edit heard within 100 ms of the parent’s median",
+   "mustFail": [
+    "each edit heard within 100 ms of the parent’s median"
+   ],
+   "ops": [
+    {
+     "set": "ra.edits.latencies",
+     "value": [
+      372,
+      382,
+      379,
+      390,
+      386,
+      381,
+      388,
+      377,
+      385,
+      391,
+      381,
+      388,
+      374,
+      390,
+      384,
+      378,
+      388,
+      386,
+      375,
+      600
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "clause broken: each branch switch heard within 100 ms of the parent’s median",
+   "mustFail": [
+    "each branch switch heard within 100 ms of the parent’s median"
+   ],
+   "ops": [
+    {
+     "set": "ra.branches.latencies",
+     "value": [
+      431,
+      418,
+      425,
+      422,
+      700
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "clause broken: the quit’s wall time within 250 ms of the parent’s",
+   "mustFail": [
+    "the quit’s wall time within 250 ms of the parent’s"
+   ],
+   "ops": [
+    {
+     "set": "ra.quit.wallMs",
+     "value": 2500
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "clause broken: watcher.node in the watcher process and not in main (lsof)",
+   "mustFail": [
+    "watcher.node in the watcher process and not in main (lsof)"
+   ],
+   "ops": [
+    {
+     "set": "ra.lsof.mainHolds",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "clause broken: the watcher process gone after the quit",
+   "mustFail": [
+    "the watcher process gone after the quit"
+   ],
+   "ops": [
+    {
+     "set": "ra.processGone",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "clause broken: no dump",
+   "mustFail": [
+    "no dump"
+   ],
+   "ops": [
+    {
+     "set": "ra.dumps",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "clause broken: the census clean",
+   "mustFail": [
+    "the census clean"
+   ],
+   "ops": [
+    {
+     "set": "census.clean",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RH-parent",
+   "name": "clause broken: the id armed both times: at the create, and by the boot rescue",
+   "mustFail": [
+    "the id armed both times: at the create, and by the boot rescue"
+   ],
+   "ops": [
+    {
+     "set": "rh.second.b",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "RH-head",
+   "name": "clause broken: the same ids as the parent’s run, both times",
+   "mustFail": [
+    "the same ids as the parent’s run, both times"
+   ],
+   "ops": [
+    {
+     "set": "rh.second.b",
+     "value": "ffff0000-0000-4000-8000-0000000000bb"
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: every preflight held",
+   "mustFail": [
+    "every preflight held"
+   ],
+   "ops": [
+    {
+     "set": "preflight.ok",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: every launch’s agents:list resolved nothing but the stand-ins",
+   "mustFail": [
+    "every launch’s agents:list resolved nothing but the stand-ins"
+   ],
+   "ops": [
+    {
+     "push": "agentsHeld",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: the census found nothing of the run on his server",
+   "mustFail": [
+    "the census found nothing of the run on his server"
+   ],
+   "ops": [
+    {
+     "push": "censusFailures",
+     "value": "RA-head: the census found a session"
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: no real Tailscale was seen under the run",
+   "mustFail": [
+    "no real Tailscale was seen under the run"
+   ],
+   "ops": [
+    {
+     "set": "tailscale.real",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: no Electron of the run left",
+   "mustFail": [
+    "no Electron of the run left"
+   ],
+   "ops": [
+    {
+     "set": "electronsLeft",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: no watcher process of the run left",
+   "mustFail": [
+    "no watcher process of the run left"
+   ],
+   "ops": [
+    {
+     "set": "watchersLeft",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: no report in his folder since the run began",
+   "mustFail": [
+    "no report in his folder since the run began"
+   ],
+   "ops": [
+    {
+     "push": "newReports",
+     "value": "Electron-2026-11-09-120000.ips@1794220000000"
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: every dump deleted after its reading",
+   "mustFail": [
+    "every dump deleted after its reading"
+   ],
+   "ops": [
+    {
+     "set": "dumpsLeft",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "clause broken: his shell history unmoved, or moved by his own terminal",
+   "mustFail": [
+    "his shell history unmoved, or moved by his own terminal"
+   ],
+   "ops": [
+    {
+     "set": "history.after",
+     "value": "moved"
+    },
+    {
+     "set": "history.quiet",
+     "value": {
+      "again": "moved",
+      "waitedMs": 180000
+     }
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "his history moved during the run and the quiet wait was never read: not his terminal, not unmoved",
+   "ops": [
+    {
+     "set": "history.after",
+     "value": "743400 1794300000|23166 1790702242"
+    },
+    {
+     "set": "history.quiet",
+     "value": null
+    }
+   ],
+   "mustFail": [
+    "his shell history unmoved, or moved by his own terminal"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "the probe’s ceiling ended the run: exit 0 from the teardown’s SIGTERM is not clean",
+   "ops": [
+    {
+     "set": "exit.clean",
+     "value": false
+    },
+    {
+     "set": "exit.ceiling",
+     "value": true
+    }
+   ],
+   "mustFail": [
+    "main exited 0"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "the probe’s ceiling ended the run: exit 0 from the teardown’s SIGTERM is not clean",
+   "ops": [
+    {
+     "set": "exit.clean",
+     "value": false
+    },
+    {
+     "set": "exit.ceiling",
+     "value": true
+    }
+   ],
+   "mustFail": [
+    "main never faulted: exit 0 and no dump of main"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "clause broken: no dump of the watcher process from the quit",
+   "mustFail": [
+    "no dump of the watcher process from the quit"
+   ],
+   "ops": [
+    {
+     "set": "watcher.quitDumps",
+     "value": 1
+    }
+   ],
+   "by": "the fix round"
+  }
+ ],
+ "unreadable": [
+  {
+   "arm": "SP-parent",
+   "name": "need left unmet: the parent’s own five sites were bundled, with no host in the bundle",
+   "mustMiss": [
+    "the parent’s own five sites were bundled, with no host in the bundle"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "SP-parent",
+   "name": "need left unmet: the native counter was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the native counter was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.nativeWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-parent",
+   "name": "need left unmet: every run asked for started its storm",
+   "mustMiss": [
+    "every run asked for started its storm"
+   ],
+   "ops": [
+    {
+     "set": "storm.runsRead",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SP-parent",
+   "name": "need left unmet: every storm ran at research 143’s rate, at least 12 asks a second",
+   "mustMiss": [
+    "every storm ran at research 143’s rate, at least 12 asks a second"
+   ],
+   "ops": [
+    {
+     "set": "storm.rateOk",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-parent",
+   "name": "need left unmet: every run removed a folder before its watch was dropped (the order before)",
+   "mustMiss": [
+    "every run removed a folder before its watch was dropped (the order before)"
+   ],
+   "ops": [
+    {
+     "set": "storm.orderBefore",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-parent",
+   "name": "need left unmet: every dump Crashpad wrote under the run’s profile was read",
+   "mustMiss": [
+    "every dump Crashpad wrote under the run’s profile was read"
+   ],
+   "ops": [
+    {
+     "set": "dumps.read",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: HEAD’s five sites were bundled with the host (watcher/host.ts)",
+   "mustMiss": [
+    "HEAD’s five sites were bundled with the host (watcher/host.ts)"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: the native counter was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the native counter was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.nativeWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: the fork recorder was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the fork recorder was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.forkWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: every run asked for started its storm",
+   "mustMiss": [
+    "every run asked for started its storm"
+   ],
+   "ops": [
+    {
+     "set": "storm.runsRead",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: every storm ran at research 143’s rate, at least 12 asks a second",
+   "mustMiss": [
+    "every storm ran at research 143’s rate, at least 12 asks a second"
+   ],
+   "ops": [
+    {
+     "set": "storm.rateOk",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: every run removed a folder before its watch was dropped (the order before)",
+   "mustMiss": [
+    "every run removed a folder before its watch was dropped (the order before)"
+   ],
+   "ops": [
+    {
+     "set": "storm.orderBefore",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: every dump Crashpad wrote under the run’s profile was read",
+   "mustMiss": [
+    "every dump Crashpad wrote under the run’s profile was read"
+   ],
+   "ops": [
+    {
+     "set": "dumps.read",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: the watcher process was forked and answered ready",
+   "mustMiss": [
+    "the watcher process was forked and answered ready"
+   ],
+   "ops": [
+    {
+     "set": "watcherProcess.forks",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SA-parent",
+   "name": "need left unmet: the parent’s own five sites were bundled, with no host in the bundle",
+   "mustMiss": [
+    "the parent’s own five sites were bundled, with no host in the bundle"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "SA-parent",
+   "name": "need left unmet: the native counter was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the native counter was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.nativeWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SA-parent",
+   "name": "need left unmet: every run asked for started its storm",
+   "mustMiss": [
+    "every run asked for started its storm"
+   ],
+   "ops": [
+    {
+     "set": "storm.runsRead",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SA-parent",
+   "name": "need left unmet: every storm ran at research 143’s rate, at least 12 asks a second",
+   "mustMiss": [
+    "every storm ran at research 143’s rate, at least 12 asks a second"
+   ],
+   "ops": [
+    {
+     "set": "storm.rateOk",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SA-parent",
+   "name": "need left unmet: every run removed a folder as its watch was already being dropped (the order after)",
+   "mustMiss": [
+    "every run removed a folder as its watch was already being dropped (the order after)"
+   ],
+   "ops": [
+    {
+     "set": "storm.orderAfter",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SA-parent",
+   "name": "need left unmet: every dump Crashpad wrote under the run’s profile was read",
+   "mustMiss": [
+    "every dump Crashpad wrote under the run’s profile was read"
+   ],
+   "ops": [
+    {
+     "set": "dumps.read",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: HEAD’s five sites were bundled with the host (watcher/host.ts)",
+   "mustMiss": [
+    "HEAD’s five sites were bundled with the host (watcher/host.ts)"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: the native counter was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the native counter was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.nativeWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: the fork recorder was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the fork recorder was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.forkWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: every run asked for started its storm",
+   "mustMiss": [
+    "every run asked for started its storm"
+   ],
+   "ops": [
+    {
+     "set": "storm.runsRead",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: every storm ran at research 143’s rate, at least 12 asks a second",
+   "mustMiss": [
+    "every storm ran at research 143’s rate, at least 12 asks a second"
+   ],
+   "ops": [
+    {
+     "set": "storm.rateOk",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: every run removed a folder as its watch was already being dropped (the order after)",
+   "mustMiss": [
+    "every run removed a folder as its watch was already being dropped (the order after)"
+   ],
+   "ops": [
+    {
+     "set": "storm.orderAfter",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: every dump Crashpad wrote under the run’s profile was read",
+   "mustMiss": [
+    "every dump Crashpad wrote under the run’s profile was read"
+   ],
+   "ops": [
+    {
+     "set": "dumps.read",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: the watcher process was forked and answered ready",
+   "mustMiss": [
+    "the watcher process was forked and answered ready"
+   ],
+   "ops": [
+    {
+     "set": "watcherProcess.forks",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "need left unmet: the parent’s own five sites were bundled, with no host in the bundle",
+   "mustMiss": [
+    "the parent’s own five sites were bundled, with no host in the bundle"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "need left unmet: the native counter was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the native counter was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.nativeWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "need left unmet: the storm ran 20 s, then the quit was marked first, main’s pool held by 8 jobs and every watch dropped",
+   "mustMiss": [
+    "the storm ran 20 s, then the quit was marked first, main’s pool held by 8 jobs and every watch dropped"
+   ],
+   "ops": [
+    {
+     "set": "sq.quit.marked",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "need left unmet: every dump Crashpad wrote under the run’s profile was read",
+   "mustMiss": [
+    "every dump Crashpad wrote under the run’s profile was read"
+   ],
+   "ops": [
+    {
+     "set": "dumps.read",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "need left unmet: HEAD’s five sites were bundled with the host (watcher/host.ts)",
+   "mustMiss": [
+    "HEAD’s five sites were bundled with the host (watcher/host.ts)"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "need left unmet: the native counter was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the native counter was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.nativeWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "need left unmet: the fork recorder was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the fork recorder was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.forkWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "need left unmet: the storm ran 20 s, then the quit was marked first, main’s pool held by 8 jobs and every watch dropped",
+   "mustMiss": [
+    "the storm ran 20 s, then the quit was marked first, main’s pool held by 8 jobs and every watch dropped"
+   ],
+   "ops": [
+    {
+     "set": "sq.quit.saturated",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "need left unmet: every dump Crashpad wrote under the run’s profile was read",
+   "mustMiss": [
+    "every dump Crashpad wrote under the run’s profile was read"
+   ],
+   "ops": [
+    {
+     "set": "dumps.found",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SQ-head",
+   "name": "need left unmet: lsof read main and the watcher process during the storm",
+   "mustMiss": [
+    "lsof read main and the watcher process during the storm"
+   ],
+   "ops": [
+    {
+     "set": "sq.lsof.watcherReads",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: HEAD’s five sites were bundled with the host (watcher/host.ts)",
+   "mustMiss": [
+    "HEAD’s five sites were bundled with the host (watcher/host.ts)"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: the fork recorder was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the fork recorder was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.forkWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: the host’s restart and reply-bound lines were read from host.ts",
+   "mustMiss": [
+    "the host’s restart and reply-bound lines were read from host.ts"
+   ],
+   "ops": [
+    {
+     "set": "host.linesRead",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: every dump Crashpad wrote under the run’s profile was read",
+   "mustMiss": [
+    "every dump Crashpad wrote under the run’s profile was read"
+   ],
+   "ops": [
+    {
+     "set": "dumps.found",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: the storm paused and its watches settled before the kill",
+   "mustMiss": [
+    "the storm paused and its watches settled before the kill"
+   ],
+   "ops": [
+    {
+     "set": "sk.paused",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: SIGKILL went to the run’s own watcher process, read by ps first",
+   "mustMiss": [
+    "SIGKILL went to the run’s own watcher process, read by ps first"
+   ],
+   "ops": [
+    {
+     "set": "sk.kill.verified",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: SIGSTOP went to the run’s own watcher process, read by ps first",
+   "mustMiss": [
+    "SIGSTOP went to the run’s own watcher process, read by ps first"
+   ],
+   "ops": [
+    {
+     "set": "sk.stop.sent",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: each open project’s two watches were read at the pause",
+   "mustMiss": [
+    "each open project’s two watches were read at the pause"
+   ],
+   "ops": [
+    {
+     "set": "sk.rescan.known",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SO-parent",
+   "name": "need left unmet: the parent’s own five sites were bundled, with no host in the bundle",
+   "mustMiss": [
+    "the parent’s own five sites were bundled, with no host in the bundle"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "SO-parent",
+   "name": "need left unmet: the native counter was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the native counter was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.nativeWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SO-parent",
+   "name": "need left unmet: the ordinary world was built: 20 projects, the two configuration watches and 5 rescues, 52 watches started",
+   "mustMiss": [
+    "the ordinary world was built: 20 projects, the two configuration watches and 5 rescues, 52 watches started"
+   ],
+   "ops": [
+    {
+     "set": "so.boot.started",
+     "value": 51
+    }
+   ]
+  },
+  {
+   "arm": "SO-parent",
+   "name": "need left unmet: the ordinary run ended by its own quit, exit 0",
+   "mustMiss": [
+    "the ordinary run ended by its own quit, exit 0"
+   ],
+   "ops": [
+    {
+     "set": "exit.code",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "need left unmet: HEAD’s five sites were bundled with the host (watcher/host.ts)",
+   "mustMiss": [
+    "HEAD’s five sites were bundled with the host (watcher/host.ts)"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "need left unmet: the native counter was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the native counter was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.nativeWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "need left unmet: the fork recorder was installed in main before the bundle loaded",
+   "mustMiss": [
+    "the fork recorder was installed in main before the bundle loaded"
+   ],
+   "ops": [
+    {
+     "set": "recorder.forkWrapped",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "need left unmet: the parent’s ordinary run was read (its own verdict not UNREADABLE), the parent having run first",
+   "mustMiss": [
+    "the parent’s ordinary run was read (its own verdict not UNREADABLE), the parent having run first"
+   ],
+   "ops": [
+    {
+     "set": "parent.bootMs",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "need left unmet: the ordinary run ended by its own quit, exit 0",
+   "mustMiss": [
+    "the ordinary run ended by its own quit, exit 0"
+   ],
+   "ops": [
+    {
+     "set": "exit.code",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RA-parent",
+   "name": "need left unmet: the agents:list answer resolved nothing but the stand-ins",
+   "mustMiss": [
+    "the agents:list answer resolved nothing but the stand-ins"
+   ],
+   "ops": [
+    {
+     "set": "agents.ok",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RA-parent",
+   "name": "need left unmet: 20 projects opened through the window and each watched (git status asked)",
+   "mustMiss": [
+    "20 projects opened through the window and each watched (git status asked)"
+   ],
+   "ops": [
+    {
+     "set": "ra.world.opened",
+     "value": 19
+    }
+   ]
+  },
+  {
+   "arm": "RA-parent",
+   "name": "need left unmet: every edit (20) and every branch switch (5) was heard",
+   "mustMiss": [
+    "every edit (20) and every branch switch (5) was heard"
+   ],
+   "ops": [
+    {
+     "set": "ra.edits.heard",
+     "value": 19
+    }
+   ]
+  },
+  {
+   "arm": "RA-parent",
+   "name": "need left unmet: the menu’s Quit row was pressed in main and the quit’s end read",
+   "mustMiss": [
+    "the menu’s Quit row was pressed in main and the quit’s end read"
+   ],
+   "ops": [
+    {
+     "set": "ra.quit.pressed",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RA-parent",
+   "name": "need left unmet: lsof read main",
+   "mustMiss": [
+    "lsof read main"
+   ],
+   "ops": [
+    {
+     "set": "ra.lsof.mainRead",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "need left unmet: the agents:list answer resolved nothing but the stand-ins",
+   "mustMiss": [
+    "the agents:list answer resolved nothing but the stand-ins"
+   ],
+   "ops": [
+    {
+     "set": "agents.ok",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "need left unmet: 20 projects opened through the window and each watched (git status asked)",
+   "mustMiss": [
+    "20 projects opened through the window and each watched (git status asked)"
+   ],
+   "ops": [
+    {
+     "set": "ra.world.opened",
+     "value": 19
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "need left unmet: every edit (20) and every branch switch (5) was heard",
+   "mustMiss": [
+    "every edit (20) and every branch switch (5) was heard"
+   ],
+   "ops": [
+    {
+     "set": "ra.edits.heard",
+     "value": 19
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "need left unmet: the menu’s Quit row was pressed in main and the quit’s end read",
+   "mustMiss": [
+    "the menu’s Quit row was pressed in main and the quit’s end read"
+   ],
+   "ops": [
+    {
+     "set": "ra.quit.pressed",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "need left unmet: lsof read main",
+   "mustMiss": [
+    "lsof read main"
+   ],
+   "ops": [
+    {
+     "set": "ra.lsof.mainRead",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "need left unmet: the parent’s RA was read (its own verdict not UNREADABLE), the parent having run first",
+   "mustMiss": [
+    "the parent’s RA was read (its own verdict not UNREADABLE), the parent having run first"
+   ],
+   "ops": [
+    {
+     "set": "parent.quitMs",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "need left unmet: lsof read main’s child processes",
+   "mustMiss": [
+    "lsof read main’s child processes"
+   ],
+   "ops": [
+    {
+     "set": "ra.lsof.processRead",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RH-parent",
+   "name": "need left unmet: the agents:list answer resolved nothing but the stand-ins",
+   "mustMiss": [
+    "the agents:list answer resolved nothing but the stand-ins"
+   ],
+   "ops": [
+    {
+     "set": "agents.ok",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RH-parent",
+   "name": "need left unmet: the scratch login shell resolves codex to the stand-in",
+   "mustMiss": [
+    "the scratch login shell resolves codex to the stand-in"
+   ],
+   "ops": [
+    {
+     "set": "rh.resolved",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RH-parent",
+   "name": "need left unmet: both sessions were created",
+   "mustMiss": [
+    "both sessions were created"
+   ],
+   "ops": [
+    {
+     "set": "rh.created",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RH-parent",
+   "name": "need left unmet: the second row was unarmed at the quit and its record written before the relaunch",
+   "mustMiss": [
+    "the second row was unarmed at the quit and its record written before the relaunch"
+   ],
+   "ops": [
+    {
+     "set": "rh.first.b",
+     "value": "0365b000-0000-4000-8000-00000000000b"
+    }
+   ]
+  },
+  {
+   "arm": "RH-head",
+   "name": "need left unmet: the agents:list answer resolved nothing but the stand-ins",
+   "mustMiss": [
+    "the agents:list answer resolved nothing but the stand-ins"
+   ],
+   "ops": [
+    {
+     "set": "agents.ok",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RH-head",
+   "name": "need left unmet: the scratch login shell resolves codex to the stand-in",
+   "mustMiss": [
+    "the scratch login shell resolves codex to the stand-in"
+   ],
+   "ops": [
+    {
+     "set": "rh.resolved",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RH-head",
+   "name": "need left unmet: both sessions were created",
+   "mustMiss": [
+    "both sessions were created"
+   ],
+   "ops": [
+    {
+     "set": "rh.created",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RH-head",
+   "name": "need left unmet: the second row was unarmed at the quit and its record written before the relaunch",
+   "mustMiss": [
+    "the second row was unarmed at the quit and its record written before the relaunch"
+   ],
+   "ops": [
+    {
+     "set": "rh.first.b",
+     "value": "0365b000-0000-4000-8000-00000000000b"
+    }
+   ]
+  },
+  {
+   "arm": "RH-head",
+   "name": "need left unmet: the parent’s RH was read and passed, all three ids armed, the parent having run first",
+   "mustMiss": [
+    "the parent’s RH was read and passed, all three ids armed, the parent having run first"
+   ],
+   "ops": [
+    {
+     "set": "parent.secondB",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "need left unmet: the process table and his reports folder were read",
+   "mustMiss": [
+    "the process table and his reports folder were read"
+   ],
+   "ops": [
+    {
+     "set": "processTableRead",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: every run that exited 0 ran its whole storm and reached its own quit (none cut short)",
+   "ops": [
+    {
+     "set": "storm.cutShort",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every run that exited 0 ran its whole storm and reached its own quit (none cut short)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: every P365 line the run wrote was read whole (none torn by the other stream)",
+   "ops": [
+    {
+     "set": "lines.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every P365 line the run wrote was read whole (none torn by the other stream)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: the watcher process answered at least 8 subscriptions a second in every run (the storm reached the native module)",
+   "ops": [
+    {
+     "set": "storm.processRateOk",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "the watcher process answered at least 8 subscriptions a second in every run (the storm reached the native module)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: every run that exited 0 ran its whole storm and reached its own quit (none cut short)",
+   "ops": [
+    {
+     "set": "storm.cutShort",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every run that exited 0 ran its whole storm and reached its own quit (none cut short)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: every P365 line the run wrote was read whole (none torn by the other stream)",
+   "ops": [
+    {
+     "set": "lines.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every P365 line the run wrote was read whole (none torn by the other stream)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: the watcher process answered at least 8 subscriptions a second in every run (the storm reached the native module)",
+   "ops": [
+    {
+     "set": "storm.processRateOk",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "the watcher process answered at least 8 subscriptions a second in every run (the storm reached the native module)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: the storm ran its whole length and reached its own quit (not cut short)",
+   "ops": [
+    {
+     "set": "sk.cutShort",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "the storm ran its whole length and reached its own quit (not cut short)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: every P365 line the run wrote was read whole (none torn by the other stream)",
+   "ops": [
+    {
+     "set": "lines.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every P365 line the run wrote was read whole (none torn by the other stream)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SO-head",
+   "name": "A PARENT THAT IS NO BASELINE: its boot never reached its 52 watches (UNREADABLE), read as 20,013 ms, and any HEAD boot is within twice that",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "unreadable"
+    },
+    {
+     "set": "parent.bootMs",
+     "value": 20013
+    }
+   ],
+   "mustMiss": [
+    "the parent’s ordinary run was read (its own verdict not UNREADABLE), the parent having run first"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "RA-head",
+   "name": "A PARENT THAT IS NO BASELINE: the parent’s RA could not be read",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "unreadable"
+    }
+   ],
+   "mustMiss": [
+    "the parent’s RA was read (its own verdict not UNREADABLE), the parent having run first"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "RH-head",
+   "name": "A PARENT THAT IS NO BASELINE: the parent’s boot rescue armed nothing and neither did HEAD’s, which read as \"the same ids\"",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "fail"
+    },
+    {
+     "set": "parent.secondA",
+     "value": null
+    },
+    {
+     "set": "rh.second.a",
+     "value": null
+    }
+   ],
+   "mustMiss": [
+    "the parent’s RH was read and passed, all three ids armed, the parent having run first"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "RUN",
+   "name": "his reports folder could not be read: no report found is not \"no report\"",
+   "ops": [
+    {
+     "set": "reportsRead",
+     "value": false
+    },
+    {
+     "set": "newReports",
+     "value": []
+    }
+   ],
+   "mustMiss": [
+    "the process table and his reports folder were read"
+   ],
+   "by": "the probe review"
+  }
+ ],
+ "variants": [
+  {
+   "arm": "RUN",
+   "name": "his history moved, by his own terminal (it moved again during the quiet wait)",
+   "ops": [
+    {
+     "set": "history.after",
+     "value": "moved"
+    },
+    {
+     "set": "history.quiet",
+     "value": {
+      "again": "moved again",
+      "waitedMs": 180000
+     }
+    }
+   ]
+  },
+  {
+   "arm": "SP-parent",
+   "name": "one run of two faulted and named, the other ran clean",
+   "ops": [
+    {
+     "set": "main.signalRuns",
+     "value": 1
+    },
+    {
+     "set": "main.namedSignalRuns",
+     "value": 1
+    },
+    {
+     "set": "main.exit0Runs",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "no watcher process crash at all in either run",
+   "ops": [
+    {
+     "set": "watcherProcess.crashes",
+     "value": 0
+    },
+    {
+     "set": "watcherProcess.rebound",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "a boot exactly at twice the parent’s plus the fork",
+   "ops": [
+    {
+     "set": "so.boot.ms",
+     "value": 185
+    }
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "a boot 1 ms past twice the parent’s plus the fork",
+   "expect": "fail",
+   "mustFail": [
+    "the boot within twice the parent’s time plus the fork"
+   ],
+   "ops": [
+    {
+     "set": "so.boot.ms",
+     "value": 186
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "an edit exactly 100 ms past the parent’s median",
+   "ops": [
+    {
+     "set": "ra.edits.latencies",
+     "value": [
+      372,
+      382,
+      379,
+      390,
+      386,
+      381,
+      388,
+      377,
+      385,
+      391,
+      381,
+      388,
+      374,
+      390,
+      384,
+      378,
+      388,
+      386,
+      375,
+      482.5
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "an edit 1 ms past 100 ms over the parent’s median",
+   "expect": "fail",
+   "mustFail": [
+    "each edit heard within 100 ms of the parent’s median"
+   ],
+   "ops": [
+    {
+     "set": "ra.edits.latencies",
+     "value": [
+      372,
+      382,
+      379,
+      390,
+      386,
+      381,
+      388,
+      377,
+      385,
+      391,
+      381,
+      388,
+      374,
+      390,
+      384,
+      378,
+      388,
+      386,
+      375,
+      483.5
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "the quit exactly 250 ms past the parent’s",
+   "ops": [
+    {
+     "set": "ra.quit.wallMs",
+     "value": 2390
+    }
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "the host replaced the process exactly at the bound plus its slack",
+   "ops": [
+    {
+     "set": "sk.replacement.ok",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "RA-head",
+   "name": "a parent RA that failed its own clause is still read, so still a baseline",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "fail"
+    }
+   ],
+   "by": "the probe review"
+  }
+ ],
+ "raw": [
+  {
+   "arm": "SP-parent",
+   "name": "p1 and p2: the parent’s own sites, both faulted at 60 s in the freelist check",
+   "runs": [
+    "p1",
+    "p2"
+   ]
+  },
+  {
+   "arm": "SP-parent",
+   "name": "rawk1: #271’s stream stop on the FSEvents thread",
+   "runs": [
+    "rawk1"
+   ]
+  },
+  {
+   "arm": "SP-parent",
+   "name": "pilot1 alone: its dump was read before Electron’s symbols, so no fault is named",
+   "runs": [
+    "pilot1"
+   ],
+   "mustFail": [
+    "main ended by a signal in at least one run, its fault named from its dump"
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "u1: the process crashed 5 times and was re-bound each time, main exited 0",
+   "runs": [
+    "u1"
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "u2: the queue, the check and the grace inside the process, no crash in 300 s",
+   "runs": [
+    "u2"
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "p1 and p2 graded as HEAD: main faulted in both, so main did not exit 0 and left dumps",
+   "runs": [
+    "p1",
+    "p2"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": true
+    },
+    {
+     "set": "watcherProcess.forks",
+     "value": 1
+    },
+    {
+     "set": "watcherProcess.ready",
+     "value": 1
+    },
+    {
+     "set": "storm.processRateOk",
+     "value": true
+    }
+   ],
+   "mustFail": [
+    "main exited 0 in every run",
+    "no dump of main"
+   ],
+   "amended": "the probe review: the HEAD need on the native side laid on, as the builder laid on the others"
+  },
+  {
+   "arm": "SP-head",
+   "name": "u4 graded as SP: its order was after, so SP cannot read it",
+   "runs": [
+    "u4"
+   ],
+   "mustMiss": [
+    "every run removed a folder before its watch was dropped (the order before)"
+   ]
+  },
+  {
+   "arm": "SA-head",
+   "name": "u4: the folder removed as the drop was on its way; the process crashed once and was re-bound",
+   "runs": [
+    "u4"
+   ]
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "mq1: SIGABRT with napi_fatal_error on CrBrowserMain (raw mode marked nothing, so the mark is laid on)",
+   "runs": [
+    "mq1"
+   ],
+   "ops": [
+    {
+     "set": "sq.quit.marked",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "mq1 as recorded: its raw mode never marked the quit",
+   "runs": [
+    "mq1"
+   ],
+   "mustMiss": [
+    "the storm ran 20 s, then the quit was marked first, main’s pool held by 8 jobs and every watch dropped"
+   ]
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "mq1 read without Electron’s symbols: napi_fatal_error named from the dump and its stderr trace",
+   "runs": [
+    "mq1-noef"
+   ],
+   "ops": [
+    {
+     "set": "sq.quit.marked",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "SO-parent",
+   "name": "ord1: 52 subscribes, up to 17 in flight, booted in 57 ms",
+   "runs": [
+    "ord1"
+   ]
+  },
+  {
+   "arm": "SO-head",
+   "name": "ord1 graded as HEAD: main made the native calls itself",
+   "runs": [
+    "ord1"
+   ],
+   "ops": [
+    {
+     "set": "bundle.head",
+     "value": true
+    },
+    {
+     "set": "so.boot.forkMs",
+     "value": 71
+    }
+   ],
+   "mustFail": [
+    "no native call in main, the module never loaded there"
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "a constructed SK run: one restart line, 9 of 9 re-bound with 2 re-scan errors each, replaced 11 ms past the close bound with one line, ended by the host",
+   "runs": [
+    "sk-constructed"
+   ],
+   "extra": {
+    "signals": {
+     "pause": {
+      "seq": 1,
+      "at": 29100
+     },
+     "kill": {
+      "pid": 50001,
+      "verified": true,
+      "sent": true,
+      "at": 29400,
+      "ppid": 49999
+     },
+     "resume": {
+      "seq": 2,
+      "at": 31790
+     },
+     "stop": {
+      "pid": 50002,
+      "verified": true,
+      "sent": true,
+      "at": 91100,
+      "ppid": 49999
+     },
+     "stoppedGone": {
+      "goneAt": 93300
+     },
+     "cont": {
+      "sent": false,
+      "at": null
+     }
+    },
+    "hostSource": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n"
+   }
+  },
+  {
+   "arm": "SK-head",
+   "name": "the constructed SK run with the restart line written twice",
+   "runs": [
+    "sk-two-restarts"
+   ],
+   "extra": {
+    "signals": {
+     "pause": {
+      "seq": 1,
+      "at": 29100
+     },
+     "kill": {
+      "pid": 50001,
+      "verified": true,
+      "sent": true,
+      "at": 29400,
+      "ppid": 49999
+     },
+     "resume": {
+      "seq": 2,
+      "at": 31790
+     },
+     "stop": {
+      "pid": 50002,
+      "verified": true,
+      "sent": true,
+      "at": 91100,
+      "ppid": 49999
+     },
+     "stoppedGone": {
+      "goneAt": 93300
+     },
+     "cont": {
+      "sent": false,
+      "at": null
+     }
+    },
+    "hostSource": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n"
+   },
+   "mustFail": [
+    "one restart line after the kill"
+   ]
+  },
+  {
+   "arm": "SK-head",
+   "name": "the constructed SK run whose host waited for a stopped process to end itself",
+   "runs": [
+    "sk-sigterm"
+   ],
+   "extra": {
+    "signals": {
+     "pause": {
+      "seq": 1,
+      "at": 29100
+     },
+     "kill": {
+      "pid": 50001,
+      "verified": true,
+      "sent": true,
+      "at": 29400,
+      "ppid": 49999
+     },
+     "resume": {
+      "seq": 2,
+      "at": 31790
+     },
+     "stop": {
+      "pid": 50002,
+      "verified": true,
+      "sent": true,
+      "at": 91100,
+      "ppid": 49999
+     },
+     "stoppedGone": {
+      "goneAt": null
+     },
+     "cont": {
+      "sent": true,
+      "at": 106100
+     }
+    },
+    "hostSource": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n"
+   },
+   "mustFail": [
+    "after SIGSTOP the process was replaced within the reply bound of the first unanswered request",
+    "the stopped process was ended by the host before the probe’s SIGCONT"
+   ]
+  },
+  {
+   "arm": "RA-parent",
+   "name": "a constructed RA at the parent: main holds watcher.node",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins "
+    },
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": [
+     {
+      "repo": "/r/RA/repos/repo-00",
+      "at": 100000
+     },
+     {
+      "repo": "/r/RA/repos/repo-01",
+      "at": 101000
+     },
+     {
+      "repo": "/r/RA/repos/repo-02",
+      "at": 102000
+     },
+     {
+      "repo": "/r/RA/repos/repo-03",
+      "at": 103000
+     },
+     {
+      "repo": "/r/RA/repos/repo-04",
+      "at": 104000
+     },
+     {
+      "repo": "/r/RA/repos/repo-05",
+      "at": 105000
+     },
+     {
+      "repo": "/r/RA/repos/repo-06",
+      "at": 106000
+     },
+     {
+      "repo": "/r/RA/repos/repo-07",
+      "at": 107000
+     },
+     {
+      "repo": "/r/RA/repos/repo-08",
+      "at": 108000
+     },
+     {
+      "repo": "/r/RA/repos/repo-09",
+      "at": 109000
+     },
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 110000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 111000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 112000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 113000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 114000
+     },
+     {
+      "repo": "/r/RA/repos/repo-15",
+      "at": 115000
+     },
+     {
+      "repo": "/r/RA/repos/repo-16",
+      "at": 116000
+     },
+     {
+      "repo": "/r/RA/repos/repo-17",
+      "at": 117000
+     },
+     {
+      "repo": "/r/RA/repos/repo-18",
+      "at": 118000
+     },
+     {
+      "repo": "/r/RA/repos/repo-19",
+      "at": 119000
+     }
+    ],
+    "branches": [
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 120000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 121000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 122000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 123000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 124000
+     }
+    ],
+    "changes": [
+     {
+      "p": "\"/r/RA/repos/repo-00\"",
+      "t": 100372
+     },
+     {
+      "p": "\"/r/RA/repos/repo-01\"",
+      "t": 101381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-02\"",
+      "t": 102377
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 103390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-04\"",
+      "t": 104385
+     },
+     {
+      "p": "\"/r/RA/repos/repo-05\"",
+      "t": 105379
+     },
+     {
+      "p": "\"/r/RA/repos/repo-06\"",
+      "t": 106388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-07\"",
+      "t": 107376
+     },
+     {
+      "p": "\"/r/RA/repos/repo-08\"",
+      "t": 108383
+     },
+     {
+      "p": "\"/r/RA/repos/repo-09\"",
+      "t": 109391
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 110380
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 111386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 112374
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 113389
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 114382
+     },
+     {
+      "p": "\"/r/RA/repos/repo-15\"",
+      "t": 115378
+     },
+     {
+      "p": "\"/r/RA/repos/repo-16\"",
+      "t": 116387
+     },
+     {
+      "p": "\"/r/RA/repos/repo-17\"",
+      "t": 117384
+     },
+     {
+      "p": "\"/r/RA/repos/repo-18\"",
+      "t": 118375
+     },
+     {
+      "p": "\"/r/RA/repos/repo-19\"",
+      "t": 119392
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 120420
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 121417
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 122424
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 123421
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 124426
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 1
+     }
+    ],
+    "lsof": {
+     "mainPid": 4242,
+     "main": "p4242\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n",
+     "children": [
+      {
+       "pid": 4343,
+       "command": "Electron Helper --type=gpu-process",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\n"
+      },
+      {
+       "pid": 4444,
+       "command": "Electron Helper (Renderer) --type=renderer",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\n"
+      }
+     ]
+    },
+    "events": [
+     {
+      "t": 1,
+      "ev": "loaded",
+      "pid": 4242
+     },
+     {
+      "t": 2,
+      "ev": "hooked"
+     },
+     {
+      "t": 127000,
+      "ev": "menu-quit",
+      "ok": true,
+      "label": "Quit Electron"
+     },
+     {
+      "t": 127050,
+      "ev": "before-quit"
+     }
+    ],
+    "exitAt": 129140,
+    "watcherAfter": [],
+    "dumpsFound": 0,
+    "census": []
+   }
+  },
+  {
+   "arm": "RA-head",
+   "name": "a constructed RA at HEAD: watcher.node in the watcher process only",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins "
+    },
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": [
+     {
+      "repo": "/r/RA/repos/repo-00",
+      "at": 100000
+     },
+     {
+      "repo": "/r/RA/repos/repo-01",
+      "at": 101000
+     },
+     {
+      "repo": "/r/RA/repos/repo-02",
+      "at": 102000
+     },
+     {
+      "repo": "/r/RA/repos/repo-03",
+      "at": 103000
+     },
+     {
+      "repo": "/r/RA/repos/repo-04",
+      "at": 104000
+     },
+     {
+      "repo": "/r/RA/repos/repo-05",
+      "at": 105000
+     },
+     {
+      "repo": "/r/RA/repos/repo-06",
+      "at": 106000
+     },
+     {
+      "repo": "/r/RA/repos/repo-07",
+      "at": 107000
+     },
+     {
+      "repo": "/r/RA/repos/repo-08",
+      "at": 108000
+     },
+     {
+      "repo": "/r/RA/repos/repo-09",
+      "at": 109000
+     },
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 110000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 111000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 112000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 113000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 114000
+     },
+     {
+      "repo": "/r/RA/repos/repo-15",
+      "at": 115000
+     },
+     {
+      "repo": "/r/RA/repos/repo-16",
+      "at": 116000
+     },
+     {
+      "repo": "/r/RA/repos/repo-17",
+      "at": 117000
+     },
+     {
+      "repo": "/r/RA/repos/repo-18",
+      "at": 118000
+     },
+     {
+      "repo": "/r/RA/repos/repo-19",
+      "at": 119000
+     }
+    ],
+    "branches": [
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 120000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 121000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 122000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 123000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 124000
+     }
+    ],
+    "changes": [
+     {
+      "p": "\"/r/RA/repos/repo-00\"",
+      "t": 100372
+     },
+     {
+      "p": "\"/r/RA/repos/repo-01\"",
+      "t": 101382
+     },
+     {
+      "p": "\"/r/RA/repos/repo-02\"",
+      "t": 102379
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 103390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-04\"",
+      "t": 104386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-05\"",
+      "t": 105381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-06\"",
+      "t": 106388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-07\"",
+      "t": 107377
+     },
+     {
+      "p": "\"/r/RA/repos/repo-08\"",
+      "t": 108385
+     },
+     {
+      "p": "\"/r/RA/repos/repo-09\"",
+      "t": 109391
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 110381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 111388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 112374
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 113390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 114384
+     },
+     {
+      "p": "\"/r/RA/repos/repo-15\"",
+      "t": 115378
+     },
+     {
+      "p": "\"/r/RA/repos/repo-16\"",
+      "t": 116388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-17\"",
+      "t": 117386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-18\"",
+      "t": 118375
+     },
+     {
+      "p": "\"/r/RA/repos/repo-19\"",
+      "t": 119393
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 120431
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 121418
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 122425
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 123422
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 124429
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 1
+     }
+    ],
+    "lsof": {
+     "mainPid": 4242,
+     "main": "p4242\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+     "children": [
+      {
+       "pid": 4343,
+       "command": "Electron Helper --type=utility --utility-sub-type=node.mojom.NodeService",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+      },
+      {
+       "pid": 4444,
+       "command": "Electron Helper (Renderer) --type=renderer",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\n"
+      }
+     ]
+    },
+    "events": [
+     {
+      "t": 1,
+      "ev": "loaded",
+      "pid": 4242
+     },
+     {
+      "t": 2,
+      "ev": "hooked"
+     },
+     {
+      "t": 127000,
+      "ev": "menu-quit",
+      "ok": true,
+      "label": "Quit Electron"
+     },
+     {
+      "t": 127050,
+      "ev": "before-quit"
+     }
+    ],
+    "exitAt": 129190,
+    "watcherAfter": [],
+    "dumpsFound": 0,
+    "census": []
+   }
+  },
+  {
+   "arm": "RA-head",
+   "name": "a constructed RA at HEAD whose main still holds watcher.node and whose process outlived the quit",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins "
+    },
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": [
+     {
+      "repo": "/r/RA/repos/repo-00",
+      "at": 100000
+     },
+     {
+      "repo": "/r/RA/repos/repo-01",
+      "at": 101000
+     },
+     {
+      "repo": "/r/RA/repos/repo-02",
+      "at": 102000
+     },
+     {
+      "repo": "/r/RA/repos/repo-03",
+      "at": 103000
+     },
+     {
+      "repo": "/r/RA/repos/repo-04",
+      "at": 104000
+     },
+     {
+      "repo": "/r/RA/repos/repo-05",
+      "at": 105000
+     },
+     {
+      "repo": "/r/RA/repos/repo-06",
+      "at": 106000
+     },
+     {
+      "repo": "/r/RA/repos/repo-07",
+      "at": 107000
+     },
+     {
+      "repo": "/r/RA/repos/repo-08",
+      "at": 108000
+     },
+     {
+      "repo": "/r/RA/repos/repo-09",
+      "at": 109000
+     },
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 110000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 111000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 112000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 113000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 114000
+     },
+     {
+      "repo": "/r/RA/repos/repo-15",
+      "at": 115000
+     },
+     {
+      "repo": "/r/RA/repos/repo-16",
+      "at": 116000
+     },
+     {
+      "repo": "/r/RA/repos/repo-17",
+      "at": 117000
+     },
+     {
+      "repo": "/r/RA/repos/repo-18",
+      "at": 118000
+     },
+     {
+      "repo": "/r/RA/repos/repo-19",
+      "at": 119000
+     }
+    ],
+    "branches": [
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 120000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 121000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 122000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 123000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 124000
+     }
+    ],
+    "changes": [
+     {
+      "p": "\"/r/RA/repos/repo-00\"",
+      "t": 100372
+     },
+     {
+      "p": "\"/r/RA/repos/repo-01\"",
+      "t": 101382
+     },
+     {
+      "p": "\"/r/RA/repos/repo-02\"",
+      "t": 102379
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 103390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-04\"",
+      "t": 104386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-05\"",
+      "t": 105381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-06\"",
+      "t": 106388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-07\"",
+      "t": 107377
+     },
+     {
+      "p": "\"/r/RA/repos/repo-08\"",
+      "t": 108385
+     },
+     {
+      "p": "\"/r/RA/repos/repo-09\"",
+      "t": 109391
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 110381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 111388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 112374
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 113390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 114384
+     },
+     {
+      "p": "\"/r/RA/repos/repo-15\"",
+      "t": 115378
+     },
+     {
+      "p": "\"/r/RA/repos/repo-16\"",
+      "t": 116388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-17\"",
+      "t": 117386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-18\"",
+      "t": 118375
+     },
+     {
+      "p": "\"/r/RA/repos/repo-19\"",
+      "t": 119393
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 120431
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 121418
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 122425
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 123422
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 124429
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 1
+     }
+    ],
+    "lsof": {
+     "mainPid": 4242,
+     "main": "p4242\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n",
+     "children": [
+      {
+       "pid": 4343,
+       "command": "Electron Helper --type=utility --utility-sub-type=node.mojom.NodeService",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+      },
+      {
+       "pid": 4444,
+       "command": "Electron Helper (Renderer) --type=renderer",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\n"
+      }
+     ]
+    },
+    "events": [
+     {
+      "t": 1,
+      "ev": "loaded",
+      "pid": 4242
+     },
+     {
+      "t": 2,
+      "ev": "hooked"
+     },
+     {
+      "t": 127000,
+      "ev": "menu-quit",
+      "ok": true,
+      "label": "Quit Electron"
+     },
+     {
+      "t": 127050,
+      "ev": "before-quit"
+     }
+    ],
+    "exitAt": 129190,
+    "watcherAfter": [
+     4343
+    ],
+    "dumpsFound": 0,
+    "census": []
+   },
+   "mustFail": [
+    "watcher.node in the watcher process and not in main (lsof)",
+    "the watcher process gone after the quit"
+   ]
+  },
+  {
+   "arm": "RH-parent",
+   "name": "a constructed RH: the id armed at the create, the held-back row armed by the boot rescue",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins codex, under /r/RH/bin"
+    },
+    "resolved": true,
+    "created": [
+     {
+      "name": "p365-rh-a",
+      "ok": true,
+      "id": "s-a"
+     },
+     {
+      "name": "p365-rh-b",
+      "ok": true,
+      "id": "s-b"
+     }
+    ],
+    "first": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": null
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "second": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": "0365b000-0000-4000-8000-00000000000b"
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "bWritten": true,
+    "firstAt": 2600,
+    "secondAt": 900
+   }
+  },
+  {
+   "arm": "RH-head",
+   "name": "a constructed RH at HEAD: the same ids as the parent’s",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins codex, under /r/RH/bin"
+    },
+    "resolved": true,
+    "created": [
+     {
+      "name": "p365-rh-a",
+      "ok": true,
+      "id": "s-a"
+     },
+     {
+      "name": "p365-rh-b",
+      "ok": true,
+      "id": "s-b"
+     }
+    ],
+    "first": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": null
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "second": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": "0365b000-0000-4000-8000-00000000000b"
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "bWritten": true,
+    "firstAt": 2600,
+    "secondAt": 900
+   }
+  },
+  {
+   "arm": "RH-head",
+   "name": "a constructed RH at HEAD whose boot rescue armed nothing",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins codex, under /r/RH/bin"
+    },
+    "resolved": true,
+    "created": [
+     {
+      "name": "p365-rh-a",
+      "ok": true,
+      "id": "s-a"
+     },
+     {
+      "name": "p365-rh-b",
+      "ok": true,
+      "id": "s-b"
+     }
+    ],
+    "first": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": null
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "second": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": null
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "bWritten": true,
+    "firstAt": 2600,
+    "secondAt": 900
+   },
+   "mustFail": [
+    "the same ids as the parent’s run, both times"
+   ]
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-ok: an honest 20-minute HEAD storm, one watcher crash re-bound in 380 ms, main quit by itself",
+   "runs": [
+    "rv-head-ok"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SA-head",
+   "name": "rv-head-after-ok: the same honest run, the order after",
+   "runs": [
+    "rv-head-after-ok"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SA-head",
+   "name": "rv-head-ok graded as SA: its order was before",
+   "runs": [
+    "rv-head-ok"
+   ],
+   "mustMiss": [
+    "every run removed a folder as its watch was already being dropped (the order after)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "A HANG READ AS A CLEAN EXIT: rv-head-ceiling, ended by the probe’s ceiling and exit 0 by the teardown’s SIGTERM",
+   "runs": [
+    "rv-head-ceiling"
+   ],
+   "mustFail": [
+    "main exited 0 in every run"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "A RUN CUT SHORT, GRADED WHOLE: rv-head-cut, exit 0 at 3 minutes of its 20 with no quit of its own",
+   "runs": [
+    "rv-head-cut"
+   ],
+   "mustMiss": [
+    "every run that exited 0 ran its whole storm and reached its own quit (none cut short)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "A STORM SLOWER THAN ITS STATED RATE: rv-head-slow, 6 asks a second",
+   "runs": [
+    "rv-head-slow"
+   ],
+   "mustMiss": [
+    "every storm ran at research 143’s rate, at least 12 asks a second",
+    "the watcher process answered at least 8 subscriptions a second in every run (the storm reached the native module)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "A STORM THAT NEVER REACHED THE NATIVE MODULE: rv-head-idle, the asks at the rate and almost every watch answered nothing to watch",
+   "runs": [
+    "rv-head-idle"
+   ],
+   "mustMiss": [
+    "the watcher process answered at least 8 subscriptions a second in every run (the storm reached the native module)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "A CRASH READ AS NOTHING: rv-head-torn-mid, its exit line torn by stderr and its re-bind timed out",
+   "runs": [
+    "rv-head-torn-mid"
+   ],
+   "mustMiss": [
+    "every P365 line the run wrote was read whole (none torn by the other stream)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "A CRASH READ AS NOTHING: rv-head-torn-front, stderr with no newline run into its exit line",
+   "runs": [
+    "rv-head-torn-front"
+   ],
+   "mustMiss": [
+    "every P365 line the run wrote was read whole (none torn by the other stream)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "his reports folder unread: never \"no report\", always unreadable",
+   "runs": [
+    "rv-head-reports-unread"
+   ],
+   "mustMiss": [
+    "the reading has no reportsAdded"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-numbered: the honest run, every line numbered",
+   "runs": [
+    "rv-head-numbered"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "A GIVE-UP IS A FAIL, NEVER MASKED AS UNREADABLE: rv-head-gaveup, 5 crashes in 10 minutes, the last never re-bound, the native side then flat",
+   "runs": [
+    "rv-head-gaveup"
+   ],
+   "mustFail": [
+    "every watcher process crash was followed by a re-bind of every live watch within the backoff plus 1 s"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "A CRASH READ AS NOTHING: rv-head-numbered-gap, the exit line gone whole and the re-bind timed out; only the gap in the numbers says so",
+   "runs": [
+    "rv-head-numbered-gap"
+   ],
+   "mustMiss": [
+    "every P365 line the run wrote was read whole (none torn by the other stream)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "MAIN LOADED THE WATCHER WITH NO CALL COUNTED: rv-head-native-import, loaded through a dynamic import() and seen by the dlopen hook",
+   "runs": [
+    "rv-head-native-import"
+   ],
+   "mustFail": [
+    "main made no native call and never loaded the module"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-parent",
+   "name": "a parent run that hung to the ceiling did not fault: no named signal",
+   "runs": [
+    "rv-parent-ceiling"
+   ],
+   "mustFail": [
+    "main ended by a signal in at least one run, its fault named from its dump"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-parent",
+   "name": "rv-parent-fault: the parent’s own sites faulted at 47 s, SIGTRAP, the freelist check named",
+   "runs": [
+    "rv-parent-fault"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SA-parent",
+   "name": "rv-parent-fault-after: the same fault with the order after",
+   "runs": [
+    "rv-parent-fault-after"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-parent",
+   "name": "A CRASH WHOSE DUMP COULD NOT BE READ is never a pass: rv-parent-dump-unread",
+   "runs": [
+    "rv-parent-dump-unread"
+   ],
+   "mustMiss": [
+    "every dump Crashpad wrote under the run’s profile was read"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SA-parent",
+   "name": "a parent run with the order after that ran clean: the parent did not fault",
+   "runs": [
+    "rv-parent-clean-after"
+   ],
+   "mustFail": [
+    "main ended by a signal in at least one run, its fault named from its dump"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "rv-sq-parent-abort: SIGABRT, napi_fatal_error on main named",
+   "runs": [
+    "rv-sq-parent-abort"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p65000\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n",
+      "watcherPid": null,
+      "watcher": null
+     },
+     {
+      "at": 14000,
+      "main": "p65000\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n",
+      "watcherPid": null,
+      "watcher": null
+     }
+    ]
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "the parent’s quit ended by SIGTRAP in the freelist check, not napi_fatal_error",
+   "runs": [
+    "rv-sq-parent-trap"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p65000\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n",
+      "watcherPid": null,
+      "watcher": null
+     },
+     {
+      "at": 14000,
+      "main": "p65000\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n",
+      "watcherPid": null,
+      "watcher": null
+     }
+    ]
+   },
+   "mustFail": [
+    "main ended by SIGABRT with napi_fatal_error named on main"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SO-head",
+   "name": "rv-so-head-ok: an honest ordinary HEAD run",
+   "runs": [
+    "rv-so-head-ok"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SO-head",
+   "name": "an ordinary HEAD run in which 2 of the 52 watches never started",
+   "runs": [
+    "rv-so-head-short"
+   ],
+   "mustFail": [
+    "every watch started (52 of 52)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SO-head",
+   "name": "A CRASH NEVER READ AS A CLEAN QUIT: main died by SIGSEGV after the ordinary run’s quit phase",
+   "runs": [
+    "rv-so-head-crash"
+   ],
+   "mustMiss": [
+    "the ordinary run ended by its own quit, exit 0"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "RA-parent",
+   "name": "a constructed RA at the parent whose main did not hold watcher.node",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins "
+    },
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": [
+     {
+      "repo": "/r/RA/repos/repo-00",
+      "at": 100000
+     },
+     {
+      "repo": "/r/RA/repos/repo-01",
+      "at": 101000
+     },
+     {
+      "repo": "/r/RA/repos/repo-02",
+      "at": 102000
+     },
+     {
+      "repo": "/r/RA/repos/repo-03",
+      "at": 103000
+     },
+     {
+      "repo": "/r/RA/repos/repo-04",
+      "at": 104000
+     },
+     {
+      "repo": "/r/RA/repos/repo-05",
+      "at": 105000
+     },
+     {
+      "repo": "/r/RA/repos/repo-06",
+      "at": 106000
+     },
+     {
+      "repo": "/r/RA/repos/repo-07",
+      "at": 107000
+     },
+     {
+      "repo": "/r/RA/repos/repo-08",
+      "at": 108000
+     },
+     {
+      "repo": "/r/RA/repos/repo-09",
+      "at": 109000
+     },
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 110000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 111000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 112000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 113000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 114000
+     },
+     {
+      "repo": "/r/RA/repos/repo-15",
+      "at": 115000
+     },
+     {
+      "repo": "/r/RA/repos/repo-16",
+      "at": 116000
+     },
+     {
+      "repo": "/r/RA/repos/repo-17",
+      "at": 117000
+     },
+     {
+      "repo": "/r/RA/repos/repo-18",
+      "at": 118000
+     },
+     {
+      "repo": "/r/RA/repos/repo-19",
+      "at": 119000
+     }
+    ],
+    "branches": [
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 120000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 121000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 122000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 123000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 124000
+     }
+    ],
+    "changes": [
+     {
+      "p": "\"/r/RA/repos/repo-00\"",
+      "t": 100372
+     },
+     {
+      "p": "\"/r/RA/repos/repo-01\"",
+      "t": 101381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-02\"",
+      "t": 102377
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 103390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-04\"",
+      "t": 104385
+     },
+     {
+      "p": "\"/r/RA/repos/repo-05\"",
+      "t": 105379
+     },
+     {
+      "p": "\"/r/RA/repos/repo-06\"",
+      "t": 106388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-07\"",
+      "t": 107376
+     },
+     {
+      "p": "\"/r/RA/repos/repo-08\"",
+      "t": 108383
+     },
+     {
+      "p": "\"/r/RA/repos/repo-09\"",
+      "t": 109391
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 110380
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 111386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 112374
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 113389
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 114382
+     },
+     {
+      "p": "\"/r/RA/repos/repo-15\"",
+      "t": 115378
+     },
+     {
+      "p": "\"/r/RA/repos/repo-16\"",
+      "t": 116387
+     },
+     {
+      "p": "\"/r/RA/repos/repo-17\"",
+      "t": 117384
+     },
+     {
+      "p": "\"/r/RA/repos/repo-18\"",
+      "t": 118375
+     },
+     {
+      "p": "\"/r/RA/repos/repo-19\"",
+      "t": 119392
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 120420
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 121417
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 122424
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 123421
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 124426
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 1
+     }
+    ],
+    "lsof": {
+     "mainPid": 4242,
+     "main": "p4242\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+     "children": [
+      {
+       "pid": 4343,
+       "command": "Electron Helper --type=gpu-process",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\n"
+      },
+      {
+       "pid": 4444,
+       "command": "Electron Helper (Renderer) --type=renderer",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\n"
+      }
+     ]
+    },
+    "events": [
+     {
+      "t": 1,
+      "ev": "loaded",
+      "pid": 4242
+     },
+     {
+      "t": 2,
+      "ev": "hooked"
+     },
+     {
+      "t": 127000,
+      "ev": "menu-quit",
+      "ok": true,
+      "label": "Quit Electron"
+     },
+     {
+      "t": 127050,
+      "ev": "before-quit"
+     }
+    ],
+    "exitAt": 129140,
+    "watcherAfter": [],
+    "dumpsFound": 0,
+    "census": []
+   },
+   "mustFail": [
+    "main holds watcher.node (lsof)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "RH-parent",
+   "name": "a constructed RH whose create never armed its id",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins codex, under /r/RH/bin"
+    },
+    "resolved": true,
+    "created": [
+     {
+      "name": "p365-rh-a",
+      "ok": true,
+      "id": "s-a"
+     },
+     {
+      "name": "p365-rh-b",
+      "ok": true,
+      "id": "s-b"
+     }
+    ],
+    "first": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": null
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": null
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "second": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": "0365b000-0000-4000-8000-00000000000b"
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "bWritten": true,
+    "firstAt": 2600,
+    "secondAt": 900
+   },
+   "mustFail": [
+    "the id armed both times: at the create, and by the boot rescue"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SO-parent",
+   "name": "A HANG READ AS A CLEAN EXIT: rv-so-ceiling, ord1 whose quit hung to the ceiling, exit 0 by the teardown’s SIGTERM",
+   "runs": [
+    "rv-so-ceiling"
+   ],
+   "mustMiss": [
+    "the ordinary run ended by its own quit, exit 0"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "rv-sq-ok: an honest HEAD quit mid-storm, exit 0 by itself",
+   "runs": [
+    "rv-sq-ok"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     },
+     {
+      "at": 14000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     }
+    ]
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "A HANG READ AS A CLEAN EXIT: rv-sq-ceiling, the quit hung and the ceiling’s SIGTERM exited 0",
+   "runs": [
+    "rv-sq-ceiling"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     },
+     {
+      "at": 14000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     }
+    ]
+   },
+   "mustFail": [
+    "main exited 0"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "A HANG READ AS A CLEAN EXIT: rv-sk-ceiling, the constructed SK run ended by the ceiling, exit 0",
+   "runs": [
+    "rv-sk-ceiling"
+   ],
+   "extra": {
+    "signals": {
+     "pause": {
+      "seq": 1,
+      "at": 29100
+     },
+     "kill": {
+      "pid": 50001,
+      "verified": true,
+      "sent": true,
+      "at": 29400,
+      "ppid": 49999
+     },
+     "resume": {
+      "seq": 2,
+      "at": 31790
+     },
+     "stop": {
+      "pid": 50002,
+      "verified": true,
+      "sent": true,
+      "at": 91100,
+      "ppid": 49999
+     },
+     "stoppedGone": {
+      "goneAt": 93300
+     },
+     "cont": {
+      "sent": false,
+      "at": null
+     }
+    },
+    "hostSource": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n"
+   },
+   "mustFail": [
+    "main never faulted: exit 0 and no dump of main"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "A RUN CUT SHORT, GRADED WHOLE: rv-sk-cut, the constructed SK run with no quit of its own",
+   "runs": [
+    "rv-sk-cut"
+   ],
+   "extra": {
+    "signals": {
+     "pause": {
+      "seq": 1,
+      "at": 29100
+     },
+     "kill": {
+      "pid": 50001,
+      "verified": true,
+      "sent": true,
+      "at": 29400,
+      "ppid": 49999
+     },
+     "resume": {
+      "seq": 2,
+      "at": 31790
+     },
+     "stop": {
+      "pid": 50002,
+      "verified": true,
+      "sent": true,
+      "at": 91100,
+      "ppid": 49999
+     },
+     "stoppedGone": {
+      "goneAt": 93300
+     },
+     "cont": {
+      "sent": false,
+      "at": null
+     }
+    },
+    "hostSource": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n"
+   },
+   "mustMiss": [
+    "the storm ran its whole length and reached its own quit (not cut short)"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "RA-head",
+   "name": "a constructed RA at HEAD that never counted its dumps: no dump reading, never \"no dump\"",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins "
+    },
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": [
+     {
+      "repo": "/r/RA/repos/repo-00",
+      "at": 100000
+     },
+     {
+      "repo": "/r/RA/repos/repo-01",
+      "at": 101000
+     },
+     {
+      "repo": "/r/RA/repos/repo-02",
+      "at": 102000
+     },
+     {
+      "repo": "/r/RA/repos/repo-03",
+      "at": 103000
+     },
+     {
+      "repo": "/r/RA/repos/repo-04",
+      "at": 104000
+     },
+     {
+      "repo": "/r/RA/repos/repo-05",
+      "at": 105000
+     },
+     {
+      "repo": "/r/RA/repos/repo-06",
+      "at": 106000
+     },
+     {
+      "repo": "/r/RA/repos/repo-07",
+      "at": 107000
+     },
+     {
+      "repo": "/r/RA/repos/repo-08",
+      "at": 108000
+     },
+     {
+      "repo": "/r/RA/repos/repo-09",
+      "at": 109000
+     },
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 110000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 111000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 112000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 113000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 114000
+     },
+     {
+      "repo": "/r/RA/repos/repo-15",
+      "at": 115000
+     },
+     {
+      "repo": "/r/RA/repos/repo-16",
+      "at": 116000
+     },
+     {
+      "repo": "/r/RA/repos/repo-17",
+      "at": 117000
+     },
+     {
+      "repo": "/r/RA/repos/repo-18",
+      "at": 118000
+     },
+     {
+      "repo": "/r/RA/repos/repo-19",
+      "at": 119000
+     }
+    ],
+    "branches": [
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 120000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 121000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 122000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 123000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 124000
+     }
+    ],
+    "changes": [
+     {
+      "p": "\"/r/RA/repos/repo-00\"",
+      "t": 100372
+     },
+     {
+      "p": "\"/r/RA/repos/repo-01\"",
+      "t": 101382
+     },
+     {
+      "p": "\"/r/RA/repos/repo-02\"",
+      "t": 102379
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 103390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-04\"",
+      "t": 104386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-05\"",
+      "t": 105381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-06\"",
+      "t": 106388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-07\"",
+      "t": 107377
+     },
+     {
+      "p": "\"/r/RA/repos/repo-08\"",
+      "t": 108385
+     },
+     {
+      "p": "\"/r/RA/repos/repo-09\"",
+      "t": 109391
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 110381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 111388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 112374
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 113390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 114384
+     },
+     {
+      "p": "\"/r/RA/repos/repo-15\"",
+      "t": 115378
+     },
+     {
+      "p": "\"/r/RA/repos/repo-16\"",
+      "t": 116388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-17\"",
+      "t": 117386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-18\"",
+      "t": 118375
+     },
+     {
+      "p": "\"/r/RA/repos/repo-19\"",
+      "t": 119393
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 120431
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 121418
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 122425
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 123422
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 124429
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 1
+     }
+    ],
+    "lsof": {
+     "mainPid": 4242,
+     "main": "p4242\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+     "children": [
+      {
+       "pid": 4343,
+       "command": "Electron Helper --type=utility --utility-sub-type=node.mojom.NodeService",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+      },
+      {
+       "pid": 4444,
+       "command": "Electron Helper (Renderer) --type=renderer",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\n"
+      }
+     ]
+    },
+    "events": [
+     {
+      "t": 1,
+      "ev": "loaded",
+      "pid": 4242
+     },
+     {
+      "t": 2,
+      "ev": "hooked"
+     },
+     {
+      "t": 127000,
+      "ev": "menu-quit",
+      "ok": true,
+      "label": "Quit Electron"
+     },
+     {
+      "t": 127050,
+      "ev": "before-quit"
+     }
+    ],
+    "exitAt": 129190,
+    "watcherAfter": [],
+    "census": []
+   },
+   "mustMiss": [
+    "the reading has no ra.dumps"
+   ],
+   "by": "the probe review"
+  },
+  {
+   "arm": "RA-head",
+   "name": "a constructed RA at HEAD whose children were listed and lsof answered none of them",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins "
+    },
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": [
+     {
+      "repo": "/r/RA/repos/repo-00",
+      "at": 100000
+     },
+     {
+      "repo": "/r/RA/repos/repo-01",
+      "at": 101000
+     },
+     {
+      "repo": "/r/RA/repos/repo-02",
+      "at": 102000
+     },
+     {
+      "repo": "/r/RA/repos/repo-03",
+      "at": 103000
+     },
+     {
+      "repo": "/r/RA/repos/repo-04",
+      "at": 104000
+     },
+     {
+      "repo": "/r/RA/repos/repo-05",
+      "at": 105000
+     },
+     {
+      "repo": "/r/RA/repos/repo-06",
+      "at": 106000
+     },
+     {
+      "repo": "/r/RA/repos/repo-07",
+      "at": 107000
+     },
+     {
+      "repo": "/r/RA/repos/repo-08",
+      "at": 108000
+     },
+     {
+      "repo": "/r/RA/repos/repo-09",
+      "at": 109000
+     },
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 110000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 111000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 112000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 113000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 114000
+     },
+     {
+      "repo": "/r/RA/repos/repo-15",
+      "at": 115000
+     },
+     {
+      "repo": "/r/RA/repos/repo-16",
+      "at": 116000
+     },
+     {
+      "repo": "/r/RA/repos/repo-17",
+      "at": 117000
+     },
+     {
+      "repo": "/r/RA/repos/repo-18",
+      "at": 118000
+     },
+     {
+      "repo": "/r/RA/repos/repo-19",
+      "at": 119000
+     }
+    ],
+    "branches": [
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 120000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 121000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 122000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 123000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 124000
+     }
+    ],
+    "changes": [
+     {
+      "p": "\"/r/RA/repos/repo-00\"",
+      "t": 100372
+     },
+     {
+      "p": "\"/r/RA/repos/repo-01\"",
+      "t": 101382
+     },
+     {
+      "p": "\"/r/RA/repos/repo-02\"",
+      "t": 102379
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 103390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-04\"",
+      "t": 104386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-05\"",
+      "t": 105381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-06\"",
+      "t": 106388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-07\"",
+      "t": 107377
+     },
+     {
+      "p": "\"/r/RA/repos/repo-08\"",
+      "t": 108385
+     },
+     {
+      "p": "\"/r/RA/repos/repo-09\"",
+      "t": 109391
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 110381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 111388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 112374
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 113390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 114384
+     },
+     {
+      "p": "\"/r/RA/repos/repo-15\"",
+      "t": 115378
+     },
+     {
+      "p": "\"/r/RA/repos/repo-16\"",
+      "t": 116388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-17\"",
+      "t": 117386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-18\"",
+      "t": 118375
+     },
+     {
+      "p": "\"/r/RA/repos/repo-19\"",
+      "t": 119393
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 120431
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 121418
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 122425
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 123422
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 124429
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 1
+     }
+    ],
+    "lsof": {
+     "mainPid": 4242,
+     "main": "p4242\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+     "children": [
+      {
+       "pid": 4343,
+       "command": "Electron Helper --type=utility --utility-sub-type=node.mojom.NodeService",
+       "text": null
+      },
+      {
+       "pid": 4444,
+       "command": "Electron Helper (Renderer) --type=renderer",
+       "text": null
+      }
+     ]
+    },
+    "events": [
+     {
+      "t": 1,
+      "ev": "loaded",
+      "pid": 4242
+     },
+     {
+      "t": 2,
+      "ev": "hooked"
+     },
+     {
+      "t": 127000,
+      "ev": "menu-quit",
+      "ok": true,
+      "label": "Quit Electron"
+     },
+     {
+      "t": 127050,
+      "ev": "before-quit"
+     }
+    ],
+    "exitAt": 129190,
+    "watcherAfter": [],
+    "dumpsFound": 0,
+    "census": []
+   },
+   "mustMiss": [
+    "lsof read main’s child processes"
+   ],
+   "by": "the probe review"
+  }
+ ],
+ "rawReads": [
+  {
+   "arm": "SP-parent",
+   "name": "p1 and p2: SIGTRAP in both, the freelist check named in both (SPEC §2.3)",
+   "runs": [
+    "p1",
+    "p2"
+   ],
+   "expect": {
+    "storm.runsRead": 2,
+    "main.signalRuns": 2,
+    "main.namedSignalRuns": 2,
+    "main.faults": [
+     "freelist check",
+     "freelist check"
+    ],
+    "storm.orderBefore": true,
+    "storm.rateOk": true,
+    "dumps.found": 2,
+    "dumps.read": 2,
+    "main.dumps": 2,
+    "watcherProcess.forks": 0
+   }
+  },
+  {
+   "arm": "SP-parent",
+   "name": "rawk1: #271’s stream stop (SPEC §2.1)",
+   "runs": [
+    "rawk1"
+   ],
+   "expect": {
+    "main.faults": [
+     "#271 stream stop"
+    ],
+    "main.signalRuns": 1
+   }
+  },
+  {
+   "arm": "SP-parent",
+   "name": "pilot1: a signal, and nothing named without Electron’s symbols",
+   "runs": [
+    "pilot1"
+   ],
+   "expect": {
+    "main.signalRuns": 1,
+    "main.namedSignalRuns": 0
+   }
+  },
+  {
+   "arm": "SP-head",
+   "name": "u1: 6 processes, 5 crashes, 5 re-bound, main exit 0 (SPEC §2.4)",
+   "runs": [
+    "u1"
+   ],
+   "expect": {
+    "watcherProcess.forks": 6,
+    "watcherProcess.ready": 6,
+    "watcherProcess.crashes": 5,
+    "watcherProcess.rebound": 5,
+    "main.exit0Runs": 1,
+    "main.dumps": 0,
+    "dumps.found": 5,
+    "storm.orderBefore": true
+   }
+  },
+  {
+   "arm": "SP-head",
+   "name": "u2: no crash in 300 s (SPEC §2.4)",
+   "runs": [
+    "u2"
+   ],
+   "expect": {
+    "watcherProcess.crashes": 0,
+    "main.exit0Runs": 1,
+    "dumps.found": 0,
+    "storm.rateOk": true
+   }
+  },
+  {
+   "arm": "SA-head",
+   "name": "u4: one crash, re-bound; the order after (SPEC §2.4)",
+   "runs": [
+    "u4"
+   ],
+   "expect": {
+    "watcherProcess.crashes": 1,
+    "watcherProcess.rebound": 1,
+    "storm.orderAfter": true,
+    "main.exit0Runs": 1
+   }
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "mq1: SIGABRT, napi_fatal_error, the quit asked mid-storm with the pool held (SPEC §2.1)",
+   "runs": [
+    "mq1"
+   ],
+   "expect": {
+    "exit.signal": "SIGABRT",
+    "main.faults": [
+     "napi_fatal_error"
+    ],
+    "sq.quit.asked": true,
+    "sq.quit.saturated": true,
+    "sq.quit.marked": false,
+    "sq.stormMs": 20003
+   }
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "mq1 without Electron’s symbols: still napi_fatal_error",
+   "runs": [
+    "mq1-noef"
+   ],
+   "expect": {
+    "main.faults": [
+     "napi_fatal_error"
+    ]
+   }
+  },
+  {
+   "arm": "SO-parent",
+   "name": "ord1: 52 subscribes, 17 in flight, 57 ms, 20 then 25 changes, the quit’s closes in 10 ms (SPEC §2.3)",
+   "runs": [
+    "ord1"
+   ],
+   "expect": {
+    "so.boot.ms": 57,
+    "so.boot.started": 52,
+    "so.boot.expected": 52,
+    "so.native.subscribe": 52,
+    "so.native.unsubscribe": 52,
+    "so.native.maxInFlight": 17,
+    "so.native.loaded": true,
+    "so.quiet.changes": 20,
+    "so.branch.changes": 25,
+    "so.quit.drainMs": 10,
+    "so.quit.left": 0,
+    "exit.code": 0
+   }
+  },
+  {
+   "arm": "SP-parent",
+   "name": "abA1: failed subscribes and no folder removed ran 300 s clean (SPEC §2.1)",
+   "runs": [
+    "abA1"
+   ],
+   "expect": {
+    "main.exit0Runs": 1,
+    "main.signalRuns": 0,
+    "storm.rateOk": true,
+    "dumps.found": 0
+   }
+  },
+  {
+   "arm": "SK-head",
+   "name": "the constructed SK run, read",
+   "runs": [
+    "sk-constructed"
+   ],
+   "extra": {
+    "signals": {
+     "pause": {
+      "seq": 1,
+      "at": 29100
+     },
+     "kill": {
+      "pid": 50001,
+      "verified": true,
+      "sent": true,
+      "at": 29400,
+      "ppid": 49999
+     },
+     "resume": {
+      "seq": 2,
+      "at": 31790
+     },
+     "stop": {
+      "pid": 50002,
+      "verified": true,
+      "sent": true,
+      "at": 91100,
+      "ppid": 49999
+     },
+     "stoppedGone": {
+      "goneAt": 93300
+     },
+     "cont": {
+      "sent": false,
+      "at": null
+     }
+    },
+    "hostSource": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n"
+   },
+   "expect": {
+    "sk.kill.gen": 1,
+    "sk.rebind.watches": 9,
+    "sk.rebind.asked": 9,
+    "sk.restartLines": 1,
+    "sk.rescan.exact": true,
+    "sk.stop.gen": 2,
+    "sk.replacement.at": 93250,
+    "sk.replacement.forkAt": 94252,
+    "sk.replacement.deadlineAt": 93240,
+    "sk.replacement.ok": true,
+    "sk.boundLines": 1,
+    "sk.stoppedGone.beforeCont": true,
+    "host.linesRead": true
+   }
+  },
+  {
+   "arm": "RA-head",
+   "name": "a constructed RA at HEAD, read",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins "
+    },
+    "world": {
+     "opened": 20,
+     "watched": 20,
+     "closed": 10
+    },
+    "edits": [
+     {
+      "repo": "/r/RA/repos/repo-00",
+      "at": 100000
+     },
+     {
+      "repo": "/r/RA/repos/repo-01",
+      "at": 101000
+     },
+     {
+      "repo": "/r/RA/repos/repo-02",
+      "at": 102000
+     },
+     {
+      "repo": "/r/RA/repos/repo-03",
+      "at": 103000
+     },
+     {
+      "repo": "/r/RA/repos/repo-04",
+      "at": 104000
+     },
+     {
+      "repo": "/r/RA/repos/repo-05",
+      "at": 105000
+     },
+     {
+      "repo": "/r/RA/repos/repo-06",
+      "at": 106000
+     },
+     {
+      "repo": "/r/RA/repos/repo-07",
+      "at": 107000
+     },
+     {
+      "repo": "/r/RA/repos/repo-08",
+      "at": 108000
+     },
+     {
+      "repo": "/r/RA/repos/repo-09",
+      "at": 109000
+     },
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 110000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 111000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 112000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 113000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 114000
+     },
+     {
+      "repo": "/r/RA/repos/repo-15",
+      "at": 115000
+     },
+     {
+      "repo": "/r/RA/repos/repo-16",
+      "at": 116000
+     },
+     {
+      "repo": "/r/RA/repos/repo-17",
+      "at": 117000
+     },
+     {
+      "repo": "/r/RA/repos/repo-18",
+      "at": 118000
+     },
+     {
+      "repo": "/r/RA/repos/repo-19",
+      "at": 119000
+     }
+    ],
+    "branches": [
+     {
+      "repo": "/r/RA/repos/repo-10",
+      "at": 120000
+     },
+     {
+      "repo": "/r/RA/repos/repo-11",
+      "at": 121000
+     },
+     {
+      "repo": "/r/RA/repos/repo-12",
+      "at": 122000
+     },
+     {
+      "repo": "/r/RA/repos/repo-13",
+      "at": 123000
+     },
+     {
+      "repo": "/r/RA/repos/repo-14",
+      "at": 124000
+     }
+    ],
+    "changes": [
+     {
+      "p": "\"/r/RA/repos/repo-00\"",
+      "t": 100372
+     },
+     {
+      "p": "\"/r/RA/repos/repo-01\"",
+      "t": 101382
+     },
+     {
+      "p": "\"/r/RA/repos/repo-02\"",
+      "t": 102379
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 103390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-04\"",
+      "t": 104386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-05\"",
+      "t": 105381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-06\"",
+      "t": 106388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-07\"",
+      "t": 107377
+     },
+     {
+      "p": "\"/r/RA/repos/repo-08\"",
+      "t": 108385
+     },
+     {
+      "p": "\"/r/RA/repos/repo-09\"",
+      "t": 109391
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 110381
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 111388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 112374
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 113390
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 114384
+     },
+     {
+      "p": "\"/r/RA/repos/repo-15\"",
+      "t": 115378
+     },
+     {
+      "p": "\"/r/RA/repos/repo-16\"",
+      "t": 116388
+     },
+     {
+      "p": "\"/r/RA/repos/repo-17\"",
+      "t": 117386
+     },
+     {
+      "p": "\"/r/RA/repos/repo-18\"",
+      "t": 118375
+     },
+     {
+      "p": "\"/r/RA/repos/repo-19\"",
+      "t": 119393
+     },
+     {
+      "p": "\"/r/RA/repos/repo-10\"",
+      "t": 120431
+     },
+     {
+      "p": "\"/r/RA/repos/repo-11\"",
+      "t": 121418
+     },
+     {
+      "p": "\"/r/RA/repos/repo-12\"",
+      "t": 122425
+     },
+     {
+      "p": "\"/r/RA/repos/repo-13\"",
+      "t": 123422
+     },
+     {
+      "p": "\"/r/RA/repos/repo-14\"",
+      "t": 124429
+     },
+     {
+      "p": "\"/r/RA/repos/repo-03\"",
+      "t": 1
+     }
+    ],
+    "lsof": {
+     "mainPid": 4242,
+     "main": "p4242\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+     "children": [
+      {
+       "pid": 4343,
+       "command": "Electron Helper --type=utility --utility-sub-type=node.mojom.NodeService",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+      },
+      {
+       "pid": 4444,
+       "command": "Electron Helper (Renderer) --type=renderer",
+       "text": "p4343\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\n"
+      }
+     ]
+    },
+    "events": [
+     {
+      "t": 1,
+      "ev": "loaded",
+      "pid": 4242
+     },
+     {
+      "t": 2,
+      "ev": "hooked"
+     },
+     {
+      "t": 127000,
+      "ev": "menu-quit",
+      "ok": true,
+      "label": "Quit Electron"
+     },
+     {
+      "t": 127050,
+      "ev": "before-quit"
+     }
+    ],
+    "exitAt": 129190,
+    "watcherAfter": [],
+    "dumpsFound": 0,
+    "census": []
+   },
+   "expect": {
+    "ra.edits.n": 20,
+    "ra.edits.heard": 20,
+    "ra.edits.median": 384.5,
+    "ra.branches.median": 425,
+    "ra.quit.wallMs": 2190,
+    "ra.lsof.mainHolds": false,
+    "ra.lsof.processHolds": true,
+    "ra.lsof.holders": [
+     4343
+    ],
+    "ra.processGone": true
+   }
+  },
+  {
+   "arm": "RH-parent",
+   "name": "a constructed RH, read",
+   "extra": {
+    "agents": {
+     "ok": true,
+     "said": "nothing resolved in the app's own scan but the stand-ins codex, under /r/RH/bin"
+    },
+    "resolved": true,
+    "created": [
+     {
+      "name": "p365-rh-a",
+      "ok": true,
+      "id": "s-a"
+     },
+     {
+      "name": "p365-rh-b",
+      "ok": true,
+      "id": "s-b"
+     }
+    ],
+    "first": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": null
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "second": [
+     {
+      "id": "s-a",
+      "name": "p365-rh-a",
+      "status": "running",
+      "agentSessionId": "0365a000-0000-4000-8000-00000000000a"
+     },
+     {
+      "id": "s-b",
+      "name": "p365-rh-b",
+      "status": "running",
+      "agentSessionId": "0365b000-0000-4000-8000-00000000000b"
+     },
+     {
+      "id": "s-x",
+      "name": "something else",
+      "status": "running",
+      "agentSessionId": "ffff0000-0000-4000-8000-000000000000"
+     }
+    ],
+    "bWritten": true,
+    "firstAt": 2600,
+    "secondAt": 900
+   },
+   "expect": {
+    "rh.created": 2,
+    "rh.first.a": "0365a000-0000-4000-8000-00000000000a",
+    "rh.first.b": null,
+    "rh.second.a": "0365a000-0000-4000-8000-00000000000a",
+    "rh.second.b": "0365b000-0000-4000-8000-00000000000b"
+   }
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-ok, read",
+   "runs": [
+    "rv-head-ok"
+   ],
+   "expect": {
+    "storm.runsRead": 1,
+    "storm.rateOk": true,
+    "storm.cutShort": 0,
+    "storm.processRateOk": true,
+    "lines.torn": 0,
+    "main.exit0Runs": 1,
+    "main.dumps": 0,
+    "main.nativeCalls": 0,
+    "watcherProcess.forks": 2,
+    "watcherProcess.ready": 2,
+    "watcherProcess.crashes": 1,
+    "watcherProcess.rebound": 1,
+    "dumps.found": 1,
+    "dumps.read": 1,
+    "reportsAdded": 0
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-ceiling, read: no clean exit, and not counted as cut short (it is the hang the clause names)",
+   "runs": [
+    "rv-head-ceiling"
+   ],
+   "expect": {
+    "main.exit0Runs": 0,
+    "storm.cutShort": 0,
+    "storm.rateOk": true
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-cut, read: exit 0, cut short",
+   "runs": [
+    "rv-head-cut"
+   ],
+   "expect": {
+    "main.exit0Runs": 1,
+    "storm.cutShort": 1
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-numbered-gap, read: one line lost, the crash it held not counted",
+   "runs": [
+    "rv-head-numbered-gap"
+   ],
+   "expect": {
+    "lines.torn": 1,
+    "watcherProcess.crashes": 0
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-gaveup, read: the floor not met on its own, excused by the give-up, 5 crashes and 4 re-bound",
+   "runs": [
+    "rv-head-gaveup"
+   ],
+   "expect": {
+    "storm.processRateOk": true,
+    "watcherProcess.gaveUp": true,
+    "watcherProcess.crashes": 5,
+    "watcherProcess.rebound": 4
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-native-import, read: no call, loaded",
+   "runs": [
+    "rv-head-native-import"
+   ],
+   "expect": {
+    "main.nativeCalls": 0,
+    "main.nativeLoaded": true
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-torn-mid, read: one torn line, and the crash it held is not counted",
+   "runs": [
+    "rv-head-torn-mid"
+   ],
+   "expect": {
+    "lines.torn": 1,
+    "watcherProcess.crashes": 0
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-torn-front, read: one torn line, the crash not counted",
+   "runs": [
+    "rv-head-torn-front"
+   ],
+   "expect": {
+    "lines.torn": 1,
+    "watcherProcess.crashes": 0
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-idle, read: the asks at the rate, the native side not",
+   "runs": [
+    "rv-head-idle"
+   ],
+   "expect": {
+    "storm.rateOk": true,
+    "storm.processRateOk": false
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv-head-slow, read",
+   "runs": [
+    "rv-head-slow"
+   ],
+   "expect": {
+    "storm.rateOk": false,
+    "storm.processRateOk": false
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "rv-sq-ceiling, read: exit 0, not clean, the ceiling named",
+   "runs": [
+    "rv-sq-ceiling"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     },
+     {
+      "at": 14000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     }
+    ]
+   },
+   "expect": {
+    "exit.code": 0,
+    "exit.clean": false,
+    "exit.ceiling": true,
+    "sq.quit.asked": true
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "rv-sk-cut, read",
+   "runs": [
+    "rv-sk-cut"
+   ],
+   "extra": {
+    "signals": {
+     "pause": {
+      "seq": 1,
+      "at": 29100
+     },
+     "kill": {
+      "pid": 50001,
+      "verified": true,
+      "sent": true,
+      "at": 29400,
+      "ppid": 49999
+     },
+     "resume": {
+      "seq": 2,
+      "at": 31790
+     },
+     "stop": {
+      "pid": 50002,
+      "verified": true,
+      "sent": true,
+      "at": 91100,
+      "ppid": 49999
+     },
+     "stoppedGone": {
+      "goneAt": 93300
+     },
+     "cont": {
+      "sent": false,
+      "at": null
+     }
+    },
+    "hostSource": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n"
+   },
+   "expect": {
+    "sk.cutShort": 1,
+    "exit.clean": true,
+    "lines.torn": 0
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "u1 and u2 read on the native side from the prototype’s own subOk",
+   "runs": [
+    "u1",
+    "u2"
+   ],
+   "expect": {
+    "storm.processRateOk": true,
+    "storm.cutShort": 0,
+    "lines.torn": 0
+   },
+   "by": "the probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "rv-sq-ok, read: no watcher dump, so none from the quit",
+   "runs": [
+    "rv-sq-ok"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     },
+     {
+      "at": 14000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     }
+    ]
+   },
+   "expect": {
+    "watcher.quitDumps": 0
+   },
+   "by": "the fix round"
+  }
+ ],
+ "hostLines": [
+  {
+   "name": "a host-shaped source in SPEC §4.1’s words (constructed)",
+   "source": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n",
+   "categories": [
+    "exit",
+    "restart",
+    "gaveUp",
+    "turn",
+    "bound"
+   ],
+   "lines": [
+    [
+     "[gmux-watcher] the file watcher process exited (code 9)",
+     "exit"
+    ],
+    [
+     "[gmux-watcher] the file watcher restarted (generation 2, 9 watches re-bound)",
+     "restart"
+    ],
+    [
+     "[gmux-watcher] the file watcher gave up after 5 exits in 10 minutes; nothing more is watched until the next launch",
+     "gaveUp"
+    ],
+    [
+     "[gmux-watcher] a close waited 2500 ms for its turn (3 behind it)",
+     "turn"
+    ],
+    [
+     "[gmux-watcher] the file watcher did not answer a close within 2000 ms; replacing it",
+     "bound"
+    ],
+    [
+     "[gmux-watcher] the file watcher restarted (generation 2, 9 watches re-bound) {\"gen\":2}",
+     "restart"
+    ],
+    [
+     "[gmux-watcher] repo watcher (/x/repo-3): The file watcher restarted. File system must be re-scanned.",
+     null
+    ],
+    [
+     "[gmux-config] the file watcher restarted (generation 2, 9 watches re-bound)",
+     null
+    ]
+   ]
+  },
+  {
+   "name": "lines written from a constant object of the same source, a bare constant first argument, and a call that names none",
+   "source": "export const LINES = Object.freeze({\n  exited: 'the helper exited',\n  restarted: 'the helper restarted',\n  noAnswer: 'the helper did not answer',\n  quiet: 'the helper is quiet'\n});\nconst SOLO = 'the helper kept exiting, so it stopped restarting it';\nlog.warn(`${LINES.exited} (code ${String(code)})`, { code });\nlog.info(`${LINES.restarted} (generation ${g}, ${n} watches re-bound)`);\nlog.warn(`${LINES.noAnswer} a ${op} within ${ms} ms, so it was ${outcome}`);\nlog.warn(SOLO + ' (' + String(n) + ' exits)');\nlog.info(LINES.quiet);\nlog.warn(unknownThing);\n",
+   "categories": [
+    "exit",
+    "restart",
+    "bound",
+    "gaveUp",
+    "other"
+   ],
+   "lines": [
+    [
+     "[gmux-watcher] the helper exited (code 9) {\"code\":9}",
+     "exit"
+    ],
+    [
+     "[gmux-watcher] the helper restarted (generation 2, 9 watches re-bound)",
+     "restart"
+    ],
+    [
+     "[gmux-watcher] the helper did not answer a close within 2000 ms, so it was replaced",
+     "bound"
+    ],
+    [
+     "[gmux-watcher] the helper kept exiting, so it stopped restarting it (5 exits)",
+     "gaveUp"
+    ],
+    [
+     "[gmux-watcher] the helper is quiet",
+     "other"
+    ],
+    [
+     "[gmux-watcher] something else entirely",
+     null
+    ]
+   ]
+  },
+  {
+   "name": "a + chain with a call in it, and a site’s own line",
+   "source": "log.warn('the watcher process exited with ' + String(code) + ', restarting it');\nwatcherLog.warn(`repo watcher (${repoPath}): ${err.message}`);\nlog.info(\"the watcher process stopped answering; replacing it\");\n",
+   "categories": [
+    "exit",
+    "other",
+    "bound"
+   ],
+   "lines": [
+    [
+     "[gmux-watcher] the watcher process exited with 5, restarting it",
+     "exit"
+    ],
+    [
+     "[gmux-watcher] repo watcher (/x): boom",
+     "other"
+    ],
+    [
+     "[gmux-watcher] the watcher process stopped answering; replacing it",
+     "bound"
+    ]
+   ]
+  }
+ ]
+}

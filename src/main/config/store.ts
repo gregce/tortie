@@ -31,7 +31,6 @@
  * broken configuration file can never cost a user the agents the build ships.
  */
 
-import watcher from '@parcel/watcher';
 import { readFileSync, statSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { AgentOverlayProblem, AgentOverlayV1 } from '@shared/agent-overlay';
@@ -46,8 +45,8 @@ import type { ConfigRowSource, ConfigSourceError, ConfigSourceRow } from './ipc'
 import { setConfigRowSource } from './ipc';
 import type { AgentOverlayMerge, MergedAgentEntry } from './overlay';
 import { executionFieldsOf, mergeAgentOverlay, parseAgentOverlay } from './overlay';
-import { agentOverlayPath, configDir, ensureConfigDir } from './paths';
-import { trackWatcherClose } from '../watcher/teardown';
+import { agentOverlayPath, configDir, configFileStamp, ensureConfigDir } from './paths';
+import { isRescanRequired, watchFolder } from '../watcher';
 
 import { getLog } from '../log';
 
@@ -89,6 +88,8 @@ let listeners: Listener[] = [];
 let diskReads = 0;
 let watchStop: (() => Promise<void>) | null = null;
 let watchTimer: NodeJS.Timeout | null = null;
+/** `configFileStamp` of the file as the last load found it, or null before any load. */
+let loadedStamp: string | null = null;
 
 /** The compiled table on its own, which is what a build with no file has. */
 function compiledOnly(reason: AgentOverlayLoadReason): AgentOverlaySnapshot {
@@ -216,6 +217,9 @@ export function loadAgentOverlay(
   let present = false;
 
   diskReads += 1;
+  // Taken BEFORE the read, so a write racing it can only make the watch's
+  // start-up check read once more, never miss.
+  loadedStamp = configFileStamp(path);
   let text: string | null = null;
   try {
     const stat = statSync(path);
@@ -381,7 +385,7 @@ export async function initAgentOverlay(): Promise<AgentOverlaySnapshot> {
 }
 
 /**
- * Watch the configuration directory.
+ * The debounced reload the watcher schedules.
  *
  * The debounce window does not reset on new events. The first event schedules
  * the flush, so an editor that writes, renames and touches the file in quick
@@ -389,34 +393,74 @@ export async function initAgentOverlay(): Promise<AgentOverlaySnapshot> {
  * continuously still reloads about every 300 ms instead of never. This is the
  * same recipe the repository watcher already uses.
  */
+function scheduleWatchReload(): void {
+  if (watchTimer !== null) return;
+  watchTimer = setTimeout(() => {
+    watchTimer = null;
+    try {
+      loadAgentOverlay('watch');
+    } catch (loadErr) {
+      configLog.warn(
+        `agents.json reload failed: ${(loadErr as Error).message}`
+      );
+    }
+  }, WATCH_DEBOUNCE_MS);
+  watchTimer.unref?.();
+}
+
+/**
+ * Watch the configuration directory.
+ *
+ * PHASE 365. The watch goes through `watchFolder`, which runs it one at a time
+ * with every other watch in Tortie, in a process of its own, and tracks its
+ * close for the quit's drains (so `watchStop` is the close and nothing more).
+ * Four answers are new. `null` is "nothing to watch", which takes the same
+ * warn and `false` a watch that cannot start always took. An error that says
+ * the file system must be re-scanned (a dropped batch, or the watcher's process
+ * having been replaced) schedules the reload, because events may have been lost
+ * and this callback used to drop every error. Any other error is the library's
+ * (or the watcher host's) word that the watch has ENDED, so it is said once, in
+ * the words a watch that cannot start uses (the fix round). And once the stream
+ * is live, a file that is not what the last read saw is read once, because a
+ * stream sees nothing from before it started: the first watch of a launch waits
+ * for the watcher process to start (about 60 ms against the parent's 2 to 4),
+ * and an edit made 25 ms after the boot read was lost until the next edit,
+ * which the fix round's verifier measured (the spec's D9 asked only when the
+ * wait passed the 300 ms debounce window).
+ */
 export async function startAgentOverlayWatch(): Promise<boolean> {
   if (watchStop !== null) return true;
   const dir = configDir();
+  let ended = false;
   try {
-    const sub = await watcher.subscribe(dir, (err, events) => {
-      if (err !== null && err !== undefined) return;
+    const sub = await watchFolder(dir, {}, (err, events) => {
+      if (err) {
+        if (isRescanRequired(err)) scheduleWatchReload();
+        else if (!ended) {
+          ended = true;
+          configLog.warn(
+            `not watching ${dir} for changes: ${err.message.replace(/\.$/, '')}. ` +
+              `Tortie will still re-read agents.json when you ask it to.`
+          );
+        }
+        return;
+      }
       const relevant = events.some(
         (event) => basename(event.path) === AGENT_OVERLAY_FILENAME
       );
-      if (!relevant || watchTimer !== null) return;
-      watchTimer = setTimeout(() => {
-        watchTimer = null;
-        try {
-          loadAgentOverlay('watch');
-        } catch (loadErr) {
-          configLog.warn(
-            `agents.json reload failed: ${(loadErr as Error).message}`
-          );
-        }
-      }, WATCH_DEBOUNCE_MS);
-      watchTimer.unref?.();
+      if (relevant) scheduleWatchReload();
     });
-    // Tracked AND awaited (Phase 36 fix round). stopAgentOverlayWatch awaits
-    // this, but the quit path bounds that await with a race; the tracked set
-    // is what lets `pendingWatcherCloseCount()` see an unsubscribe that
-    // outlives the bound, so the quit drains again instead of running
-    // node::FreeEnvironment into the queued napi completion.
-    watchStop = () => trackWatcherClose(sub.unsubscribe());
+    if (sub === null) {
+      configLog.warn(
+        `not watching ${dir} for changes. ` +
+          `Tortie will still re-read agents.json when you ask it to.`
+      );
+      return false;
+    }
+    watchStop = () => sub.close();
+    // D9, as the fix round made it: the stream is live, so a file that moved
+    // since the last read was moved where no stream could see it.
+    if (configFileStamp(agentOverlayPath()) !== loadedStamp) scheduleWatchReload();
     return true;
   } catch (err) {
     configLog.warn(
@@ -448,6 +492,7 @@ export function resetAgentOverlayStoreForTests(): void {
   snapshot = null;
   listeners = [];
   diskReads = 0;
+  loadedStamp = null;
   if (watchTimer !== null) {
     clearTimeout(watchTimer);
     watchTimer = null;

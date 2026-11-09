@@ -92,6 +92,15 @@
  * bare spelling of a builtin. conformance:pocket W2 reads the same rule, and
  * U5 reads the BUILT bundle for it.
  *
+ * Phase 365 adds the second allow-only wall, and a `packages` list beside the
+ * builtins so a wall can admit one package by its exact name. The watcher
+ * process (src/main/watcher/watcher-process.ts and src/main/watcher/process/)
+ * runs @parcel/watcher, which moved out of main because its overlapping calls
+ * damaged main's heap (build/p365/SPEC.md D1, D13). It may import node:fs,
+ * node:path, @parcel/watcher and its own directory, and nothing else: no
+ * electron, no logger, no other main module, not even src/shared. Which of its
+ * files may load the package, and how, is conformance:watcher W365-1's.
+ *
  * Other package imports are out of scope, with ONE exception (Phase 35,
  * research 42 §8 and §12): only src/main/log/ may import electron-log. The
  * logging framework choice is safe precisely because one module owns it, so
@@ -371,6 +380,7 @@ const ALLOW_ONLY_WALLS = [
     files: ['main/pocket/door-process.ts'],
     dirs: ['main/pocket/door/'],
     builtins: ['node:net', 'node:tls', 'node:http', 'node:crypto'],
+    packages: [],
     paths: ['shared/', 'main/pocket/door/'],
     why:
       'the door process is what Tailscale Funnel publishes to the internet, and ' +
@@ -379,6 +389,30 @@ const ALLOW_ONLY_WALLS = [
       '§9 condition 2). It may import node:net, node:tls, node:http and ' +
       'node:crypto, src/shared/ and src/main/pocket/door/, and nothing else. ' +
       'What it needs from main arrives as a message (src/main/pocket/door/wire.ts).'
+  },
+  {
+    // PHASE 365 (build/p365/SPEC.md D13). The watcher process. `@parcel/watcher`
+    // 2.6.0 races itself, and the spec step measured the damage landing in
+    // main's own heap (research 143 §2.5, §7), so the native module runs in a
+    // utilityProcess main forks and in nothing else. That process holds no
+    // credential, no manifest and no session, and it stays that way only if it
+    // can name nothing that does.
+    name: 'the watcher process',
+    files: ['main/watcher/watcher-process.ts'],
+    dirs: ['main/watcher/process/'],
+    builtins: ['node:fs', 'node:path'],
+    // The one package. WHICH files may load it, and how (the entry statically,
+    // the in-process path by a dynamic import alone), is conformance:watcher
+    // W365-1's to hold; this wall holds that nothing else gets in.
+    packages: ['@parcel/watcher'],
+    paths: ['main/watcher/process/'],
+    why:
+      'the watcher process runs @parcel/watcher, whose overlapping calls damaged ' +
+      'main’s heap in Phase 365’s measurements, so it is a process of its own that ' +
+      'holds no credential, manifest or session (build/p365/SPEC.md D1, D13). It may ' +
+      'import node:fs and node:path, @parcel/watcher, and src/main/watcher/process/, ' +
+      'and nothing else: no electron, no logger, no other main module. What it ' +
+      'needs from main arrives as a message (src/main/watcher/process/wire.ts).'
   }
 ];
 
@@ -463,11 +497,15 @@ function violationsFor(absFile, text) {
         const named = targetPath(absFile, spec);
         const allowed =
           allowOnly.builtins.includes(spec) ||
+          // A package is allowed by its exact name: not a subpath of it, and not
+          // a package whose name merely starts the same way.
+          allowOnly.packages.includes(spec) ||
           (named !== null && allowOnly.paths.some((prefix) => named.startsWith(prefix)));
         if (!allowed) {
+          const packages = allowOnly.packages.length > 0 ? `, the package ${allowOnly.packages.join(', ')}` : '';
           out.push(
             `${relFromRoot}:${line()} imports '${spec}', and ${allowOnly.name} may import only ` +
-              `${allowOnly.builtins.join(', ')}, src/${allowOnly.paths.join(' and src/')}: ${allowOnly.why}`
+              `${allowOnly.builtins.join(', ')}${packages}, src/${allowOnly.paths.join(' and src/')}: ${allowOnly.why}`
           );
           continue;
         }
@@ -546,7 +584,7 @@ function violationsFor(absFile, text) {
 }
 
 // ---------------------------------------------------------------------------
-// The fixtures. Forty-two synthetic files, each one line of source, run before
+// The fixtures. Synthetic files, each one line of source, run before
 // any real file is read. Nothing is written to disk and nothing is read from
 // it. A row that does not behave fails the gate with a non-zero exit.
 // ---------------------------------------------------------------------------
@@ -804,7 +842,38 @@ const FIXTURES = [
   ['main/pocket/door-process.ts', "import { createDoorListener } from './door/listener';", null],
   ['main/pocket/p330-fixture.ts', "import { readFileSync } from 'node:fs';", null],
   ['main/pocket/doorway/p330-fixture.ts', "import { app } from 'electron';", null],
-  ['main/pocket/door/__tests__/p330-fixture.ts', "import { app } from 'electron';", null]
+  ['main/pocket/door/__tests__/p330-fixture.ts', "import { app } from 'electron';", null],
+  // Phase 365, the watcher process's allow-only wall (build/p365/SPEC.md D13).
+  // Eleven refusals, one per shape a later round could reach for: Electron,
+  // the logger, a builtin it does not need, a second package, a subpath of its
+  // one package, another main module beside the entry, the host even for a
+  // type, the contract it does not need, a builtin's bare spelling, a dynamic
+  // import from a nested directory, and a re-export. Nine acceptances pin what
+  // the wall must NOT catch: its two builtins, its one package (statically in
+  // the entry, dynamically in the in-process path), its own directory from
+  // the entry and from inside, the host beside it (main's side, outside the
+  // wall), a directory whose name only starts with process, and the test
+  // exemption every rule keeps.
+  ['main/watcher/watcher-process.ts', "import { app } from 'electron';", 'electron'],
+  ['main/watcher/process/p365-fixture.ts', "import { getLog } from '../../log';", '../../log'],
+  ['main/watcher/process/p365-fixture.ts', "import { spawn } from 'node:child_process';", 'node:child_process'],
+  ['main/watcher/process/p365-fixture.ts', "import chokidar from 'chokidar';", 'chokidar'],
+  ['main/watcher/process/p365-fixture.ts', "import { normalizeOptions } from '@parcel/watcher/wrapper';", '@parcel/watcher/wrapper'],
+  ['main/watcher/watcher-process.ts', "import { trackWatcherClose } from './teardown';", './teardown'],
+  ['main/watcher/process/p365-fixture.ts', "import type { FolderWatch } from '../host';", '../host'],
+  ['main/watcher/process/p365-fixture.ts', "import type { LaunchableAgentId } from '@shared/types';", '@shared/types'],
+  ['main/watcher/process/p365-fixture.ts', "import { statSync } from 'fs';", 'fs'],
+  ['main/watcher/process/nested/p365-fixture.ts', "const e = await import('electron');", 'electron'],
+  ['main/watcher/process/p365-fixture.ts', "export { RepoWatcher } from '../repo-watcher';", '../repo-watcher'],
+  ['main/watcher/watcher-process.ts', "import * as parcelWatcher from '@parcel/watcher';", null],
+  ['main/watcher/watcher-process.ts', "import { statSync } from 'node:fs';", null],
+  ['main/watcher/process/p365-fixture.ts', "import { join } from 'node:path';", null],
+  ['main/watcher/process/in-process.ts', "const native = await import('@parcel/watcher');", null],
+  ['main/watcher/watcher-process.ts', "import { serveWatchQueue } from './process/queue';", null],
+  ['main/watcher/process/p365-fixture.ts', "import type { ToWatcher } from './wire';", null],
+  ['main/watcher/host.ts', "import { utilityProcess } from 'electron';", null],
+  ['main/watcher/processes/p365-fixture.ts', "import { app } from 'electron';", null],
+  ['main/watcher/process/__tests__/p365-fixture.ts', "import { app } from 'electron';", null]
 ];
 
 function runFixtures() {

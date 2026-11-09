@@ -1,0 +1,25 @@
+{
+ "about": "a parent run with the order after that ran its 5 minutes clean and quit by itself",
+ "by": "the probe review",
+ "constructed": [
+  "every line: built by the probe review from the storm app’s own line shapes, no run made it"
+ ],
+ "exit": {
+  "code": 0,
+  "signal": null
+ },
+ "dumps": [],
+ "dumpsFound": 0,
+ "reportsAdded": [],
+ "env": {
+  "P365_SCENARIO": "storm",
+  "P365_DURATION_MS": "300000",
+  "P365_DEL_ORDER": "after",
+  "P365_QUIT": "drain",
+  "P365_TICK_MS": "180",
+  "P365_SLOTS": "12",
+  "P365_FAIL_PCT": "10",
+  "P365_DEL_PCT": "30",
+  "P365_CHURN_MS": "10"
+ }
+}

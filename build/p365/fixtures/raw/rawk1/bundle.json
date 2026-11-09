@@ -1,0 +1,107 @@
+{
+ "about": "The spec step's run rawk1 (build/p365/SPEC.md §2), its stdout and its dump readings (the spec reader's JSON, no dump).",
+ "recorded": [
+  "stdout.txt (the storm app’s P365 lines and stderr)",
+  "exit",
+  "env (report.json’s extra)",
+  "dumps (the reader’s JSON)",
+  "reportsAdded"
+ ],
+ "constructed": [
+  "stdout.txt: 3 stats lines between the third and the last two were left out; the reader reads the last stats line and the quit line, which are kept",
+  "dumps[].kind: the spec step's reader did not record which process a dump was; rawk1's main ended by SIGTRAP and this is its one dump",
+  "addLines: a 'loaded' line the storm app of this probe writes and the spec step's did not; it says which build's sites ran and that the recorders were in, which the spec step's app did by its own code. The spec step's own 'loaded' line (its t and its load time) was taken out of stdout.txt and merged into it"
+ ],
+ "exit": {
+  "code": null,
+  "signal": "SIGTRAP"
+ },
+ "env": {
+  "P365_KEEP": "1",
+  "P365_SEED": "11",
+  "P365_QUIT": "drain"
+ },
+ "dumps": [
+  {
+   "path": "bdb437e7-7edd-4f5d-9c4a-25cfb7f6e828.dmp",
+   "inWatcher": [
+    {
+     "id": 49415437,
+     "name": "",
+     "chain": [
+      "libsystem_kernel.dylib+0x43cc",
+      "libsystem_pthread.dylib+0x709c",
+      "libc++.1.dylib+0x1e268",
+      "watcher.node Debounce::loop()+0x74",
+      "watcher.node Debounce::wait()+0x1dc",
+      "libsystem_pthread.dylib+0x6bc8",
+      "libsystem_pthread.dylib+0x1b80"
+     ]
+    }
+   ],
+   "threadCount": 32,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x195bc6d74",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x195bc6d74"
+    ]
+   },
+   "thread": {
+    "id": 49415438,
+    "name": "",
+    "crashedIsFirst": false
+   },
+   "registers": {
+    "pc": "0x195bc6d74",
+    "lr": "0x1959e469c",
+    "sp": "0x1786e4720",
+    "fp": "0x1786e4730",
+    "x0": "0x0",
+    "x8": "0x195d94d1c"
+   },
+   "frames": [
+    "CoreFoundation+0x1ecd74",
+    "lr CoreFoundation+0xa69c",
+    "FSEvents+0x31d8",
+    "watcher.node FSEventsCallback(__FSEventStream const*, void*, unsigned long, void*, unsigned int const*, unsigned long long const*)+0xb60",
+    "FSEvents+0x29f8",
+    "FSEvents+0x1cb8",
+    "FSEvents+0x1bac",
+    "FSEvents+0x4fd4",
+    "CoreFoundation+0xa8e80",
+    "CoreFoundation+0x7ce50",
+    "CoreFoundation+0x7cd78",
+    "CoreFoundation+0x7b778",
+    "CoreFoundation+0x7a858",
+    "CoreFoundation+0xf4314",
+    "watcher.node FSEventsBackend::start()+0x74",
+    "watcher.node Backend::handleError(std::exception&)+0xb5c",
+    "libsystem_pthread.dylib+0x6bc8"
+   ],
+   "watcherLoaded": true,
+   "modules": 963,
+   "kind": "main"
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "addLines": [
+  {
+   "kind": "loaded",
+   "t": 1794213463455,
+   "ms": 6,
+   "constructed": true,
+   "host": false,
+   "observation": false,
+   "nativeWrapped": true,
+   "forkWrapped": true,
+   "forkWrap": "direct",
+   "bounds": null,
+   "restartError": null
+  }
+ ]
+}

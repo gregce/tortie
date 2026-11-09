@@ -22,7 +22,7 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** Every FSEvents callback the watcher subscribed, by directory. */
 const subscribers: { dir: string; cb: (err: Error | null, events: unknown[]) => void }[] =
@@ -37,6 +37,25 @@ vi.mock('@parcel/watcher', () => ({
 
 const { harvestProvenance } = await import('../agents');
 const { forgetConversationClaims, watchForSessionId } = await import('../harvest');
+
+/**
+ * PHASE 365. Every watch now crosses the watcher host (src/main/watcher/host.ts),
+ * and the host's FIRST watch in a file loads its in-process queue by a dynamic
+ * import (build/p365/SPEC.md D7): 7 to 11 ms on an idle machine, against the
+ * first case's `settleTicks(2)` of about 10 ms before it reads `subscribers`.
+ * Under load that case read none in 43 of 48 runs. So the load is paid once,
+ * here.
+ */
+beforeAll(async () => {
+  const warm = mkdtempSync(join(tmpdir(), 'gmux-own-warm-'));
+  try {
+    const { watchFolder } = await import('../../watcher');
+    const watch = await watchFolder(warm, {}, () => undefined);
+    await watch?.close();
+  } finally {
+    rmSync(warm, { recursive: true, force: true });
+  }
+});
 
 let home = '';
 let cwd = '';

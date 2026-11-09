@@ -1,0 +1,59 @@
+{
+ "about": "a HEAD run whose main loaded watcher.node through the in-process branch’s dynamic import(): the require counter saw no call, the dlopen hook saw the load",
+ "by": "the probe review",
+ "constructed": [
+  "every line: built by the probe review from the storm app’s own line shapes, no run made it"
+ ],
+ "exit": {
+  "code": 0,
+  "signal": null
+ },
+ "dumps": [
+  {
+   "file": "constructed-watcher.dmp",
+   "kind": "watcher",
+   "firstModule": "Electron Helper",
+   "threadNames": [
+    "CrUtilityMain"
+   ],
+   "threadCount": 9,
+   "watcherLoaded": true,
+   "modules": 412,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x11a0cdf7c",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x11a0cdf7c"
+    ],
+    "signal": "SIGTRAP"
+   },
+   "thread": {
+    "id": 7001,
+    "name": ""
+   },
+   "frames": [
+    "Electron Framework+0x302cf7c",
+    "lr Electron Framework+0x302cf7c",
+    "watcher.node Watcher::isIgnored(string)+0x40",
+    "watcher.node FSEventsCallback(__FSEventStream const*, void*, unsigned long, void*, unsigned int const*, unsigned long long const*)+0x50"
+   ],
+   "inWatcher": []
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "env": {
+  "P365_SCENARIO": "storm",
+  "P365_DURATION_MS": "1200000",
+  "P365_DEL_ORDER": "before",
+  "P365_QUIT": "drain",
+  "P365_TICK_MS": "180",
+  "P365_SLOTS": "12",
+  "P365_FAIL_PCT": "10",
+  "P365_DEL_PCT": "30",
+  "P365_CHURN_MS": "10"
+ }
+}

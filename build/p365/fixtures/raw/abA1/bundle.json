@@ -1,0 +1,43 @@
+{
+ "about": "The spec step's run abA1 (build/p365/SPEC.md §2), its stdout and its dump readings (the spec reader's JSON, no dump).",
+ "recorded": [
+  "stdout.txt (the storm app’s P365 lines and stderr)",
+  "exit",
+  "env (report.json’s extra)",
+  "dumps (the reader’s JSON)",
+  "reportsAdded"
+ ],
+ "constructed": [
+  "stdout.txt: 294 stats lines between the third and the last two were left out; the reader reads the last stats line and the quit line, which are kept",
+  "addLines: a 'loaded' line the storm app of this probe writes and the spec step's did not; it says which build's sites ran and that the recorders were in, which the spec step's app did by its own code. The spec step's own 'loaded' line (its t and its load time) was taken out of stdout.txt and merged into it"
+ ],
+ "exit": {
+  "code": 0,
+  "signal": null
+ },
+ "env": {
+  "P365_KEEP": "1",
+  "P365_SEED": "21",
+  "P365_FAIL_PCT": "10",
+  "P365_DEL_PCT": "0",
+  "P365_QUIT": "drain"
+ },
+ "dumps": [],
+ "dumpsFound": 0,
+ "reportsAdded": [],
+ "addLines": [
+  {
+   "kind": "loaded",
+   "t": 1794213540767,
+   "ms": 16,
+   "constructed": true,
+   "host": false,
+   "observation": false,
+   "nativeWrapped": true,
+   "forkWrapped": true,
+   "forkWrap": "direct",
+   "bounds": null,
+   "restartError": null
+  }
+ ]
+}

@@ -61,15 +61,24 @@
  * The first run of the parent commit surfaced NONE of the twenty eight edits,
  * and its median latency after this change is the 300 ms debounce and nothing
  * else.
+ *
+ * PHASE 365. Both watches go through `watchFolder` (./host.ts), and nothing in
+ * this file touches the native module. The host runs every subscribe and
+ * unsubscribe one at a time in a process of its own, asks whether the folder is
+ * there at the watch's turn, and tracks every close for the quit's drains, so a
+ * close here is `FolderWatch.close()` and nothing more. Three answers are new:
+ * a worktree watch that comes back `null` rejects `watch()`, a dotgit watch that
+ * comes back `null` is "no `.git` yet" and is asked again on the next flush, and
+ * a watch that waited longer than the debounce window for its turn schedules one
+ * flush, because an edit made while it waited was seen by no stream.
  */
 
-import watcher from '@parcel/watcher';
-import type { AsyncSubscription, Event } from '@parcel/watcher';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { planWorktreeIgnore, readIgnoredRoots } from './ignored-roots';
 import type { WorktreeIgnorePlan } from './ignored-roots';
-import { trackWatcherClose } from './teardown';
+import { watchFolder } from './host';
+import type { FolderEvent, FolderWatch } from './host';
 import { getLog } from '../log';
 // PHASE 274. The ONE canonicalising realpath. `fs.realpathSync` is Node's own
 // JavaScript walk and returns the case it was handed, which is not the
@@ -154,6 +163,10 @@ export function readGitdirPointer(
  *
  * The sentence is the stable part, so it is what is matched.
  *
+ * Phase 365 added a fourth sender: the host's restart notice,
+ * `WATCHER_RESTART_ERROR` in ./host.ts, ends with the same sentence, so a watch
+ * re-bound after its process was replaced is re-read exactly as a drop is.
+ *
  * WHY THIS IS NOT SIMPLY "any error". `Watcher::notifyError` in
  * `node_modules/@parcel/watcher/src/Watcher.cc` line 113 delivers a FATAL
  * error on this same callback, for example the watched root being deleted,
@@ -213,6 +226,28 @@ export function exclusionViewOf(plan: WorktreeIgnorePlan): ExclusionView {
   };
 }
 
+/**
+ * PHASE 365. Why a worktree watch came back `null`, in words that are true.
+ *
+ * The host answers `null` for a folder that is not there at the watch's turn
+ * (the reason that is about the folder, and D11's words), and also while the
+ * app quits, once it has stopped restarting a process that kept crashing, and
+ * for a watch it was holding when its process was replaced. Those are about
+ * the watcher, the host writes its own line for each, and saying "is not there"
+ * of a folder that is there would send a reader of app.log the wrong way. So
+ * the disk is asked once, here, and nowhere else.
+ */
+function notWatchedReason(repoPath: string, watchRoot: string): string {
+  try {
+    if (statSync(watchRoot).isDirectory()) {
+      return `the file watcher did not watch ${repoPath}`;
+    }
+  } catch {
+    /* gone, which is the ordinary reason */
+  }
+  return `${repoPath} is not there`;
+}
+
 /** True when `child` is `parent` or sits under it, as path components. */
 function isAtOrUnder(child: string, parent: string): boolean {
   if (child === parent) return true;
@@ -263,8 +298,8 @@ export class RepoWatcher {
   private readonly onChange: (repoPath: string) => void;
   private readonly onError: (err: Error) => void;
 
-  private worktreeSub: AsyncSubscription | null = null;
-  private dotgitSub: AsyncSubscription | null = null;
+  private worktreeSub: FolderWatch | null = null;
+  private dotgitSub: FolderWatch | null = null;
   private dotgitDir: string | null = null;
   /**
    * The in-flight dotgit attach, held so dispose() can AWAIT it (Phase 36).
@@ -342,17 +377,30 @@ export class RepoWatcher {
       );
     }
 
-    rw.worktreeSub = await watcher.subscribe(
+    const worktree = await watchFolder(
       rw.watchRoot,
-      (err, events) => rw.handleWorktreeEvents(err, events),
       // `.git` is always the first exclusion; the targeted dotgit watcher
       // below covers HEAD/refs. The rest are this repository's ignored roots.
-      { ignore: plan.ignore }
+      { ignore: plan.ignore },
+      (err, events) => rw.handleWorktreeEvents(err, events)
     );
+    // Phase 365: `null` is "nothing to watch". The folder is usually gone (it
+    // can go while the git read above runs, and the host asks at the watch's
+    // turn rather than subscribing to a folder that is not there). The words
+    // ask the disk, because the host also answers `null` while the app quits
+    // or once it has stopped restarting its process, and a "could not watch"
+    // line in app.log is evidence a later diagnosis reads.
+    if (worktree === null) throw new Error(notWatchedReason(repoPath, rw.watchRoot));
+    rw.worktreeSub = worktree;
     // Phase 347: kept for `excludes`, the kernel paths spelled as stored.
     rw.plan = exclusionViewOf(plan);
 
     await rw.tryStartDotgitWatcher();
+    // Phase 365, D9: a stream sees nothing from before it started. When this
+    // watch waited longer than one debounce window (behind a burst of other
+    // watches at a boot, or a restarted watcher process), one re-read covers an
+    // edit made while it waited. A short wait is today's few milliseconds.
+    if (worktree.startedAfterMs > rw.debounceMs) rw.scheduleFlush();
     return rw;
   }
 
@@ -378,9 +426,9 @@ export class RepoWatcher {
       this.flushTimer = null;
     }
     // Phase 36: a dotgit attach can be mid subscribe right now. Wait for it,
-    // so its "disposed during subscribe" unsubscribe has FINISHED (not just
-    // been fired) by the time this dispose resolves. The quit path awaits
-    // dispose, so this closes the last unawaited close in this file.
+    // so its "disposed during subscribe" close has FINISHED (not just been
+    // fired) by the time this dispose resolves. The quit path awaits dispose,
+    // so this closes the last unawaited close in this file.
     if (this.dotgitStart !== null) {
       await this.dotgitStart.catch(() => undefined);
     }
@@ -389,12 +437,10 @@ export class RepoWatcher {
     this.dotgitSub = null;
     for (const sub of subs) {
       if (sub !== null) {
-        // Tracked AND awaited (Phase 36 fix round). The quit path bounds the
-        // await with a race; when the bound expires with this unsubscribe
-        // still queued behind pool work, the tracked set is the only thing
-        // that lets `pendingWatcherCloseCount()` see it and drain again
-        // instead of quitting into a napi abort.
-        await trackWatcherClose(sub.unsubscribe().catch(() => undefined));
+        // Awaited, as Phase 36 made it. Phase 365: the host tracks every
+        // close for the quit's drains itself, so it is not tracked a second
+        // time here.
+        await sub.close().catch(() => undefined);
       }
     }
   }
@@ -435,7 +481,7 @@ export class RepoWatcher {
    * inside a window, so the events that came with the error would only
    * schedule the very same flush.
    */
-  private handleWorktreeEvents(err: Error | null, events: Event[]): void {
+  private handleWorktreeEvents(err: Error | null, events: FolderEvent[]): void {
     if (this.disposed) return;
     if (err) {
       this.onError(err);
@@ -451,7 +497,7 @@ export class RepoWatcher {
    * nothing about which paths were in it. A ref may have moved and we cannot
    * know, so the only honest answer is to re-status.
    */
-  private handleDotgitEvents(err: Error | null, events: Event[]): void {
+  private handleDotgitEvents(err: Error | null, events: FolderEvent[]): void {
     if (this.disposed) return;
     if (err) {
       this.onError(err);
@@ -538,9 +584,8 @@ export class RepoWatcher {
       const gitDir = this.resolveDotgitDir();
       if (gitDir === null) return;
       this.dotgitDir = gitDir;
-      const sub = await watcher.subscribe(
+      const sub = await watchFolder(
         gitDir,
-        (err, events) => this.handleDotgitEvents(err, events),
         {
           // Keep the firehose subtrees out natively; the relevance filter
           // above handles the rest (index.lock etc.).
@@ -551,15 +596,24 @@ export class RepoWatcher {
             join(gitDir, 'worktrees'),
             join(gitDir, 'fsmonitor--daemon')
           ]
-        }
+        },
+        (err, events) => this.handleDotgitEvents(err, events)
       );
+      // Phase 365: `null` is "no `.git` (yet)", the folder having gone between
+      // the stat above and the watch's turn. It is asked again on the next
+      // flush, exactly as a missing `.git` always has been.
+      if (sub === null) return;
       if (this.disposed) {
-        // Phase 36: tracked AND awaited — dispose() is waiting on this very
-        // promise, and the quit drain is the second line of defence.
-        await trackWatcherClose(sub.unsubscribe().catch(() => undefined));
+        // Phase 36: awaited, because dispose() is waiting on this very
+        // promise. The host tracks the close for the quit's drains.
+        await sub.close().catch(() => undefined);
         return;
       }
       this.dotgitSub = sub;
+      // Phase 365, D9, for this stream too: a `.git` watch attached after a
+      // long wait for its turn re-reads once, because a ref that moved while it
+      // waited reached no stream (the worktree watch excludes `.git`).
+      if (sub.startedAfterMs > this.debounceMs) this.scheduleFlush();
     } catch (err) {
       this.onError(err as Error);
     }

@@ -613,12 +613,24 @@ const HELPER = 'electron-run.mjs';
  * registry row hidden before every launch, and every busy loop and stand-in
  * pid ended in its `finally`. It never calls app.relaunch().
  *
+ * PHASE 365 RAISED IT FROM 186 TO 187, by one for build/p365/probe-p365.mjs
+ * (`probe:p365`), Tortie's file watches at the parent and at HEAD: Electrons
+ * through the helper ONE AT A TIME, the parent's (`P365_PARENT_CHECKOUT`,
+ * required) first in every pair, each run on its own scratch profile, HOME and
+ * ZDOTDIR with HISTFILE=/dev/null and the socket gmux-p365…. Its storm arms
+ * launch a scratch storm app the probe writes into its run folder (`program:
+ * 'app'`, no window, the Dock icon hidden, Crashpad's dumps in the run's own
+ * profile, read and then deleted) over each build's own five watch sites; its
+ * real-app arms hide every probed registry row but a stand-in `codex`, and
+ * every stand-in pid is ended in its `finally`. Phase 359 raises it 186 to 187
+ * in its own tree too, so whichever lands second makes it 188.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 186;
+const HELPER_USER_FLOOR = 187;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

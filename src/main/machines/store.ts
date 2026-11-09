@@ -29,7 +29,6 @@
  * this phase runs from this file.
  */
 
-import watcher from '@parcel/watcher';
 import {
   mkdirSync,
   readFileSync,
@@ -45,8 +44,8 @@ import {
   MACHINE_DEFAULT_COLOR,
   MACHINE_LIMITS
 } from '@shared/machines';
-import { configDir, ensureConfigDir } from '../config/paths';
-import { trackWatcherClose } from '../watcher/teardown';
+import { configDir, configFileStamp, ensureConfigDir } from '../config/paths';
+import { isRescanRequired, watchFolder } from '../watcher';
 import type { MachineExecutionFields } from './confirm';
 import { whileReadingMachines } from './confirm';
 import { parseMachines, serializeMachines } from './schema';
@@ -83,6 +82,8 @@ let listeners: Listener[] = [];
 let diskReads = 0;
 let watchStop: (() => Promise<void>) | null = null;
 let watchTimer: NodeJS.Timeout | null = null;
+/** `configFileStamp` of the file as the last load found it, or null before any load. */
+let loadedStamp: string | null = null;
 
 /** `<userData>/gmux/config/machines.json`. */
 export function machinesPath(userDataOverride?: string): string {
@@ -224,6 +225,9 @@ export function loadMachines(
   let present = false;
 
   diskReads += 1;
+  // Taken BEFORE the read, so a write racing it can only make the watch's
+  // start-up check read once more, never miss.
+  loadedStamp = configFileStamp(path);
   let text: string | null = null;
   try {
     const stat = statSync(path);
@@ -420,40 +424,75 @@ export async function initMachines(): Promise<MachinesSnapshot> {
 }
 
 /**
- * Watch the configuration directory for changes to `machines.json`.
+ * The debounced reload the watcher schedules.
  *
  * The debounce window does not reset on new events. The first event schedules
  * the flush, so an editor that writes, renames and touches the file in quick
  * succession produces one reload rather than three. This is the recipe the
  * agents.json watcher already uses.
  */
+function scheduleWatchReload(): void {
+  if (watchTimer !== null) return;
+  watchTimer = setTimeout(() => {
+    watchTimer = null;
+    try {
+      loadMachines('watch');
+    } catch (loadErr) {
+      machinesLog.warn(
+        `machines.json reload failed: ${(loadErr as Error).message}`
+      );
+    }
+  }, WATCH_DEBOUNCE_MS);
+  watchTimer.unref?.();
+}
+
+/**
+ * Watch the configuration directory for changes to `machines.json`.
+ *
+ * PHASE 365, exactly as the agents.json watcher in ../config/store.ts: the
+ * watch goes through `watchFolder`, which runs it one at a time in a process
+ * of its own and tracks its close for the quit's drains; `null` takes the warn
+ * and `false` a watch that cannot start always took; an error that says the
+ * file system must be re-scanned schedules the reload; any other error is the
+ * word that the watch has ended, said once (the fix round); and once the
+ * stream is live, a file that is not what the last read saw is read once,
+ * because a stream sees nothing from before it started (the fix round, in
+ * place of the spec's 300 ms threshold, which a first watch of about 60 ms
+ * never crossed).
+ */
 export async function startMachinesWatch(): Promise<boolean> {
   if (watchStop !== null) return true;
   const dir = configDir();
+  let ended = false;
   try {
-    const sub = await watcher.subscribe(dir, (err, events) => {
-      if (err !== null && err !== undefined) return;
+    const sub = await watchFolder(dir, {}, (err, events) => {
+      if (err) {
+        if (isRescanRequired(err)) scheduleWatchReload();
+        else if (!ended) {
+          ended = true;
+          machinesLog.warn(
+            `not watching ${dir} for machine changes: ${err.message.replace(/\.$/, '')}. ` +
+              `Tortie will still re-read machines.json when you ask it to.`
+          );
+        }
+        return;
+      }
       const relevant = events.some(
         (event) => basename(event.path) === MACHINES_FILENAME
       );
-      if (!relevant || watchTimer !== null) return;
-      watchTimer = setTimeout(() => {
-        watchTimer = null;
-        try {
-          loadMachines('watch');
-        } catch (loadErr) {
-          machinesLog.warn(
-            `machines.json reload failed: ${(loadErr as Error).message}`
-          );
-        }
-      }, WATCH_DEBOUNCE_MS);
-      watchTimer.unref?.();
+      if (relevant) scheduleWatchReload();
     });
-    // Tracked AND awaited, exactly as the agents.json watcher is. An
-    // unsubscribe still queued at FreeEnvironment is the Phase 36 crash, and
-    // the tracked set is what lets the quit path see one that outlives its
-    // bound.
-    watchStop = () => trackWatcherClose(sub.unsubscribe());
+    if (sub === null) {
+      machinesLog.warn(
+        `not watching ${dir} for machine changes. ` +
+          `Tortie will still re-read machines.json when you ask it to.`
+      );
+      return false;
+    }
+    watchStop = () => sub.close();
+    // D9, as the fix round made it: the stream is live, so a file that moved
+    // since the last read was moved where no stream could see it.
+    if (configFileStamp(machinesPath()) !== loadedStamp) scheduleWatchReload();
     return true;
   } catch (err) {
     machinesLog.warn(
@@ -485,6 +524,7 @@ export function resetMachinesStoreForTests(): void {
   snapshot = null;
   listeners = [];
   diskReads = 0;
+  loadedStamp = null;
   if (watchTimer !== null) {
     clearTimeout(watchTimer);
     watchTimer = null;

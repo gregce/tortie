@@ -1,0 +1,30 @@
+{
+ "about": "the same parent fault whose one dump the reader could not read",
+ "by": "the probe review",
+ "constructed": [
+  "every line: built by the probe review from the storm app’s own line shapes, no run made it"
+ ],
+ "exit": {
+  "code": null,
+  "signal": "SIGTRAP"
+ },
+ "dumps": [
+  {
+   "file": "constructed-main.dmp",
+   "error": "not a minidump"
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "env": {
+  "P365_SCENARIO": "storm",
+  "P365_DURATION_MS": "300000",
+  "P365_DEL_ORDER": "before",
+  "P365_QUIT": "drain",
+  "P365_TICK_MS": "180",
+  "P365_SLOTS": "12",
+  "P365_FAIL_PCT": "10",
+  "P365_DEL_PCT": "30",
+  "P365_CHURN_MS": "10"
+ }
+}

@@ -1,0 +1,50 @@
+{
+ "about": "an ordinary HEAD run whose main crashed after its quit phase: never read as its own clean quit",
+ "by": "the probe review",
+ "constructed": [
+  "every line: built by the probe review from the storm app’s own line shapes, no run made it"
+ ],
+ "exit": {
+  "code": null,
+  "signal": "SIGSEGV"
+ },
+ "dumps": [
+  {
+   "file": "constructed-main.dmp",
+   "kind": "main",
+   "firstModule": "Electron",
+   "threadNames": [
+    "CrBrowserMain"
+   ],
+   "threadCount": 34,
+   "watcherLoaded": true,
+   "modules": 640,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x115b75f7c",
+    "params": [
+     "0xa",
+     "0x5600001",
+     "0x115b75f7c"
+    ],
+    "signal": "SIGTRAP"
+   },
+   "thread": {
+    "id": 9001,
+    "name": ""
+   },
+   "frames": [
+    "Electron Framework+0x1234",
+    "lr Electron Framework+0x1200"
+   ],
+   "inWatcher": []
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "env": {
+  "P365_SCENARIO": "ordinary",
+  "P365_SEED": "36591"
+ }
+}

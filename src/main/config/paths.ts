@@ -26,7 +26,7 @@
  * this directory on account of a configuration file.
  */
 
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { app } from 'electron';
 import {
@@ -78,5 +78,25 @@ export function ensureConfigDir(userDataOverride?: string): {
     return { path, ready: true };
   } catch {
     return { path, ready: false };
+  }
+}
+
+/**
+ * What the disk says about one of this directory's files now, in one string:
+ * which file it is, its size and its two times, or why there is none. Two
+ * equal stamps are the same bytes for every write a store can see; a write, a
+ * rename over it, a delete and a create each move it. Never throws.
+ *
+ * PHASE 365, the fix round. The two stores take one at each load and ask again
+ * once their watch is live: a stream sees nothing from before it started, so a
+ * file whose stamp moved in between is read once more (an edit 25 ms after the
+ * boot read was otherwise lost until the next edit, measured).
+ */
+export function configFileStamp(path: string): string {
+  try {
+    const s = statSync(path);
+    return `${String(s.dev)}:${String(s.ino)}:${String(s.size)}:${String(s.mtimeMs)}:${String(s.ctimeMs)}`;
+  } catch (err) {
+    return `none:${String((err as NodeJS.ErrnoException).code ?? 'unknown')}`;
   }
 }

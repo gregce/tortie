@@ -1,0 +1,18 @@
+{
+ "about": "the builder’s constructed SK run with its own drain and quit removed, ended by something outside it (no ceiling), exit 0",
+ "by": "the probe review",
+ "constructed": [
+  "every line: built by the probe review from the storm app’s own line shapes, no run made it"
+ ],
+ "exit": {
+  "code": 0,
+  "signal": null
+ },
+ "dumps": [],
+ "dumpsFound": 0,
+ "reportsAdded": [],
+ "env": {
+  "P365_DEL_ORDER": "before",
+  "P365_SCENARIO": "storm"
+ }
+}

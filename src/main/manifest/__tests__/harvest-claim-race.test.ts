@@ -37,7 +37,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentKind } from '@shared/types';
 import type { ConversationReclaim } from '../harvest/watch';
 
@@ -237,6 +237,27 @@ async function flushIo(rounds = 24): Promise<void> {
     if (!fsInFlight()) return;
   }
 }
+
+/**
+ * PHASE 365. Every watch now crosses the watcher host (src/main/watcher/host.ts),
+ * and the host's FIRST watch in a file loads its in-process queue by a dynamic
+ * import (build/p365/SPEC.md D7). That load is no fs request, so `flushIo`
+ * returns after its 24 turns while it is still going: it measured 7 to 11 ms,
+ * 348 to 601 turns, on an idle machine, and run alone this file's first case
+ * read no subscriber in 3 of 3 runs. So the load is paid once, here, with real
+ * timers, before any clock is faked; every later watch answers inside the turns
+ * `flushIo` already gives it.
+ */
+beforeAll(async () => {
+  const warm = mkdtempSync(join(tmpdir(), 'gmux-claim-race-warm-'));
+  try {
+    const { watchFolder } = await import('../../watcher');
+    const watch = await watchFolder(warm, {}, () => undefined);
+    await watch?.close();
+  } finally {
+    rmSync(warm, { recursive: true, force: true });
+  }
+});
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'Date'] });

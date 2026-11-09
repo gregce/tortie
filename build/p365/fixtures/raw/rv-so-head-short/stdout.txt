@@ -1,0 +1,12 @@
+P365 {"kind":"loaded","t":1794330000000,"ms":38,"build":"head","host":true,"observation":true,"nativeWrapped":true,"nativeLoadedAtLoad":false,"forkWrapped":true,"forkWrap":"direct","bounds":{"start":10000,"close":2000,"backoff":[250,1000,5000,30000],"giveUpExits":5,"giveUpWindowMs":600000},"restartError":"The file watcher restarted. File system must be re-scanned.","scenario":"ordinary","order":"before","electron":"43.3.0","pid":64000}
+P365 {"kind":"start","t":1794330000050,"mode":"product","scenario":"ordinary","pid":64000}
+P365 {"kind":"child","t":1794330000060,"event":"fork","gen":1,"script":"watcher-process.js","stdio":"ignore","envKeys":["TORTIE_WATCHER"],"serviceName":"Tortie Watcher","prevGen":null,"prevAlive":false,"prevPending":null}
+P365 {"kind":"child","t":1794330000063,"event":"spawn","gen":1,"ms":3,"pid":64001}
+P365 {"kind":"child","t":1794330000130,"event":"ready","gen":1,"ms":70,"pid":64001}
+P365 {"kind":"ordinary","t":1794330000212,"phase":"boot","subscribe":0,"unsubscribe":0,"maxInFlight":0,"failed":0,"nativeLoaded":false,"bootMs":160,"started":50,"expected":52,"reached":false,"forkMs":70}
+P365 {"kind":"ordinary","t":1794330020300,"phase":"quiet","subscribe":0,"unsubscribe":0,"maxInFlight":0,"failed":0,"nativeLoaded":false,"onChange":20}
+P365 {"kind":"ordinary","t":1794330020310,"phase":"close10","subscribe":0,"unsubscribe":0,"maxInFlight":0,"failed":0,"nativeLoaded":false,"closeMs":4}
+P365 {"kind":"ordinary","t":1794330022330,"phase":"branch5","subscribe":0,"unsubscribe":0,"maxInFlight":0,"failed":0,"nativeLoaded":false,"onChange":25}
+P365 {"kind":"ordinary","t":1794330022840,"phase":"rescues-settled","subscribe":0,"unsubscribe":0,"maxInFlight":0,"failed":0,"nativeLoaded":false}
+P365 {"kind":"ordinary","t":1794330022845,"phase":"quit","subscribe":0,"unsubscribe":0,"maxInFlight":0,"failed":0,"nativeLoaded":false,"quitDrainMs":3,"left":0,"peakPerSecond":0}
+P365 {"kind":"exit","t":1794330022900,"code":0}
