@@ -90,12 +90,44 @@ export interface AgentAccessOpenCompletion {
   outcome: 'accepted' | 'project-missing' | 'failed';
 }
 
+/**
+ * PHASE 362. ONE navigation handoff for the two acting operations the
+ * renderer owns, because the project's tab, the selected session and the
+ * keyboard are the renderer's to move: `project` puts a project's tab in
+ * front, `focus` does that and then lands on a session with its terminal
+ * holding the keyboard.
+ */
+export interface AgentAccessRendererNav {
+  /** Broker-minted id the renderer echoes in its completion. */
+  requestId: AgentAccessOpenRequestId;
+  kind: 'project' | 'focus';
+  /** The project row's id in the renderer's own list. */
+  projectId: string;
+  /** The session to land on, for `focus` with a session. */
+  sessionId?: string;
+  /**
+   * True only when the caller asked to FOCUS, which is the one case where
+   * Tortie may raise and focus its own window. A `project` arrival never does.
+   */
+  raise: boolean;
+}
+
+/** The renderer's one receipt for a navigation. */
+export interface AgentAccessNavCompletion {
+  requestId: AgentAccessOpenRequestId;
+  outcome: 'accepted' | 'project-missing' | 'session-missing' | 'failed';
+}
+
 /** The typed main→renderer event channel owned by this domain. */
 export const EVT_AGENT_ACCESS_OPEN = 'agent-access:open' as const;
+
+/** PHASE 362. The typed main→renderer navigation channel. */
+export const EVT_AGENT_ACCESS_NAV = 'agent-access:navigate' as const;
 
 /** Static event payload for `agent-access:open`. */
 export interface AgentAccessOpenEventPayloadMap {
   'agent-access:open': [input: AgentAccessRendererOpen];
+  'agent-access:navigate': [input: AgentAccessRendererNav];
 }
 
 /** Invoke map entry for the renderer→main completion. */
@@ -110,6 +142,14 @@ export interface AgentAccessInvokeChannelMap {
     req: [input: AgentAccessOpenCompletion];
     res: void;
   };
+  /**
+   * PHASE 362. The renderer's receipt for one navigation. Same acceptance
+   * rule: only the exact `webContents` sent the event, only for a pending id.
+   */
+  'agent-access:navComplete': {
+    req: [input: AgentAccessNavCompletion];
+    res: void;
+  };
 }
 
 /** The `agentAccess` member of the installed bridge. */
@@ -117,5 +157,8 @@ export interface GmuxAgentAccessExtras {
   agentAccess: {
     onOpen(cb: (input: AgentAccessRendererOpen) => void): Unsubscribe;
     complete(input: AgentAccessOpenCompletion): Promise<void>;
+    /** PHASE 362. The navigation event, and its receipt. */
+    onNavigate(cb: (input: AgentAccessRendererNav) => void): Unsubscribe;
+    completeNav(input: AgentAccessNavCompletion): Promise<void>;
   };
 }

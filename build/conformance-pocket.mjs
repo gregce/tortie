@@ -19094,12 +19094,18 @@ function rnRuleRule() {
     checked(id);
     if (thrown.length !== 1) fail(id, `${admitted === null ? rel(core) : where(core, admitted)}: renameSessionAdmitted spells ${J(RN_SENTENCES.SESSION_NAME_EMPTY)} ${String(thrown.length)} time(s); the Mac's own throw of a blank name is the rule's first sentence byte for byte, and does not move (§5.1)`);
   }
-  // On the Mac the door's verb alone reads the rule.
+  // Phase 362: the local agent API also reuses the shared name rule, in
+  // exactly its nameGateRefusal helper. This does not alter the Mac's own
+  // Rename or permit arbitrary new call sites elsewhere.
+  const agentVerbsFile = join(ROOT, 'src', 'main', 'agent-access', 'verbs.ts');
   for (const name of ['sessionNameRefusal', 'trimmedSessionName']) {
     for (const file of sources.filter((f) => f !== names && sourceOf(f).includes(name))) {
       for (const c of callsOf(file).filter((n) => calleeName(n) === name)) {
         checked(id);
-        if (file !== POCKET_WRITES_FILE) fail(id, `${where(file, c)} calls ${name}(; on the Mac the door's verb alone reads the rule (src/main/sessions/pocket-writes.ts), and the Mac's own rename keeps its rules (§4.3 step 1, §12)`);
+        const agentNameGate = file === agentVerbsFile && name === 'sessionNameRefusal'
+          ? oneFunction(file, 'nameGateRefusal') : null;
+        const sharedAgentRule = agentNameGate !== null && descendantsOf(agentNameGate).includes(c);
+        if (file !== POCKET_WRITES_FILE && !sharedAgentRule) fail(id, `${where(file, c)} calls ${name}(; only pocket-writes.ts and Phase 362's agent-access/verbs.ts nameGateRefusal may read the shared rule; the Mac's own rename keeps its rules (§4.3 step 1, §12)`);
       }
     }
   }

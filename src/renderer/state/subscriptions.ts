@@ -52,6 +52,7 @@ import { pullPendingShellOpen } from './shell-open';
 // PHASE 359. The agent-access open arrival: one typed subscription that
 // switches to the containing project and emits the canonical open request.
 import { subscribeAgentAccessOpen } from './agent-access-open';
+import { subscribeAgentAccessNav } from './agent-access-nav';
 import type { HandbackState, SessionHandback } from '@shared/session-gates';
 import { useApp } from './store';
 import { gmuxBridge } from '../bridge';
@@ -768,6 +769,7 @@ export function startAppSubscriptions(store: AppStore): () => void {
   // completion back to main. Kept beside the other session handlers so the
   // single disposer covers it.
   keep(subscribeAgentAccessOpen(store));
+  keep(subscribeAgentAccessNav(store));
 
   // ⌘J excerpts and last-output times (Phase 13). These used to be
   // scraped off the visible pane's byte stream; main now sources them

@@ -20,18 +20,25 @@
 
 import {
   AGENT_ACCESS_DELIVERY_AGENTS,
+  AGENT_ACCESS_MAX_LISTED_ROWS,
   AGENT_ACCESS_MAX_SESSION_ROWS,
+  AGENT_ACCESS_MAX_SUMMARY_CHARS,
   AGENT_ACCESS_OPERATIONS,
   AGENT_ACCESS_PROTOCOL,
   isAgentAccessFinishedStatus,
+  type AgentAccessActivityDoing,
+  type AgentAccessActivityRow,
+  type AgentAccessActivityValue,
   type AgentAccessCapabilitiesValue,
   type AgentAccessMachineView,
   type AgentAccessProjectView,
   type AgentAccessSessionsValue,
   type AgentAccessSessionView,
+  type AgentAccessSummariesValue,
+  type AgentAccessSummaryRow,
   type AgentAccessWhoAmIValue
 } from '@shared/agent-access';
-import type { Project, Session } from '@shared/types';
+import type { Project, Session, SessionStatus } from '@shared/types';
 import { LOCAL_MACHINE_ID } from '@shared/workspace-target';
 
 /** The live rows facts are projected from, plus the project rows that name them. */
@@ -144,6 +151,21 @@ export function buildAgentAccessWhoAmI(
 }
 
 /**
+ * PHASE 362. The project filter: one extra member on the list reads.
+ * Undefined means every row. A KNOWN project id keeps only rows in that
+ * project (matching the project's row for the session, by id). An UNKNOWN id
+ * answers the empty list, never an error: the agent asked about a folder
+ * Tortie does not know, and there is nothing to act on in it.
+ */
+export function filterSessionsByProjectId(
+  views: AgentAccessSessionView[],
+  projectId: string | undefined
+): AgentAccessSessionView[] {
+  if (projectId === undefined) return views;
+  return views.filter((view) => view.project !== null && view.project.id === projectId);
+}
+
+/**
  * The newest-first bounded list, or null when the caller is not a currently
  * listed local session. Local and remote rows are all projected; only the
  * CALLER must be local. `omitted` is the exact count the cap cut, never a
@@ -151,12 +173,171 @@ export function buildAgentAccessWhoAmI(
  */
 export function buildAgentAccessSessions(
   sources: AgentAccessFactSources,
-  callerId: string
+  callerId: string,
+  projectId?: string
 ): AgentAccessSessionsValue | null {
   if (findLocalCaller(sources.sessions, callerId) === null) return null;
-  const rows = sources.sessions
-    .map((session) => toAgentAccessSessionView(session, sources.projects))
-    .sort(compareAgentAccessSessions);
+  const rows = filterSessionsByProjectId(
+    sources.sessions
+      .map((session) => toAgentAccessSessionView(session, sources.projects))
+      .sort(compareAgentAccessSessions),
+    projectId
+  );
   const kept = rows.slice(0, AGENT_ACCESS_MAX_SESSION_ROWS);
   return { sessions: kept, omitted: rows.length - kept.length };
+}
+
+/**
+ * PHASE 362. `activity`: what every listed session is doing, in the words a
+ * person would use, with the blocked ones first because they are the ones a
+ * person must act on.
+ *
+ * The word is DERIVED from the session's own status and never written back:
+ * this operation is a read, and a door that could set a status would be a
+ * second owner of the most important word in the product.
+ */
+export function buildAgentAccessActivity(
+  sources: AgentAccessFactSources,
+  callerId: string,
+  projectId?: string
+): AgentAccessActivityValue | null {
+  if (findLocalCaller(sources.sessions, callerId) === null) return null;
+  const counts = { working: 0, idle: 0, waiting: 0, finished: 0 };
+  const rows: AgentAccessActivityRow[] = [];
+  for (const session of filterSessionsByProjectId(
+    sources.sessions.map((one) => toAgentAccessSessionView(one, sources.projects)),
+    projectId
+  )) {
+    const view = session;
+    const doing = doingOf(liveStatusOf(sources.sessions, session.id));
+    if (doing === 'working') counts.working += 1;
+    else if (doing === 'idle') counts.idle += 1;
+    else if (doing === 'waiting') counts.waiting += 1;
+    else if (doing === 'finished') counts.finished += 1;
+    rows.push({ ...view, doing });
+  }
+  rows.sort((a, b) => {
+    const rank = activityRank(a.doing) - activityRank(b.doing);
+    if (rank !== 0) return rank;
+    return compareAgentAccessSessions(a, b);
+  });
+  const kept = rows.slice(0, AGENT_ACCESS_MAX_LISTED_ROWS);
+  return {
+    counts,
+    waiting: kept.filter((row) => row.doing === 'waiting'),
+    sessions: kept,
+    omitted: rows.length - kept.length
+  };
+}
+
+/** The status of the live row a projected view came from, by id. Never the view's own. */
+function liveStatusOf(sessions: Session[], id: string): SessionStatus {
+  const row = sessions.find((one) => one.id === id);
+  return row === undefined ? 'unknown' : row.status;
+}
+
+/** Waiting first: a blocked session outranks anything merely running. */
+function activityRank(doing: AgentAccessActivityDoing): number {
+  if (doing === 'waiting') return 0;
+  if (doing === 'working') return 1;
+  if (doing === 'idle') return 2;
+  if (doing === 'finished') return 3;
+  return 4;
+}
+
+/**
+ * The one place a status becomes an activity word.
+ *
+ * `needs_input` is the only status this door ever calls `waiting`, which is
+ * the fact a person most needs from an agent that is summarising the board.
+ * `unknown` is `other` rather than `finished`: a session Tortie could not
+ * reach is not a session that is over.
+ */
+export function doingOf(status: SessionStatus): AgentAccessActivityDoing {
+  switch (status) {
+    case 'running':
+      return 'working';
+    case 'needs_input':
+      return 'waiting';
+    case 'idle':
+      return 'idle';
+    case 'exited':
+    case 'restorable':
+    case 'discarded':
+      return 'finished';
+    default:
+      return 'other';
+  }
+}
+
+/**
+ * PHASE 362. `summaries`: the sentence Tortie already wrote for a session, or
+ * the honest absence of one.
+ *
+ * The reader is INJECTED (`readSummary`) so this module never opens the
+ * overview store, never starts a fold and never spends a token. A summary is
+ * carried only when the store says the row was KEPT: a refused row is a
+ * refusal the page itself does not draw, so the door does not carry it either.
+ */
+export function buildAgentAccessSummaries(
+  sources: AgentAccessFactSources,
+  callerId: string,
+  wanted: readonly string[] | null,
+  projectId: string | undefined,
+  readSummary: (sessionId: string) => AgentAccessStoredSummary | null
+): AgentAccessSummariesValue | null {
+  if (findLocalCaller(sources.sessions, callerId) === null) return null;
+  const views = filterSessionsByProjectId(
+    sources.sessions.map((session) => toAgentAccessSessionView(session, sources.projects)),
+    projectId
+  );
+  const listed = views
+    .map((view) => view.id)
+    .filter((id) => wanted === null || wanted.includes(id));
+  const rows: AgentAccessSummaryRow[] = [];
+  for (const sessionId of listed.slice(0, AGENT_ACCESS_MAX_LISTED_ROWS)) {
+    const stored = readSummary(sessionId);
+    // The page's own rule (`writtenLineFor`): the NEWEST stored row is read,
+    // whatever its verdict, and a refused newest row is a refusal the page
+    // does not draw — never skipped over for an older kept one. The seam
+    // answers a refused newest row as `verdict: 'refused'` with no text.
+    if (stored === null || stored.text === null || stored.kept === false) {
+      rows.push({ sessionId, state: 'none' });
+      continue;
+    }
+    rows.push({
+      sessionId,
+      state: 'kept',
+      text:
+        stored.text.length > AGENT_ACCESS_MAX_SUMMARY_CHARS
+          ? stored.text.slice(0, AGENT_ACCESS_MAX_SUMMARY_CHARS)
+          : stored.text,
+      fromTurn: stored.fromTurn,
+      toTurn: stored.toTurn,
+      writtenAt: stored.writtenAt,
+      staleTurns: Math.max(0, stored.newestTurn - stored.toTurn)
+    });
+  }
+  return { summaries: rows, omitted: Math.max(0, listed.length - rows.length) };
+}
+
+/**
+ * PHASE 362, corrected per the operator's ruling. The store holds rows with
+ * verdicts; the door carries a KEPT sentence and nothing else. `kept` is
+ * false exactly when the newest stored row is refused or failed, which is
+ * why a session with an older kept sentence AND a newer refusal answers
+ * `none`: the refusal is the news, and an old sentence would mislead.
+ *
+ * `newestTurn` is the newest STORED turn's index (the tail of `listTurns`),
+ * never `COUNT(*)`: a turn in flight counts, like the page says.
+ */
+export interface AgentAccessStoredSummary {
+  text: string | null;
+  /** True only when the newest stored row is kept and `text` is its sentence. */
+  kept: boolean;
+  fromTurn: number;
+  toTurn: number;
+  writtenAt: number;
+  /** The newest stored turn's index, so `staleTurns` is derived here. */
+  newestTurn: number;
 }

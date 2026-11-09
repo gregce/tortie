@@ -46,7 +46,7 @@ const openLog = getLog('agent-access-open');
 
 /** What the open path needs from the app. Nothing here starts anything. */
 export interface AgentAccessOpenDeps {
-  /** The current sealed switch. Re-checked immediately before the event. */
+  /** The plain boolean switch. Re-checked immediately before the event. */
   isEnabled: () => boolean;
   /** The app's current session list. Async: a sync list would pin a stale core. */
   listSessions: () => Promise<Session[]>;
@@ -76,7 +76,7 @@ const DISABLED_MESSAGE =
 const UNAVAILABLE_MESSAGE = 'Unknown or unavailable session.';
 
 /**
- * Thrown when the sealed switch moved off between validation and the
+ * Thrown when the plain switch moved off between validation and the
  * renderer event. Builder C1's dispatch second check answers `disabled`
  * before the open seam runs, but the live replacement race pauses the
  * strict read BETWEEN the two: this is how a switch that moves off mid-
@@ -283,6 +283,17 @@ function projectViewOf(project: Project): AgentAccessProjectView {
  * Convert a 1-based UTF-16 line/column offset to line/column. Lines are
  * 1-based, columns 0-based UTF-16, end exclusive.
  */
+/**
+ * The exclusive end column of one 1-based line: its own length plus one, so a
+ * selection covers the line and the newline that ends it, as a mouse drag down
+ * the gutter does. An empty line answers 1 for the same reason.
+ */
+function lineEndColumn(text: string, lineNumber: number): number {
+  const lines = text.split('\n');
+  const line = lines[lineNumber - 1] ?? '';
+  return line.length + 1;
+}
+
 function offsetToPosition(
   text: string,
   offset: number
@@ -336,62 +347,16 @@ export function buildAgentAccessOpen(
     if (decoded === null) {
       return refused('missing');
     }
+    // The caller's OWN project only. An absolute path is required (the
+    // dispatcher refuses a relative one as bad-request); a path inside any
+    // other project, open or not, is `outside-projects`. No fallback.
+    if (!decoded.path.startsWith('/')) return refused('outside-projects');
     const projects = localOpenProjects(await deps.listProjects());
-    const callerPath = caller.projectPath;
     const callerProject =
-      projects.find((one) => one.path === callerPath) ?? null;
-    if (callerProject === null && decoded.path.startsWith('/')) {
-      // Absolute paths need at least one open local project to try.
-      if (projects.length === 0) return refused('no-project');
-    }
-    if (callerProject === null && !decoded.path.startsWith('/')) {
-      return refused('no-project');
-    }
-    const isAbsolute = decoded.path.startsWith('/');
-    const ordered =
-      isAbsolute || callerProject === null
-        ? projects
-        : [
-            callerProject,
-            ...projects.filter((one) => one.id !== callerProject.id)
-          ];
-    let resolved:
-      | { ok: true; abs: string; rel: string; project: Project }
-      | { ok: false; reason: AgentAccessResolveRefusal }
-      | null = null;
-    // PHASE 359, reverify fix (independently verified live). With two
-    // projects open, a path inside one of them must be refused by THAT
-    // project's own clause (credential/not-file/missing) and never by the
-    // other project's `outside-projects`. `lastReason` used to record the
-    // last project's word, so project B's attempt to reach a file inside A
-    // spoke last and the closed word an agent reads was wrong about a file
-    // that IS inside an open project. An `outside-projects` attempt now
-    // contributes nothing when the file sits inside another open project;
-    // any project-specific refusal from inside an open project wins whole.
-    let insideReason: AgentAccessResolveRefusal | null = null;
-    let sawInside = false;
-    for (const project of ordered) {
-      // A relative path resolves only against the caller's project.
-      if (!isAbsolute && callerProject !== null && project.id !== callerProject.id) {
-        continue;
-      }
-      const attempt = await resolveInProject(project, decoded.path);
-      if (attempt.ok) {
-        resolved = attempt;
-        break;
-      }
-      if (attempt.reason !== 'outside-projects') {
-        sawInside = true;
-        insideReason = attempt.reason;
-      }
-      // A project-root spelling (`/`-joined root or the root itself) is a
-      // directory, never a file.
-      if (!isAbsolute) break;
-    }
-    if (resolved === null) {
-      if (sawInside) return refused(insideReason ?? 'missing');
-      return refused('outside-projects');
-    }
+      projects.find((one) => one.path === caller.projectPath) ?? null;
+    if (callerProject === null) return refused('no-project');
+    const resolved = await resolveInProject(callerProject, decoded.path);
+    if (!resolved.ok) return refused(resolved.reason);
     const abs = resolved.abs;
     const project = resolved.project;
     // The strict shared bounded read. The gate's deterministic race arms
@@ -444,11 +409,18 @@ export function buildAgentAccessOpen(
       if (line > lineCount || endLine > lineCount) {
         return refused('line-out-of-range');
       }
+      // PHASE 362 (his filing: the highlight read dim beside a manual
+      // selection). A line range ends at the END OF THE ACTUAL LINE plus one
+      // column, so the selection covers the line and its break, exactly as a
+      // mouse drag down the gutter does. `endColumn: 0` on the last line was
+      // an EMPTY range: nothing was selected and the only thing a person saw
+      // was the flash wash, which is why it read as dim rather than as a
+      // selection.
       const selection = {
         line,
         column: 0,
         endLine,
-        endColumn: 0,
+        endColumn: lineEndColumn(text, endLine),
         highlight: true as const
       };
       return await deliverOpen(deps, {

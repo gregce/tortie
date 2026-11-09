@@ -122,7 +122,10 @@ describe('the seam itself', () => {
       cancelPointerDrag,
       focusFleetPrimary,
       ensureEditorSubscribed,
-      editorCloseProjectTabs() {}
+      editorCloseProjectTabs() {},
+      async jumpToSession() {
+        return { ok: false as const, message: 'nothing to land on in this test' };
+      }
     });
     const menu: MenuSpec = { x: 3, y: 4, items: [] };
     shellOps().showNativeMenu(menu);

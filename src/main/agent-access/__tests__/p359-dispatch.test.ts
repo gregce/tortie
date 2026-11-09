@@ -68,6 +68,13 @@ function deps(over: Partial<AgentAccessDispatchDeps> = {}): {
       listProjects: async () => PROJECTS,
       tortieVersion: () => '9.9.9-test',
       open,
+      // PHASE 362. The acting half's seams. Each answers a refusal here, so
+      // this file keeps proving dispatch's own rules and reaches no verb.
+      openProject: async () => ({ state: 'refused', reason: 'project-missing' }),
+      create: async () => ({ state: 'refused', reason: 'failed' }),
+      rename: async () => ({ state: 'refused', reason: 'failed' }),
+      focus: async () => ({ state: 'refused', reason: 'renderer-unavailable' }),
+      readSummary: () => null,
       report,
       ...over
     },
@@ -238,6 +245,37 @@ describe('agent-access dispatch', () => {
     }
   });
 
+  it.each(['expired', 'disabled'] as const)(
+    'does not start a handler when %s during asynchronous source reads',
+    async (reason) => {
+      let enabled = true;
+      let live = true;
+      const open = vi.fn(openOk);
+      const { deps: d, report } = deps({
+        open,
+        isEnabled: () => enabled,
+        isLive: () => live,
+        listProjects: async () => {
+          // The request was admitted, but its transport or switch changed
+          // while fetching sources. No operation may start afterwards.
+          if (reason === 'expired') live = false;
+          else enabled = false;
+          return PROJECTS;
+        }
+      });
+      const result = await dispatchAgentAccessRequest(lineOf({
+        version: 1, operation: 'open', session: 'caller-1',
+        pathBase64: b64('/proj/a/file.txt'), line: 3
+      }), d);
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: reason === 'expired' ? 'unavailable' : 'disabled' }
+      });
+      expect(open).not.toHaveBeenCalled();
+      expect(report).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('validates the two open locator shapes and nothing else', async () => {
     const { deps: d } = deps();
     const openLine = await dispatchAgentAccessRequest(
@@ -340,6 +378,13 @@ describe('agent-access dispatch', () => {
         session: 'caller-1',
         pathBase64: b64('/proj/a/file.txt'),
         endLine: 5
+      },
+      {
+        version: 1,
+        operation: 'open',
+        session: 'caller-1',
+        pathBase64: b64('AGENTS.md'),
+        line: 1
       }
     ];
     for (const body of badBodies) {

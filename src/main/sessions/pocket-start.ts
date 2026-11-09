@@ -122,6 +122,15 @@ export function composeStartInput(input: {
   sessions: readonly Session[];
   settings: Pick<GmuxSettings, 'launchDefaults' | 'captureDefaults'>;
   catalogs: AgentFlagCatalogs;
+  /**
+   * PHASE 362. The name to give the session, when the caller names one. The
+   * phone's start names none and gets `ordinalName`; the agent door's create
+   * names one, validated by the shared name rule before it gets here. Every
+   * other field is composed the same way for both, so a named create carries
+   * the person's own launch defaults and capture default exactly as a
+   * one-press create does.
+   */
+  name?: string;
 }): CreateSessionInput {
   const { project, agent } = input;
   const place = placeOfProject(project);
@@ -129,7 +138,7 @@ export function composeStartInput(input: {
   const extraArgs = defaultLaunchArgs(agent, input.settings, input.catalogs);
   const capture = captureDefaultFor(input.settings, agent);
   return {
-    name: ordinalName(agent, sessionsOfProject(project, input.sessions)),
+    name: input.name ?? ordinalName(agent, sessionsOfProject(project, input.sessions)),
     projectPath: project.path,
     ...(remote ? { projectMachineId: place } : {}),
     // The wire cast the window makes in exactly one place (`createSession`).

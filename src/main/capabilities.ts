@@ -143,7 +143,8 @@ import { createPocketWrites } from './sessions/pocket-writes';
 // PHASE 346: the phone's start (the offer the Sessions answer carries and the
 // start itself), built once here and handed to the door's facts and writes;
 // the door's domain names neither.
-import { createPocketStart } from './sessions/pocket-start';
+import type { LaunchableAgentId } from '@shared/types';
+import { composeStartInput, createPocketStart } from './sessions/pocket-start';
 // PHASE 318: the reply's verbs (a press and a message) and the one process-wide
 // question id, built once here and handed to the door's writes and facts; the
 // door's domain imports neither.
@@ -185,11 +186,26 @@ import {
   reconcileAgentAccess
 } from './agent-access/service';
 import { buildAgentAccessOpen } from './agent-access/open';
+import {
+  buildAgentAccessCreate,
+  buildAgentAccessFocus,
+  buildAgentAccessOpenProject,
+  buildAgentAccessRename
+} from './agent-access/verbs';
+import { DEFAULT_AGENT_ID, AGENT_REGISTRY } from './agents/registry';
 import { agentAccessHarnessCheckpoint } from './harness/agent-access-open';
+import type { AgentAccessStoredSummary } from './agent-access/facts';
+import { installAppleEvents, shutdownAppleEvents } from './agent-access/apple-events';
 import { AgentAccessOpenBroker } from './agent-access/open-broker';
 import { registerAgentAccessOpenIpc } from './agent-access/open-ipc';
 import { getGmuxCore, shutdownGmuxCore, type GmuxCore } from './sessions';
-import { getSettings, onSettingsUpdated, registerSettingsIpc } from './settings';
+import {
+  getFlagCatalogViews,
+  getSettings,
+  onSettingsUpdated,
+  registerSettingsIpc
+} from './settings';
+import { isSettingsWindow } from './settings/window';
 import { registerShellIpc } from './shell';
 import { disposeSymbolsIpc, registerSymbolsIpc } from './symbols';
 import { disposeTray } from './tray';
@@ -623,10 +639,89 @@ export function installMainCapabilities(
     (await agentAccessCore()).listSessions();
   const agentAccessProjects = async (): Promise<Project[]> =>
     (await agentAccessCore()).listProjects();
+  // PHASE 362. Tortie's own summary, read from the overview store the app
+  // already keeps. Read ONLY: this never opens a fold, never writes the
+  // store and never spends a token, and a profile whose store has not opened
+  // yet answers `state: 'none'` rather than failing the request.
+  // The page's own rule (`writtenLineFor`): the NEWEST row whatever its
+  // verdict, and a refused newest row is a refusal, never an older kept
+  // sentence. `newestTurn` is the newest STORED turn's index, never COUNT.
+  const agentAccessSummary = (sessionId: string): AgentAccessStoredSummary | null => {
+    try {
+      const store = overviewStore();
+      const row = store.latestSummary(sessionId);
+      if (row === null) return null;
+      const tail = store.listTurns(sessionId, 1);
+      const newestTurn = tail.length === 0 ? 0 : tail[0]!.index;
+      if (row.verdict !== 'kept' || row.text === null || row.text === '') {
+        return {
+          text: null,
+          kept: false,
+          fromTurn: row.fromTurn,
+          toTurn: row.toTurn,
+          writtenAt: row.writtenAt,
+          newestTurn
+        };
+      }
+      return {
+        text: row.text,
+        kept: true,
+        fromTurn: row.fromTurn,
+        toTurn: row.toTurn,
+        writtenAt: row.writtenAt,
+        newestTurn
+      };
+    } catch {
+      return null;
+    }
+  };
+  // PHASE 362. The four acting adapters, each over the app's ONE existing
+  // verb: the open-target path for opens, the create for creates, the rename
+  // verb for renames, and the one navigation sink the renderer owns for
+  // open-project and focus. The native confirmation End answers is main's
+  // own `dialog.showMessageBox`.
+  // The main window is the one window that is not Settings. Never "the first".
+  const agentAccessMainBrowserWindow = (): BrowserWindow | null =>
+    BrowserWindow.getAllWindows().find(
+      (one) => !one.isDestroyed() && !isSettingsWindow(one)
+    ) ?? null;
+  const agentAccessMainWindow = (): Electron.WebContents | null => {
+    const win = agentAccessMainBrowserWindow();
+    return win === null ? null : win.webContents;
+  };
+  const agentAccessNavSend = async (input: {
+    kind: 'project' | 'focus';
+    projectId: string;
+    sessionId?: string;
+    raise: boolean;
+  }): Promise<'accepted' | 'project-missing' | 'session-missing' | 'failed'> => {
+    if (!agentAccessEnabled()) return 'failed';
+    const target = agentAccessMainWindow();
+    const win = agentAccessMainBrowserWindow();
+    if (target === null || win === null) return 'failed';
+    // Explicit focus authorizes bringing the main window forward; a plain
+    // project open never does.
+    if (input.raise) {
+      if (win.isMinimized()) win.restore();
+      if (!win.isVisible()) win.show();
+      app.focus({ steal: true });
+      win.focus();
+    }
+    const receipt = await agentAccessBroker.sendNav(target, {
+      requestId: agentAccessBroker.mintNavRequestId(),
+      kind: input.kind,
+      projectId: input.projectId,
+      ...(input.sessionId === undefined ? {} : { sessionId: input.sessionId }),
+      raise: input.raise
+    });
+    if (receipt === null || receipt.outcome === 'failed') return 'failed';
+    return receipt.outcome;
+  };
   installAgentAccess({
     isEnabled: agentAccessEnabled,
     listSessions: agentAccessSessions,
     listProjects: agentAccessProjects,
+    readSummary: agentAccessSummary,
     tortieVersion: () => app.getVersion(),
     open: buildAgentAccessOpen({
       isEnabled: agentAccessEnabled,
@@ -635,18 +730,56 @@ export function installMainCapabilities(
       // The ready main renderer, and never a window this door opens. A
       // hidden or background Tortie stays hidden: nothing below shows,
       // focuses, restores or activates.
-      mainWindow: () => {
-        const win = BrowserWindow.getAllWindows().find(
-          (one) => !one.isDestroyed()
-        );
-        return win === undefined ? null : win.webContents;
-      },
+      mainWindow: agentAccessMainWindow,
       broker: agentAccessBroker,
       windowFocused: () =>
         BrowserWindow.getAllWindows().some(
           (one) => !one.isDestroyed() && one.isFocused()
         ),
       harnessCheckpoint: () => agentAccessHarnessCheckpoint()
+    }),
+    openProject: buildAgentAccessOpenProject(agentAccessNavSend, {
+      listProjects: agentAccessProjects,
+      addProject: async (path) => (await agentAccessCore()).addProject(path)
+    }),
+    create: buildAgentAccessCreate({
+      listSessions: agentAccessSessions,
+      listProjects: agentAccessProjects,
+      createSession: async (input) => {
+        const core = await agentAccessCore();
+        const project = core
+          .listProjects()
+          .find((one) => one.path === input.projectPath);
+        if (project === undefined) throw new Error('project gone');
+        // The same composition the phone's start uses: the person's launch
+        // defaults and capture default, no caller argv or env.
+        return core.createSession(
+          composeStartInput({
+            project,
+            agent: input.agent as LaunchableAgentId,
+            sessions: core.listSessions(),
+            settings: getSettings(),
+            catalogs: getFlagCatalogViews(),
+            name: input.name
+          })
+        );
+      },
+      defaultAgentId: () => DEFAULT_AGENT_ID,
+      isLaunchableAgent: (agent) =>
+        AGENT_REGISTRY.some((one) => one.id === agent && one.launchable)
+    }),
+    rename: buildAgentAccessRename({
+      listSessions: agentAccessSessions,
+      listProjects: agentAccessProjects,
+      renameSession: async (input) =>
+        (await agentAccessCore()).renameSession({
+          sessionId: input.sessionId,
+          name: input.name
+        })
+    }),
+    focus: buildAgentAccessFocus(agentAccessNavSend, {
+      listSessions: agentAccessSessions,
+      listProjects: agentAccessProjects
     })
   });
   // The renderer's one receipt, accepted only from the window that was sent
@@ -655,6 +788,8 @@ export function installMainCapabilities(
   // Start from the sealed setting. Off is the default and opens nothing;
   // on opens one listener at this profile's exact address.
   reconcileAgentAccess(agentAccessEnabled());
+  // Phase 363: the Apple Events transport over the same dispatcher.
+  installAppleEvents();
   // Every sealed change re-asks the listener: off closes the door in the
   // running app, on opens it. `reconcileAgentAccess` serializes the races.
   stopAgentAccess = onSettingsUpdated(() => {
@@ -835,6 +970,8 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // the core.
   stopAgentAccess?.();
   stopAgentAccess = null;
+  // Phase 363: the native transport goes first, before the shared service.
+  shutdownAppleEvents();
   beginAgentAccessShutdown();
   // PHASE 357 (build/p357/SPEC.md D16). Then the crash log's one record of the
   // uncaught errors this run saw more than once, counts and hashed keys only,

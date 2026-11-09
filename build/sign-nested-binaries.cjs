@@ -100,7 +100,10 @@ const NESTED_BINARIES = [
   // Phase 41. The pinned tmux, built by build/build-tmux.mjs. It is the
   // durability layer, so unlike the two above it is the binary the app cannot
   // start without: a packaged Tortie resolves only this path and never PATH.
-  { relative: 'Resources/bin/tmux', identifierSuffix: 'tmux' }
+  { relative: 'Resources/bin/tmux', identifierSuffix: 'tmux' },
+  // Phase 363. The first-party Apple Events addon, outside the asar because it
+  // is dlopen'ed. Same identity, no entitlement.
+  { relative: 'Resources/native/apple-events.node', identifierSuffix: 'apple-events' }
 ];
 
 /** The skills CLI tree that must stay free of Mach-O binaries. */

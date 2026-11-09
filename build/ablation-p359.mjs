@@ -70,6 +70,22 @@ const ARMS = [
     note: 'a fresh install wakes with the switch already on'
   },
   {
+    id: 40,
+    rule: 'O3',
+    file: 'src/main/agent-access/facts.ts',
+    from: "      return 'waiting';",
+    to: "      return 'idle';",
+    note: 'a session blocked on a person stops reading as waiting, which is the one word an agent must not miss'
+  },
+  {
+    id: 41,
+    rule: 'O3',
+    file: 'src/main/agent-access/facts.ts',
+    from: "stored === null || stored.text === null",
+    to: "    if (stored === null) {",
+    note: 'a refused summary row is carried as kept text instead of the honest none'
+  },
+  {
     id: 5,
     rule: 'D1',
     file: 'src/shared/agent-access.ts',
@@ -305,9 +321,9 @@ const ARMS = [
     id: 28,
     rule: 'O4',
     file: 'src/main/agent-access/open-broker.ts',
-    from: '    if (pending.target !== sender) return;',
-    to: '    if (false) return;',
-    note: 'a receipt from another window is accepted'
+    from: '    const pending = this.pending.get(completion.requestId);\n    if (pending === undefined) return;\n    if (pending.target !== sender) return;',
+    to: '    const pending = this.pending.get(completion.requestId);\n    if (pending === undefined) return;\n    if (false) return;',
+    note: 'an open receipt from another window is accepted (target the open map, not the new navigation map)'
   },
   {
     id: 29,

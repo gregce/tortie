@@ -9,7 +9,10 @@
  */
 
 import type { IpcMain } from 'electron';
-import type { AgentAccessOpenCompletion } from '@shared/ipc/agent-access';
+import type {
+  AgentAccessNavCompletion,
+  AgentAccessOpenCompletion
+} from '@shared/ipc/agent-access';
 // The one typed invoke registrar: the domain joined `GmuxInvokeChannelMap` in
 // the same commit that installed the member, so the channel's request and
 // response are checked at both ends and the trusted-sender check applies.
@@ -22,6 +25,28 @@ const COMPLETION_OUTCOMES: ReadonlySet<string> = new Set([
   'project-missing',
   'failed'
 ]);
+
+/** PHASE 362. The navigation receipts' closed outcome set. */
+const NAV_OUTCOMES: ReadonlySet<string> = new Set([
+  'accepted',
+  'project-missing',
+  'session-missing',
+  'failed'
+]);
+
+/** Shape-check one navigation receipt. Decided in the broker, checked here. */
+function isNavCompletion(value: unknown): value is AgentAccessNavCompletion {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record['requestId'] !== 'string') return false;
+  if ((record['requestId'] as string).length === 0) return false;
+  const outcome = record['outcome'];
+  if (typeof outcome !== 'string' || !NAV_OUTCOMES.has(outcome)) return false;
+  const keys = new Set(Object.keys(record));
+  return keys.size === 2 && keys.has('requestId') && keys.has('outcome');
+}
 
 function isCompletion(value: unknown): value is AgentAccessOpenCompletion {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -52,5 +77,9 @@ export function registerAgentAccessOpenIpc(
   handle(ipc, 'agent-access:openComplete', (event, input) => {
     if (!isCompletion(input)) return;
     broker.noteCompletion(event.sender, input);
+  });
+  handle(ipc, 'agent-access:navComplete', (event, input) => {
+    if (!isNavCompletion(input)) return;
+    broker.noteNavCompletion(event.sender, input);
   });
 }

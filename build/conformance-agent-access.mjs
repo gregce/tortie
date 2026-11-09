@@ -72,7 +72,21 @@ try {
 // violated, and `check` must then answer a finding.
 // ---------------------------------------------------------------------------
 
-const EXPECTED_OPERATIONS = ['capabilities', 'whoami', 'sessions', 'open'];
+// PHASE 362 adds the two reads a person asks for. The list is the closed
+// registry: a later round that adds an operation must move this line, the
+// dispatch arm, the skill's table and the ablation plant in ONE commit.
+const EXPECTED_OPERATIONS = [
+  'capabilities',
+  'whoami',
+  'sessions',
+  'activity',
+  'summaries',
+  'open',
+  'open-project',
+  'create',
+  'rename',
+  'focus'
+];
 const EXPECTED_AGENTS = ['claude', 'pi', 'omp'];
 const EXPECTED_PAIRS = {
   claude: ['--plugin-dir', '/R/agent-skills/tortie'],
@@ -91,11 +105,11 @@ const EXPECTED_RESOURCE_SHA256 = {
   '.cursor-plugin/plugin.json':
     'bb576dc2d8834cd6a05f9732eee090cd3c66d14a5ed30b7b19318f32e4051bb7',
   'skills/tortie/SKILL.md':
-    'b219a21a56a63974167cef03b4aa3d14656de67b3d042039a083c69bafcb334f',
+    '48cc98838bf4edc7f4ba7a214bbc9ee85666d21e894f207481ea93c54fdb7be2',
   'skills/tortie/references/sessions.md':
-    '9287836131693c53bbc4b6f9b6f17fedf4b1196115f80cffce0127dcf01b8ca7',
+    'cd34b4296fe485fecc0bf62e2c399526ddc5d03f53bd7630fc1f832cbff2bbac',
   'skills/tortie/references/editor.md':
-    'c97d4154250be330693632337862396f948a122375260f122fb7a67caa43edd8'
+    '28ae39e7bdf0232accf4a5ad9f0d25e84840168f221bbc3060b69d34508fa36e'
 };
 
 const EXPECTED_LABEL = 'Allow agents to use Tortie';
@@ -341,8 +355,14 @@ const RULES = [
       // connection at stdin EOF and the receipt-backed answer arrives after
       // that. A reference that teaches `printf | nc` alone teaches agents to
       // report a working open as silence.
-      if (!r.client.heldPipe) return 'the open one-liners do not hold the pipe open';
+      if (!r.client.heldPipe) return 'the references still teach a sleep before nc';
       if (!r.client.sessionGone) return 'the references never name the session-gone refusal';
+      // PHASE 362: the skill must teach both new operations by name (and
+      // sessions teaches them too), and must never teach the turn text the
+      // door refuses to carry.
+      if (!r.client.activityWord) return 'the bundle never teaches the activity word';
+      if (!r.client.summariesWord) return 'the bundle never teaches the summaries word';
+      if (!r.client.noTurnText) return 'the bundle teaches turn text the door will not carry';
       if (!r.installsNothing) return 'the skill tells an agent to install something';
       return null;
     },
@@ -615,8 +635,8 @@ const RULES = [
   },
   {
     id: 'O3',
-    section: 'the open operation',
-    name: 'the locator set is closed and the refusals are the contract words',
+    section: 'the operations',
+    name: 'the locator set is closed, the refusals are the contract words, and the two Phase 362 reads answer honestly',
     check(d) {
       const t = d.driven;
       const upper = t.findUpperCase;
@@ -630,7 +650,12 @@ const RULES = [
       }
       const range = t.lineRange;
       if (range.state !== 'opened') return 'the line range was refused';
-      if (range.selection.endLine !== 3 || range.selection.endColumn !== 0) {
+      // PHASE 362. A line range ends at the END of its last line plus one
+      // column, so it selects the line and its break as a mouse drag down the
+      // gutter does. The build before answered `endColumn: 0` there, which is
+      // an EMPTY selection under a flash wash — the dim highlight the operator
+      // filed. `length + 1` is the rule this pins.
+      if (range.selection.endLine !== 3 || range.selection.endColumn !== 18) {
         return `the range ends at ${range.selection.endLine}:${range.selection.endColumn}`;
       }
       if (t.lineOut.state !== 'refused' || t.lineOut.reason !== 'line-out-of-range') {
@@ -677,6 +702,43 @@ const RULES = [
       }
       // PHASE 361. A caller that moved while the file was read is a refusal
       // with its own word, never a throw that collapses into `unavailable`.
+      // PHASE 362, the two new reads, driven through the SHIPPING dispatch.
+      if (d.dispatch.activity === null || d.dispatch.activity === undefined) {
+        return 'the activity arm produced no reading';
+      }
+      const a = d.dispatch.activity;
+      if (a.counts.waiting !== 1 || a.counts.working !== 2 || a.counts.idle !== 1 || a.counts.finished !== 1) {
+        return `the activity counts are ${JSON.stringify(a.counts)}`;
+      }
+      if (a.waiting.length !== 1 || a.waiting[0].doing !== 'waiting') {
+        return 'the blocked session is not first in the waiting rows';
+      }
+      if (a.sessions.some((row) => typeof row.doing !== 'string')) {
+        return 'an activity row carries no doing word';
+      }
+      if (d.dispatch.summaries === null || d.dispatch.summaries === undefined) {
+        return 'the summaries arm produced no reading';
+      }
+      const kept = d.dispatch.summaries.summaries.find((row) => row.state === 'kept');
+      const none = d.dispatch.summaries.summaries.find((row) => row.state === 'none');
+      if (kept === undefined || kept.text !== 'Did a thing.' || kept.staleTurns !== 2) {
+        return `the kept summary reads ${JSON.stringify(kept)}`;
+      }
+      if (none === undefined) return 'no session answered state none';
+      if (d.dispatch.codes.activity !== 'ok') return 'activity is not an ok answer';
+      if (d.dispatch.codes.activityFakeCaller !== 'unavailable') {
+        return 'a fake caller learned the activity board';
+      }
+      if (d.dispatch.codes.summariesNamed !== 'ok') return 'naming sessions broke summaries';
+      if (d.dispatch.codes.summariesBadId !== 'bad-request') {
+        return 'a summary request naming a bad id was not bad-request';
+      }
+      if (d.dispatch.codes.summariesNotArray !== 'bad-request') {
+        return 'a summary request whose sessions is not an array was not bad-request';
+      }
+      if (d.dispatch.codes.activityExtraMember !== 'bad-request') {
+        return 'activity accepted a member only summaries may carry';
+      }
       if (t.goneCaller === undefined) return 'the gone-caller arm produced no reading';
       if (t.goneCaller.state !== 'refused' || t.goneCaller.reason !== 'session-gone') {
         return `a caller gone after the read answers ${t.goneCaller.state}/${t.goneCaller.reason}`;
@@ -700,6 +762,12 @@ const RULES = [
     name: 'one event, one receipt, one sender check',
     check(d) {
       const o = d.open;
+      // PHASE 362. TWO typed sends now, one per channel: the open event and
+      // the navigation event. Three or one is a second event added without a
+      // contract, or a channel that lost its send.
+      if (o.brokerSendCount !== 2) {
+        return `the broker sends through ${o.brokerSendCount} calls`;
+      }
       if (!o.brokerSendsOnce) return 'the broker sends through more than one call';
       if (o.brokerTargetSend) return 'the broker writes webContents.send directly';
       if (!o.brokerChecksSender) return 'a receipt from another window is accepted';
@@ -799,8 +867,18 @@ const RULES = [
       if (!i.hasEnv) return 'the environment name is not in the baseline';
       const extra = i.lines.filter(
         (line) =>
-          line !== 'agent-access:openComplete' && line !== 'GMUX_AGENT_SOCKET'
+          line !== 'agent-access:openComplete' &&
+          line !== 'agent-access:navComplete' &&
+          line !== 'GMUX_AGENT_SOCKET'
       );
+      if (extra.length === 0) {
+        // PHASE 362. A second complete is a second channel and earns its
+        // sentence: four baseline rows, one per deliberate addition.
+        const rows = ['GMUX_AGENT_SOCKET', 'agent-access:openComplete', 'agent-access:navComplete'];
+        if (!rows.every((row) => i.lines.includes(row))) {
+          return `the baseline rows are not all present`;
+        }
+      }
       if (extra.length > 0) return `unexplained baseline rows: ${extra.join(', ')}`;
       return null;
     },
@@ -809,6 +887,107 @@ const RULES = [
     }
   }
 ];
+
+// ---------------------------------------------------------------------------
+// PHASE 362. Half-close, the operating shape, and the acting-half driven
+// answers. Each rule is asked again over its broken copy with a control,
+// like every other rule in this gate.
+
+RULES.push(
+  {
+    id: 'H1',
+    section: 'the half-close shape',
+    name: 'a piped caller gets an answer when the factory owns the socket',
+    check(d) {
+      const halfClose = d.halfClose;
+      const factory = halfClose.results.find((one) => one.server === 'factory');
+      const bare = halfClose.results.find((one) => one.server === 'bare');
+      if (!factory || !bare) return 'the half-close section did not run';
+      // The whole point: a plain pipe (no held stdin) answers through the
+      // factory's `allowHalfOpen: true` listener. The answer is one JSON line.
+      if (factory.plain.bytes === 0 || factory.plain.text.length === 0) {
+        return 'a plain pipe through the factory answered no bytes';
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(factory.plain.text);
+      } catch {
+        return 'the factory plain-pipe answer is not one JSON line';
+      }
+      if (parsed === null || parsed.ok !== true) return 'the factory plain-pipe answer is not ok:true';
+      if (factory.held.bytes === 0) return 'a held pipe through the factory answered no bytes';
+      // The CONTROL: the same delayed answer through a bare `createServer()`
+      // — exactly the predecessor's failure — must come back empty, proving
+      // this section can tell the factory it measures from the bare server.
+      if (bare.plain.bytes !== 0) return 'the bare control answered a plain pipe it must drop';
+      if (bare.held.bytes === 0) return 'the bare control did not answer the held pipe';
+      // The answer the delay proves had time to arrive after the FIN.
+      if (halfClose.answerDelayMs < 100) return 'the answer did not wait past the write-side end';
+      return null;
+    },
+    breakIt(d) {
+      d.halfClose.answerDelayMs = 0;
+    }
+  },
+  {
+    id: 'H2',
+    section: 'the acting half',
+    name: 'refuse before the verb runs, call it exactly once after',
+    check(d) {
+      const v = d.verbs;
+      // The shared name rule answers in its own words, and a refused name
+      // reaches no verb: the third make would have been the fourth call.
+      for (const [key, want] of [['empty', 'empty'], ['long', 'long'], ['character', 'character']]) {
+        if (v.nameRefusals[key]?.reason !== want) {
+          return `a ${key} name answers ${v.nameRefusals[key]?.reason ?? 'nothing'}, expected ${want}`;
+        }
+      }
+      if (v.unknownProject.reason !== 'project-missing') {
+        return `an unknown project answers ${v.unknownProject.reason}, expected project-missing`;
+      }
+      if (v.unknownAgent.reason !== 'agent-unknown') {
+        return `an unknown agent answers ${v.unknownAgent.reason}, expected agent-unknown`;
+      }
+      if (v.createdWithName.state !== 'created') return 'a named create did not answer created';
+      if (v.renamed.state !== 'renamed') return 'a rename by id did not answer renamed';
+      if (v.renamedGone.reason !== 'session-missing') {
+        return `a rename of nothing answers ${v.renamedGone.reason}, expected session-missing`;
+      }
+      if (v.renamedRemoved.reason !== 'gone') {
+        return `a rename of a removed row answers ${v.renamedRemoved.reason}, expected gone`;
+      }
+      if (v.openedProject.state !== 'opened') return 'open-project did not answer opened';
+      if (v.openedMissing.reason !== 'project-missing') {
+        return `an open-project of nothing answers ${v.openedMissing.reason}, expected project-missing`;
+      }
+      if (v.focusedProjectOnly.state !== 'focused') return 'a project-only focus did not answer focused';
+      if (v.focusedWrongProject.reason !== 'session-not-in-project') {
+        return `a focus outside the project answers ${v.focusedWrongProject.reason}, expected session-not-in-project`;
+      }
+      // Every explicit focus raises, including project-only. Opening a
+      // project without asking for focus remains a non-raising operation.
+      const focusSession = v.navSends.find((one) => one.sessionId === 'live-1' && one.kind === 'focus');
+      const focusProject = v.navSends.find((one) => one.sessionId === undefined && one.kind === 'focus');
+      const opens = v.navSends.filter((one) => one.kind === 'project');
+      if (!focusSession || focusSession.raise !== true) return 'a focus with a session does not raise';
+      if (!focusProject || focusProject.raise !== true) return 'a project-only focus does not raise';
+      for (const one of opens) {
+        if (one.raise !== false) return 'a project open claims a raise it must not make';
+      }
+      // Exactly two makes: the default-agent probe's and the named one. The
+      // four refused creates above — three names and one unknown project —
+      // reached no verb at all, which is the rule this count proves.
+      const makes = v.calls.filter((one) => one.verb === 'create');
+      if (makes.length !== 2) return `the create verb ran ${makes.length} times, expected 2`;
+      const renames = v.calls.filter((one) => one.verb === 'rename');
+      if (renames.length !== 1) return `the rename verb ran ${renames.length} times, expected 1`;
+      return null;
+    },
+    breakIt(d) {
+      d.verbs.renamedRemoved.reason = 'session-missing';
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Run the rules, twice
@@ -903,9 +1082,14 @@ process.stdout.write(
   '\nPASS. The switch is a plain off-by-default boolean no seal is asked about; three rows ' +
     'receive the bundled skill and ten receive byte-identical launches; the ' +
     'bundle ships as five data files asserted before signing; one private ' +
-    'socket answers one capped request on an absolute deadline; four curated ' +
-    'operations reach a live local session; open asks containment and the ' +
-    'path door and an editor-only path; and no log line carries a payload.\n' +
+    'socket answers one capped request on an absolute deadline; ten curated ' +
+    'operations reach a live local session, two of them the activity board ' +
+    'and the stored summaries beside the project filter, and the acting half ' +
+    '— open-project, a named create, rename by id and one focus; ' +
+    'no agent End operation; open asks containment and the path door ' +
+    'and an editor-only path, and a line range ends at its last line end ' +
+    'plus one; a piped caller is answered by the half-open factory and not ' +
+    'by a bare server; and no log line carries a payload.\n' +
     `Every one of the ${RULES.length} rules was asked again over its own ` +
     'broken copy and went red, with a control copy green.\n'
 );

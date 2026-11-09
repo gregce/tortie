@@ -7,8 +7,8 @@
  * restore, resume-in-place) converge here so the measured pairs cannot drift
  * between them.
  *
- * WHAT IT NEVER DOES. Read the sealed setting itself (callers pass the
- * already-seal-checked `enabled`); reach the manifest, a record, the
+ * WHAT IT NEVER DOES. Read settings itself (callers pass the
+ * plain boolean `enabled`); reach the manifest, a record, the
  * registry confirm hash, or the filesystem; log argv, paths, or session ids.
  * Delivery is persisted nowhere: the manifest keeps the pre-delivery
  * `spec`/record at every call site.
@@ -61,8 +61,8 @@ export function agentAccessArgvPair(
  * Whether this launch is eligible for delivery. Pure and exported so the
  * three call sites and the unit tests ask the same question.
  *
- * - `enabled` is the seal-checked `getSettings().agentAccess`. A forged or
- *   old-schema settings file never reaches here as true.
+ * - `enabled` is the plain `getSettings().agentAccess` boolean. Delivery
+ *   asks for no seal, Keychain access or Apple Events permission.
  * - `local` is false for a session on another machine: a remote agent gets
  *   neither the bundle argument nor the socket path.
  * - `socketPath` must be a non-empty address that fits macOS `sun_path`
@@ -100,7 +100,7 @@ export interface AgentAccessDelivery {
 
 /**
  * The one delivery composer for all three launch seams. Callers pass the
- * seal-checked switch (`settings.agentAccess === true`) and whether the
+ * plain switch (`settings.agentAccess === true`) and whether the
  * pane is local; this helper reads the current profile socket path and the
  * packaged-or-development bundle root and returns the delivery or null.
  *

@@ -19,15 +19,42 @@ export const AGENT_ACCESS_PROTOCOL = 1 as const;
 /** Pane environment name carrying the socket address. Exactly this. */
 export const AGENT_ACCESS_SOCKET_ENV = 'GMUX_AGENT_SOCKET' as const;
 
-/** The four allowlisted operations, in wire order. Exactly these. */
+/**
+ * The allowlisted operations, in wire order. Exactly these.
+ *
+ * PHASE 362 adds the two reads a person actually asks for: `activity` (what
+ * the other sessions are doing, and which are waiting on a person) and
+ * `summaries` (the one-line summary Tortie already wrote, never the
+ * conversation, never a model call).
+ */
 export const AGENT_ACCESS_OPERATIONS = [
   'capabilities',
   'whoami',
   'sessions',
+  'activity',
+  'summaries',
+  'open',
+  'open-project',
+  'create',
+  'rename',
+  'focus'
+] as const;
+
+/**
+ * The operations that read and open nothing: they never create, rename, end,
+ * select or type. Everything else acts, and an acting operation answers a
+ * closed refusal reason when it does nothing.
+ */
+export const AGENT_ACCESS_READ_OPERATIONS = [
+  'capabilities',
+  'whoami',
+  'sessions',
+  'activity',
+  'summaries',
   'open'
 ] as const;
 
-/** One of the four operations a caller may ask for. */
+/** One of the operations a caller may ask for. */
 export type AgentAccessOperation = (typeof AGENT_ACCESS_OPERATIONS)[number];
 
 /** The only agents that ever receive launch delivery. Exactly these three. */
@@ -45,6 +72,11 @@ export const AGENT_ACCESS_MAX_RESPONSE_BYTES = 256 * 1024;
 export const AGENT_ACCESS_REQUEST_DEADLINE_MS = 2_000;
 /** Newest-first session rows per `sessions` answer. Older rows are omitted. */
 export const AGENT_ACCESS_MAX_SESSION_ROWS = 200;
+/** Newest-first rows one `activity` or `summaries` answer may carry. */
+export const AGENT_ACCESS_MAX_LISTED_ROWS = 50;
+/** Longest summary sentence this door will carry, in characters. */
+export const AGENT_ACCESS_MAX_SUMMARY_CHARS = 400;
+
 /** Largest decoded open path, in bytes. */
 export const AGENT_ACCESS_MAX_PATH_BYTES = 4_096;
 /** Largest decoded open find string, in bytes. */
@@ -100,7 +132,43 @@ export interface AgentAccessBaseRequest {
 export type AgentAccessRequest =
   | { version: 1; operation: 'capabilities'; session: string }
   | { version: 1; operation: 'whoami'; session: string }
-  | { version: 1; operation: 'sessions'; session: string }
+  | { version: 1; operation: 'sessions'; session: string; project?: string }
+  | { version: 1; operation: 'activity'; session: string; project?: string }
+  | {
+      version: 1;
+      operation: 'summaries';
+      session: string;
+      project?: string;
+      sessions?: string[];
+    }
+  | {
+      version: 1;
+      operation: 'open-project';
+      session: string;
+      project: string;
+    }
+  | {
+      version: 1;
+      operation: 'create';
+      session: string;
+      project: string;
+      name: string;
+      agent?: string;
+    }
+  | {
+      version: 1;
+      operation: 'rename';
+      session: string;
+      target: string;
+      name: string;
+    }
+  | {
+      version: 1;
+      operation: 'focus';
+      session: string;
+      project: string;
+      target?: string;
+    }
   | {
       version: 1;
       operation: 'open';
@@ -143,16 +211,86 @@ export type AgentAccessOperationResult =
   | AgentAccessCapabilitiesValue
   | AgentAccessWhoAmIValue
   | AgentAccessSessionsValue
-  | AgentAccessOpenValue;
+  | AgentAccessActivityValue
+  | AgentAccessSummariesValue
+  | AgentAccessOpenValue
+  | AgentAccessOpenProjectValue
+  | AgentAccessCreateValue
+  | AgentAccessRenameValue
+  | AgentAccessFocusValue;
 
 /** `capabilities`: what this door is and what it answers. */
 export interface AgentAccessCapabilitiesValue {
   protocol: 1;
   tortieVersion: string;
   enabled: true;
-  operations: readonly ['capabilities', 'whoami', 'sessions', 'open'];
+  operations: typeof AGENT_ACCESS_OPERATIONS;
   deliveredTo: readonly ['claude', 'pi', 'omp'];
 }
+
+/**
+ * `activity`: what every listed session is DOING, in the words a person uses.
+ *
+ * `waiting` is the one an agent must not miss: that session is blocked on a
+ * person, and the agent should say so rather than guess. Every row is one the
+ * `sessions` operation already lists, projected the same way, so a session
+ * that is invisible there is invisible here.
+ */
+export interface AgentAccessActivityValue {
+  counts: {
+    working: number;
+    idle: number;
+    waiting: number;
+    finished: number;
+  };
+  /** Blocked-on-a-person rows first, newest first within each group. */
+  waiting: AgentAccessSessionView[];
+  /** Every row with its own word, capped like `sessions`. */
+  sessions: AgentAccessActivityRow[];
+  omitted: number;
+}
+
+/** One session's activity word, on top of the curated row. */
+export interface AgentAccessActivityRow extends AgentAccessSessionView {
+  /** The plain word: 'working' | 'idle' | 'waiting' | 'finished' | 'other'. */
+  doing: AgentAccessActivityDoing;
+}
+
+/** The closed set of activity words. Nothing here is a status setter. */
+export type AgentAccessActivityDoing =
+  | 'working'
+  | 'idle'
+  | 'waiting'
+  | 'finished'
+  | 'other';
+
+/**
+ * `summaries`: Tortie's own one-line summary for listed sessions, as it was
+ * already written. Never the conversation, never a model call: a session with
+ * no kept summary answers `state: 'none'`, which is an answer and not an
+ * error.
+ */
+export interface AgentAccessSummariesValue {
+  summaries: AgentAccessSummaryRow[];
+  omitted: number;
+}
+
+/** One session's summary, or the honest absence of one. */
+export type AgentAccessSummaryRow =
+  | { sessionId: string; state: 'none' }
+  | {
+      sessionId: string;
+      state: 'kept';
+      /** The sentence Tortie wrote. */
+      text: string;
+      /** The turn range it covers, 1-based and inclusive. */
+      fromTurn: number;
+      toTurn: number;
+      /** Epoch ms the sentence was written. */
+      writtenAt: number;
+      /** Turns since written; 0 means it is current. */
+      staleTurns: number;
+    };
 
 /** `whoami`: the caller's own curated row. */
 export interface AgentAccessWhoAmIValue {
@@ -211,6 +349,62 @@ export type AgentAccessOpenValue =
     };
 
 /**
+ * The closed reasons a name is refused, in the order the one shared rule asks
+ * them (`sessionNameRefusal`): empty, then too long, then a refused character.
+ * Re-spelled as a union here because the shared contract compiles into both
+ * processes; the WORDS are never re-spelled.
+ */
+export type AgentAccessNameRefusal = 'empty' | 'long' | 'character';
+
+/** Why an acting operation did nothing. Every reason is closed. */
+export type AgentAccessActionRefusal =
+  | AgentAccessNameRefusal
+  | 'project-missing'
+  | 'session-missing'
+  | 'session-not-in-project'
+  | 'gone'
+  | 'agent-unknown'
+  | 'agent-not-launchable'
+  | 'renderer-unavailable'
+  | 'not-confirmed'
+  | 'failed';
+
+/**
+ * `open-project`: the project's tab is in front. It creates no tab, starts no
+ * session, and raises no window unless the caller's own request was `focus`.
+ */
+export type AgentAccessOpenProjectValue =
+  | { state: 'opened'; project: AgentAccessProjectView }
+  | { state: 'refused'; reason: AgentAccessActionRefusal };
+
+/**
+ * `create`: a NAMED session was made through the app's one create path, with
+ * a launchable compiled agent. The answer is the curated row, never argv.
+ */
+export type AgentAccessCreateValue =
+  | { state: 'created'; session: AgentAccessSessionView }
+  | { state: 'refused'; reason: AgentAccessActionRefusal };
+
+/** `rename`: the session's name changed, by id only, and the new row. */
+export type AgentAccessRenameValue =
+  | { state: 'renamed'; session: AgentAccessSessionView }
+  | { state: 'refused'; reason: AgentAccessActionRefusal };
+
+/**
+ * `focus`: the project is in front and, when the caller named one of its
+ * sessions, that session is selected with its terminal holding the keyboard.
+ * This is the one operation that may raise and focus Tortie's window, because
+ * putting a person in front of a session is exactly what was asked for.
+ */
+export type AgentAccessFocusValue =
+  | {
+      state: 'focused';
+      project: AgentAccessProjectView;
+      session: AgentAccessSessionView | null;
+    }
+  | { state: 'refused'; reason: AgentAccessActionRefusal };
+
+/**
  * The curated project projection. Id, display name and absolute path only:
  * never manifest records, capture records, environment or login names.
  */
@@ -261,3 +455,58 @@ export interface AgentAccessOpenInvocation {
 export type AgentAccessOpenHandler = (
   invocation: AgentAccessOpenInvocation
 ) => Promise<AgentAccessOpenValue>;
+
+/**
+ * PHASE 362. The acting half's seams. Each is a validated invocation handed to
+ * an injected adapter, exactly as `open` is: the dispatcher validates the
+ * shape and never composes argv, chooses a project, asks a person or ends
+ * anything itself. Every value it may answer is closed, so an adapter cannot
+ * invent a reason.
+ */
+export interface AgentAccessOpenProjectInvocation {
+  /** The caller's claimed `GMUX_SESSION_ID`. */
+  caller: string;
+  /** An existing project's id. Exactly one of projectId and path is set. */
+  projectId?: string;
+  /** An absolute folder path to open as a new project tab. */
+  path?: string;
+}
+
+export type AgentAccessOpenProjectHandler = (
+  invocation: AgentAccessOpenProjectInvocation
+) => Promise<AgentAccessOpenProjectValue>;
+
+export interface AgentAccessCreateInvocation {
+  caller: string;
+  projectId: string;
+  /** The name the caller asked for, already validated by the shared rule. */
+  name: string;
+  /** A compiled launchable agent id, or null for the app's own default. */
+  agent: string | null;
+}
+
+export type AgentAccessCreateHandler = (
+  invocation: AgentAccessCreateInvocation
+) => Promise<AgentAccessCreateValue>;
+
+export interface AgentAccessRenameInvocation {
+  caller: string;
+  /** The session to rename, by id. */
+  target: string;
+  name: string;
+}
+
+export type AgentAccessRenameHandler = (
+  invocation: AgentAccessRenameInvocation
+) => Promise<AgentAccessRenameValue>;
+
+export interface AgentAccessFocusInvocation {
+  caller: string;
+  projectId: string;
+  /** A session to land on, or null to put the project's tab in front only. */
+  target: string | null;
+}
+
+export type AgentAccessFocusHandler = (
+  invocation: AgentAccessFocusInvocation
+) => Promise<AgentAccessFocusValue>;

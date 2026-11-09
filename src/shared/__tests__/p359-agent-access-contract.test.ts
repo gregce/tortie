@@ -32,12 +32,20 @@ describe('the fixed protocol facts', () => {
     expect(AGENT_ACCESS_SOCKET_ENV).toBe('GMUX_AGENT_SOCKET');
   });
 
-  it('pins the four operations in wire order', () => {
+  // PHASE 362. The four reads come first, then the reads the uncommitted
+  // work added beside them, then this phase's acting half, in wire order.
+  it('pins the ten operations in wire order', () => {
     expect([...AGENT_ACCESS_OPERATIONS]).toEqual([
       'capabilities',
       'whoami',
       'sessions',
-      'open'
+      'activity',
+      'summaries',
+      'open',
+      'open-project',
+      'create',
+      'rename',
+      'focus'
     ]);
   });
 
@@ -109,13 +117,38 @@ describe('the finished projection', () => {
 });
 
 describe('the wire unions are closed', () => {
-  it('admits only the four operations on a valid base shape', () => {
+  // PHASE 362. The reads that landed in the uncommitted work plus this
+  // phase's acting half: ten operations in wire order, pinned exactly so
+  // a twelfth is a deliberate contract change with a baseline regen.
+  it('admits only the ten operations in wire order', () => {
+    expect([...AGENT_ACCESS_OPERATIONS]).toEqual([
+      'capabilities',
+      'whoami',
+      'sessions',
+      'activity',
+      'summaries',
+      'open',
+      'open-project',
+      'create',
+      'rename',
+      'focus'
+    ]);
     const operations = new Set<string>(AGENT_ACCESS_OPERATIONS);
-    expect(operations.size).toBe(4);
-    expect(operations.has('capabilities')).toBe(true);
-    expect(operations.has('whoami')).toBe(true);
-    expect(operations.has('sessions')).toBe(true);
-    expect(operations.has('open')).toBe(true);
+    expect(operations.size).toBe(10);
+    for (const op of [
+      'capabilities',
+      'whoami',
+      'sessions',
+      'activity',
+      'summaries',
+      'open',
+      'open-project',
+      'create',
+      'rename',
+      'focus'
+    ] as const) {
+      expect(operations.has(op)).toBe(true);
+    }
   });
 
   it('admits only literal true for the enabled answer', () => {

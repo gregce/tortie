@@ -134,7 +134,10 @@ beforeEach(() => {
     cancelPointerDrag() {},
     focusFleetPrimary() {},
     ensureEditorSubscribed() {},
-    editorCloseProjectTabs() {}
+    editorCloseProjectTabs() {},
+    async jumpToSession() {
+      return { ok: false as const, message: 'nothing to land on in this test' };
+    }
   });
   registerTerminal(SESSION.id, fakeTerm);
   stage();

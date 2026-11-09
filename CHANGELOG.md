@@ -8,6 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Added
 
+- AppleScript can now ask Tortie what a session's agent can ask it, through two commands, submit request and request result, that carry the same requests the agent socket takes; submitting only means the request was accepted, so read the result for how it went, and macOS asks you before another app may control Tortie
 - A session's agent can now use Tortie itself: ask it what it is, look up a session, or open a file in your editor. Turn it on in Settings then Agents; sessions you start after that carry a bundled skill Claude Code, Pi and omp each list for that launch alone, off is nothing added, a retained start or one on another machine receives nothing, and the door stays a private socket on this Mac that only a sealed switch opens ([`7f1537db`](https://github.com/gregce/tortie/commit/7f1537db))
 
 ## 0.114.1 (2026-11-05)

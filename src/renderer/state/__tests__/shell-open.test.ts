@@ -100,7 +100,10 @@ installShellOps({
   cancelPointerDrag() {},
   focusFleetPrimary() {},
   ensureEditorSubscribed: editorInit,
-  editorCloseProjectTabs() {}
+  editorCloseProjectTabs() {},
+  async jumpToSession() {
+    return { ok: false as const, message: 'nothing to land on in this test' };
+  }
 });
 
 vi.stubGlobal('window', {

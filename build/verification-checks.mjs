@@ -1603,6 +1603,11 @@ export const CHECKS = [
   // writes its report and `--grader-self-test` grades it without launching
   // anything. No agent runs and no token is spent.
   electron('probe:p359'),
+  // PHASE 363's app runs: stage A drives the Apple Events addon alone in an
+  // isolated Electron with self-targeted events (no product code), stage B the
+  // built app's adapter and the real shared dispatcher against the socket. It
+  // sends no event to any other process and requests no consent.
+  electron('probe:p363'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

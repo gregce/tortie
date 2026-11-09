@@ -7,8 +7,8 @@
  *   path/find, line bounds and `endLine >= line` refuse as closed refusals
  *   (never a throw, never a renderer event);
  * - caller: fake/gone/remote ids read unavailable and run nothing;
- * - relative resolves only in the caller's project; absolute tries local
- *   open projects in list order until one passes;
+ * - the caller's OWN project only: absolute required, a path in any other
+ *   project (open or not) is outside-projects;
  * - BOTH `resolveInsideRoot` AND path-door `editor`+`underBase` are required
  *   (a pinned ablation removes each and must flip the verdict);
  * - credential (shipped name predicate), executable, image/PDF/Mac door,
@@ -194,11 +194,15 @@ describe('agent-access open', () => {
     writeFileSync(join(dir, 'file.txt'), 'a\nb\nc\nd\n');
     const open = buildAgentAccessOpen(deps);
     const value = openedOf(await open(inv(join(dir, 'file.txt'), { line: 3 })));
+    // PHASE 362. A line range ends at the END of its last line plus one, so it
+    // selects the line and its break. Line 3 of 'a\nb\nc\nd\n' is 'c': one
+    // unit long, so the exclusive end column is 2. It was 0 — an empty range
+    // that read as a dim wash rather than a selection.
     expect(value.selection).toEqual({
       line: 3,
       column: 0,
       endLine: 3,
-      endColumn: 0,
+      endColumn: 2,
       highlight: true
     });
     // The paths are the REAL paths (containment resolves the platform's
@@ -250,18 +254,13 @@ describe('agent-access open', () => {
     expect(sent).toHaveLength(0);
   });
 
-  it('resolves a relative path only in the caller project', async () => {
-    const other = scratch();
-    const { deps, dir } = world({
-      extraProjects: [project({ id: 'p2', path: other, name: 'b' })]
-    });
+  it('never resolves a relative path (the door refuses it bad-request)', async () => {
+    const { deps, dir, sent } = world();
     writeFileSync(join(dir, 'here.txt'), 'caller\n');
-    writeFileSync(join(other, 'here.txt'), 'other\n');
     const open = buildAgentAccessOpen(deps);
-    const value = openedOf(await open(inv('here.txt', { line: 1 })));
-    expect(value.project.id).toBe('p1');
-    // Real path again: same file, platform alias resolved.
-    expect(value.path.endsWith('/here.txt')).toBe(true);
+    const value = await open(inv('here.txt', { line: 1 }));
+    expect(value).toEqual({ state: 'refused', reason: 'outside-projects' });
+    expect(sent).toHaveLength(0);
   });
 
   it('refuses outside-projects and never echoes the path', async () => {
@@ -518,5 +517,82 @@ describe('agent-access open', () => {
       state: 'refused',
       reason: 'renderer-unavailable'
     });
+  });
+});
+
+describe('open is scoped to the caller session project', () => {
+  /** Two open projects, each with the same AGENTS.md name, two callers. */
+  function twoProjects() {
+    const a = scratch();
+    const b = scratch();
+    writeFileSync(join(a, 'AGENTS.md'), 'same\n');
+    writeFileSync(join(b, 'AGENTS.md'), 'same\n');
+    const sessions = [
+      session({ id: 'caller-a', projectPath: a }),
+      session({ id: 'caller-b', projectPath: b })
+    ];
+    const projects = [
+      project({ id: 'pa', path: a, name: 'a' }),
+      project({ id: 'pb', path: b, name: 'b' })
+    ];
+    const broker = new AgentAccessOpenBroker();
+    const { target, sent } = webContents(false);
+    const deps: AgentAccessOpenDeps = {
+      isEnabled: () => true,
+      listSessions: async () => sessions,
+      listProjects: async () => projects,
+      mainWindow: () => target,
+      broker,
+      // B is the focused/active one: must not matter to caller A.
+      windowFocused: () => true,
+      harnessCheckpoint: () => null
+    };
+    const originalSend = broker.send.bind(broker);
+    vi.spyOn(broker, 'send').mockImplementation(async (t, p) => {
+      const pending = originalSend(t, p);
+      queueMicrotask(() => {
+        broker.noteCompletion(t, { requestId: p.requestId, outcome: 'accepted' });
+      });
+      return pending;
+    });
+    return { a, b, deps, sent };
+  }
+  const asCaller = (session: string, path: string) => ({
+    session,
+    pathBase64: b64(path),
+    line: 1
+  });
+
+  it('caller A opens A only, refuses B even though B is open and active', async () => {
+    const { a, b, deps, sent } = twoProjects();
+    const open = buildAgentAccessOpen(deps);
+    const ok = openedOf(await open(asCaller('caller-a', join(a, 'AGENTS.md'))));
+    expect(ok.project.id).toBe('pa');
+    expect(sent).toHaveLength(1);
+    const refused = await open(asCaller('caller-a', join(b, 'AGENTS.md')));
+    expect(refused).toEqual({ state: 'refused', reason: 'outside-projects' });
+    expect(sent).toHaveLength(1);
+  });
+
+  it('caller B opens B, and the two files never get confused', async () => {
+    const { a, b, deps } = twoProjects();
+    const open = buildAgentAccessOpen(deps);
+    const ok = openedOf(await open(asCaller('caller-b', join(b, 'AGENTS.md'))));
+    expect(ok.project.id).toBe('pb');
+    expect(ok.project.path).toBe(b);
+    expect(await open(asCaller('caller-b', join(a, 'AGENTS.md')))).toEqual({
+      state: 'refused',
+      reason: 'outside-projects'
+    });
+  });
+
+  it('a relative AGENTS.md opens nothing', async () => {
+    const { deps, sent } = twoProjects();
+    const open = buildAgentAccessOpen(deps);
+    expect(await open(asCaller('caller-a', 'AGENTS.md'))).toEqual({
+      state: 'refused',
+      reason: 'outside-projects'
+    });
+    expect(sent).toHaveLength(0);
   });
 });

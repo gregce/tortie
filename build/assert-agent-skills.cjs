@@ -31,12 +31,21 @@ const { join } = require('node:path');
 const RESOURCE_DIR = 'agent-skills/tortie';
 
 /** The exact five files, relative to the resource root. Nothing else. */
+/**
+ * The seven files the bundle ships, in the order they are packed.
+ *
+ * The four references are ONE FILE PER DOMAIN (his ruling of 2026-11-07: a
+ * reference per domain, never a file per operation). The two names this list
+ * held — `references/use-tortie.md` and `references/limits.md` — stopped
+ * existing at commit `a89ffd92`, so a pack from this tree threw on a missing
+ * file until Phase 362 fixed the allowlist and moved the pins with it.
+ */
 const EXPECTED_FILES = [
   '.claude-plugin/plugin.json',
   '.cursor-plugin/plugin.json',
   'skills/tortie/SKILL.md',
-  'skills/tortie/references/use-tortie.md',
-  'skills/tortie/references/limits.md'
+  'skills/tortie/references/sessions.md',
+  'skills/tortie/references/editor.md'
 ];
 
 /** The whole resource manifest shape, key for key. */

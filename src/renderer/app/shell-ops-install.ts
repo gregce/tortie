@@ -16,6 +16,7 @@ import { cancelPointerDrag } from './split/pointer-drag';
 import { focusFleetPrimary } from './focus-trap';
 import { useEditor } from '../editor/store';
 import { installShellOps } from '../state/shell-ops';
+import { jumpToSession } from './session-focus';
 
 /** Install the five real operations. Safe to call more than once. */
 export function installAppShellOps(): void {
@@ -30,6 +31,9 @@ export function installAppShellOps(): void {
     // closes ends, and never after a Cancel or a failed save.
     editorCloseProjectTabs: (projectId, onClosed) => {
       useEditor.getState().closeProjectTabs(projectId, onClosed);
-    }
+    },
+    // PHASE 362. The agent door's `focus` lands through the same jump the ⌘J
+    // palette uses: one tab-matching rule, one keyboard handoff.
+    jumpToSession
   });
 }

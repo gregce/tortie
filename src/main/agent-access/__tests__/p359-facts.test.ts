@@ -182,7 +182,18 @@ describe('curated facts', () => {
       protocol: 1,
       tortieVersion: '9.9.9-test',
       enabled: true,
-      operations: ['capabilities', 'whoami', 'sessions', 'open'],
+      operations: [
+        'capabilities',
+        'whoami',
+        'sessions',
+        'activity',
+        'summaries',
+        'open',
+        'open-project',
+        'create',
+        'rename',
+        'focus'
+      ],
       deliveredTo: ['claude', 'pi', 'omp']
     });
   });

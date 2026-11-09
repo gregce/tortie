@@ -83,6 +83,16 @@ export async function handleAgentAccessOpen(
     await complete('project-missing');
     return;
   }
+  // The request names its project twice (id and repo path); both must still
+  // agree with the project the renderer holds, and the file must sit in it.
+  const root = project.path.replace(/\/+$/, '');
+  if (
+    input.request.repoPath.replace(/\/+$/, '') !== root ||
+    !input.request.path.startsWith(root + '/')
+  ) {
+    await complete('project-missing');
+    return;
+  }
   if (state.activeProjectId !== project.id) {
     try {
       state.setActiveProject(project.id);

@@ -63,6 +63,18 @@ export interface ShellOps {
    * were.
    */
   editorCloseProjectTabs(projectId: string, onClosed: () => void): void;
+  /**
+   * PHASE 362. Reveal a session wherever it lives: switch to its project's
+   * tab, select it and hand its terminal the keyboard — the ⌘J palette's own
+   * jump. The agent door's `focus` reaches the same one, because a second
+   * tab-matching rule would eventually disagree with this one.
+   *
+   * The silent default answers that nothing was landed on. A refusal is not
+   * thrown: the caller says which happened.
+   */
+  jumpToSession(sessionId: string): Promise<
+    { ok: true } | { ok: false; message: string }
+  >;
 }
 
 const NO_OPS: ShellOps = {
@@ -72,6 +84,9 @@ const NO_OPS: ShellOps = {
   ensureEditorSubscribed() {},
   editorCloseProjectTabs(_projectId, onClosed) {
     onClosed();
+  },
+  async jumpToSession() {
+    return { ok: false, message: 'No session was landed on.' };
   }
 };
 

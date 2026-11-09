@@ -16,8 +16,11 @@
 
 import type { WebContents } from 'electron';
 import {
+  EVT_AGENT_ACCESS_NAV,
   EVT_AGENT_ACCESS_OPEN,
+  type AgentAccessNavCompletion,
   type AgentAccessOpenCompletion,
+  type AgentAccessRendererNav,
   type AgentAccessRendererOpen
 } from '@shared/ipc/agent-access';
 // The one typed main→renderer sender. The domain joined `AllEventPayloadMap`
@@ -29,6 +32,16 @@ export const AGENT_ACCESS_OPEN_TIMEOUT_MS = 5_000;
 
 /** The receipt a send waits on. Null means refused (see header). */
 export type AgentAccessOpenReceipt = AgentAccessOpenCompletion | null;
+
+interface PendingNav {
+  requestId: string;
+  target: WebContents;
+  resolve: (receipt: AgentAccessNavReceipt | null) => void;
+  timer: NodeJS.Timeout;
+}
+
+/** One navigation receipt, or null when the renderer never answered. */
+export type AgentAccessNavReceipt = AgentAccessNavCompletion;
 
 interface PendingOpen {
   requestId: string;
@@ -43,7 +56,9 @@ interface PendingOpen {
  */
 export class AgentAccessOpenBroker {
   private pending = new Map<string, PendingOpen>();
+  private navPending = new Map<string, PendingNav>();
   private counter = 0;
+  private navCounter = 0;
 
   /** Mint the next request id. Deterministic per broker, unique per send. */
   mintRequestId(): string {
@@ -82,6 +97,60 @@ export class AgentAccessOpenBroker {
     });
   }
 
+  /** PHASE 362. Mint the next navigation id, distinct from an open's. */
+  mintNavRequestId(): string {
+    this.navCounter += 1;
+    return `agent-access-nav-${this.navCounter}`;
+  }
+
+  /**
+   * PHASE 362. Send one navigation and wait for its receipt. The same
+   * five-second ceiling as an open: a renderer that never answers is
+   * `renderer-unavailable`, and nothing is retried.
+   */
+  sendNav(
+    target: WebContents,
+    payload: AgentAccessRendererNav
+  ): Promise<AgentAccessNavReceipt | null> {
+    return new Promise<AgentAccessNavReceipt | null>((resolve) => {
+      const timer = setTimeout(() => {
+        this.navPending.delete(payload.requestId);
+        resolve(null);
+      }, AGENT_ACCESS_OPEN_TIMEOUT_MS);
+      if (typeof timer.unref === 'function') timer.unref();
+      this.navPending.set(payload.requestId, {
+        requestId: payload.requestId,
+        target,
+        resolve,
+        timer
+      });
+      try {
+        sendEvent(target, EVT_AGENT_ACCESS_NAV, payload);
+      } catch {
+        clearTimeout(timer);
+        this.navPending.delete(payload.requestId);
+        resolve(null);
+      }
+    });
+  }
+
+  /**
+   * PHASE 362. The `agent-access:navComplete` handler calls this. Same
+   * acceptance rule as an open receipt: the exact sender, a pending id.
+   */
+  noteNavCompletion(
+    sender: WebContents,
+    completion: AgentAccessNavCompletion
+  ): void {
+    const pending = this.navPending.get(completion.requestId);
+    if (pending === undefined) return;
+    if (pending.target !== sender) return;
+    if (sender.isDestroyed()) return;
+    clearTimeout(pending.timer);
+    this.navPending.delete(completion.requestId);
+    pending.resolve(completion);
+  }
+
   /**
    * The `agent-access:openComplete` handler calls this with the sender and
    * the receipt. A receipt is accepted only from the exact `webContents`
@@ -108,11 +177,16 @@ export class AgentAccessOpenBroker {
       pending.resolve(null);
     }
     this.pending.clear();
+    for (const pending of this.navPending.values()) {
+      clearTimeout(pending.timer);
+      pending.resolve(null);
+    }
+    this.navPending.clear();
   }
 
   /** How many sends are still waiting. Tests only. */
   pendingCount(): number {
-    return this.pending.size;
+    return this.pending.size + this.navPending.size;
   }
 }
 

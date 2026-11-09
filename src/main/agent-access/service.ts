@@ -14,7 +14,7 @@
  * LIFECYCLE CONTRACT, from build/p359/SPEC.md §2.6:
  * - `installAgentAccess(deps)` wires the service once; the integrator calls
  *   it from `installMainCapabilities` and subscribes `reconcileAgentAccess`
- *   to `onSettingsUpdated`, starting from the current sealed setting.
+ *   to `onSettingsUpdated`, starting from the current plain boolean setting.
  * - `reconcileAgentAccess(enabled)` serializes off/on races: the latest
  *   requested state wins, and two starts never own two listeners.
  * - `beginAgentAccessShutdown` stops admission synchronously; `joinAgentAccess`
@@ -28,12 +28,16 @@
 import { app } from 'electron';
 import { chmod, lstat, mkdir, unlink } from 'node:fs/promises';
 import type { Stats } from 'node:fs';
-import { createConnection, createServer, type Server, type Socket } from 'node:net';
+import { createConnection, type Server, type Socket } from 'node:net';
 import { join } from 'node:path';
 import {
   AGENT_ACCESS_SOCKET_ENV,
+  type AgentAccessCreateHandler,
+  type AgentAccessFocusHandler,
   type AgentAccessOpenHandler,
+  type AgentAccessOpenProjectHandler,
   type AgentAccessOperation,
+  type AgentAccessRenameHandler,
   type AgentAccessResponse
 } from '@shared/agent-access';
 import type { Project, Session } from '@shared/types';
@@ -41,9 +45,11 @@ import { getLog } from '../log';
 import { getSettings } from '../settings/store';
 import {
   acceptFramedConnections,
+  createAgentAccessServer,
   serializeAgentAccessResponse
 } from './socket';
 import { dispatchAgentAccessRequest } from './dispatch';
+import type { AgentAccessStoredSummary } from './facts';
 
 const agentAccessLog = getLog('agent-access');
 
@@ -59,7 +65,7 @@ const SHUTDOWN_GRACE_MS = 2_000;
 
 /** What the service reads from the app. Nothing here starts anything. */
 export interface AgentAccessDeps {
-  /** The current sealed switch. `getSettings().agentAccess === true`. */
+  /** The plain switch. `getSettings().agentAccess === true`; no seal. */
   isEnabled: () => boolean;
   /** The app's current session list. Async: a sync list would pin a stale core. */
   listSessions: () => Promise<Session[]>;
@@ -69,6 +75,23 @@ export interface AgentAccessDeps {
   tortieVersion: () => string;
   /** Builder C2's open operation. */
   open: AgentAccessOpenHandler;
+  /**
+   * PHASE 362. Tortie's own written summary for one session, or null. The
+   * installer answers it from the overview store; a build with no store (a
+   * harness launch, a cold profile) answers null and the door says
+   * `state: 'none'` rather than failing the request.
+   */
+  readSummary?: (sessionId: string) => AgentAccessStoredSummary | null;
+  /**
+   * PHASE 362. The acting half, injected exactly as `open` is. The service
+   * only hands them to the dispatcher: it validates nothing and chooses no
+   * policy. Required, so a build that cannot act says so at compile time
+   * rather than answering a closed refusal it invented.
+   */
+  openProject: AgentAccessOpenProjectHandler;
+  create: AgentAccessCreateHandler;
+  rename: AgentAccessRenameHandler;
+  focus: AgentAccessFocusHandler;
 }
 
 /** The exact filesystem address of this profile's door. */
@@ -95,6 +118,8 @@ export function agentAccessSocketPathFits(path: string): boolean {
 interface InFlight {
   socket: Socket;
   finished: boolean;
+  /** Set when the dispatch deadline fired and a timeout reply was written. */
+  expired: boolean;
   timer: NodeJS.Timeout;
 }
 
@@ -202,19 +227,23 @@ async function probeLiveOwner(path: string): Promise<'live' | 'refused' | 'missi
   });
 }
 
-function trackInFlight(socket: Socket): InFlight {
+/** Dispatch deadlines are separate from the shutdown grace. */
+const DISPATCH_DEADLINE_MS = 15_000;
+function trackInFlight(socket: Socket, deadlineMs = DISPATCH_DEADLINE_MS): InFlight {
   const record: InFlight = {
     socket,
     finished: false,
+    expired: false,
     timer: setTimeout(() => {
-      // The absolute framing deadline lives in the socket layer; this timer
-      // only bounds a dispatch the request started but never finished.
-      try {
-        socket.destroy();
-      } catch {
-        /* a dead dispatch stays dead */
-      }
-    }, SHUTDOWN_GRACE_MS + 1_000)
+      // Answer a closed timeout and mark the request dead so no late verb
+      // acts on it. The reply is written, never silently destroyed.
+      record.expired = true;
+      writeResponseAndEnd(socket, {
+        version: 1,
+        ok: false,
+        error: { code: 'unavailable', message: 'Unavailable.' }
+      });
+    }, deadlineMs)
   };
   if (typeof record.timer.unref === 'function') record.timer.unref();
   inFlight.add(record);
@@ -265,26 +294,58 @@ function writeResponseAndEnd(
 }
 
 /**
+ * PHASE 363. THE ONE INSTALLED DISPATCH ENTRY. The socket and the Apple
+ * Events adapter both call this, so the dependency mapping, the switch, the
+ * caller validation, the handlers and the report line are one set. Answers
+ * `unavailable` when nothing is installed or the service is shutting down.
+ */
+export async function dispatchInstalledAgentAccess(
+  line: string,
+  opts: { isLive: () => boolean }
+): Promise<AgentAccessResponse> {
+  const deps = installed;
+  if (deps === null || shuttingDown) {
+    return {
+      version: 1,
+      ok: false,
+      error: { code: 'unavailable', message: 'Unavailable.' }
+    };
+  }
+  return dispatchAgentAccessRequest(line, {
+    isEnabled: deps.isEnabled,
+    isLive: opts.isLive,
+    listSessions: deps.listSessions,
+    listProjects: deps.listProjects,
+    tortieVersion: deps.tortieVersion,
+    open: deps.open,
+    openProject: deps.openProject,
+    create: deps.create,
+    rename: deps.rename,
+    focus: deps.focus,
+    readSummary: deps.readSummary ?? (() => null),
+    report: reportRequest
+  });
+}
+
+/**
  * Handle one framed line: dispatch through the operation registry and write
  * exactly one response line, then end. Framing errors answer `bad-request`
  * without reaching the dispatcher.
  */
 function handleFramedLine(
-  deps: AgentAccessDeps,
+  _deps: AgentAccessDeps,
   socket: Socket,
   line: string
 ): void {
-  const record = trackInFlight(socket);
+  const record = trackInFlight(socket, DISPATCH_DEADLINE_MS);
   void (async () => {
     let response: AgentAccessResponse;
     try {
-      response = await dispatchAgentAccessRequest(line, {
-        isEnabled: deps.isEnabled,
-        listSessions: deps.listSessions,
-        listProjects: deps.listProjects,
-        tortieVersion: deps.tortieVersion,
-        open: deps.open,
-        report: reportRequest
+      response = await dispatchInstalledAgentAccess(line, {
+        // A half-open client may finish sending and still wait for its reply.
+        // Read-side EOF is not cancellation; expiry or write-side closure is.
+        isLive: () =>
+          !record.expired && !socket.destroyed && !socket.writableEnded
       });
     } catch {
       // PHASE 359, reverify follow-up (independent). Dispatch only throws
@@ -303,7 +364,7 @@ function handleFramedLine(
       record.finished = true;
       untrackInFlight(record);
     }
-    writeResponseAndEnd(socket, response);
+    if (!record.expired) writeResponseAndEnd(socket, response);
   })();
 }
 
@@ -393,7 +454,13 @@ async function startListeningLocked(socketPath: string): Promise<void> {
   }
   const deps = installed;
   if (deps === null || shuttingDown) return;
-  const next = createServer();
+  // PHASE 362. THE FACTORY, NOT `createServer()`. `createAgentAccessServer`
+  // is the one place `allowHalfOpen: true` is set, and a piped caller
+  // (`printf ... | nc -U ...`) finishes its write side the moment the line is
+  // sent: without the flag, every operation that awaited anything wrote its
+  // answer into a socket the server had already ended, and the caller saw an
+  // empty EOF. See ./socket.ts for the measurement.
+  const next = createAgentAccessServer();
   acceptFramedConnections(next, {
     onLine: (socket, line) => handleFramedLine(deps, socket, line),
     onFramingError: (socket) => handleFramingError(socket)
@@ -452,7 +519,7 @@ export function installAgentAccess(deps: AgentAccessDeps): void {
 }
 
 /**
- * Reconcile the listener with the latest sealed switch. Calls serialize on
+ * Reconcile the listener with the latest plain boolean switch. Calls serialize on
  * one queue so off/on races resolve to the latest requested state, and two
  * starts never own two listeners.
  */

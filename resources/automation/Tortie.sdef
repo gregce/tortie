@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="Tortie">
+  <suite name="Tortie Agent API" code="TrtE" description="A transport for Tortie's existing agent API. It adds no operations of its own.">
+    <command name="submit request" code="TrtEsubm" description="Submit one request of the existing agent API (the same JSON the agent socket takes: {&quot;version&quot;:1,&quot;operation&quot;:...,&quot;session&quot;:&lt;an existing session id&gt;,...}) and return a request identifier at once. The identifier means the request was admitted, NOT that the operation succeeded. Start with operation capabilities to learn the operations and their parameters, and whoami for the session context. Agent access must be switched on in Tortie. At most 65536 UTF-8 bytes; admission is refused when too many requests are held.">
+      <direct-parameter type="text" description="The JSON request text."/>
+      <result type="text" description="A request identifier."/>
+    </command>
+    <command name="request result" code="TrtErslt" description="Read the state of a submitted request. Returns JSON text: {&quot;state&quot;:&quot;pending&quot;}, {&quot;state&quot;:&quot;completed&quot;,&quot;response&quot;:&lt;the agent API's unmodified response&gt;}, or {&quot;state&quot;:&quot;missing&quot;} for an unknown or expired identifier. Reading never runs the request again. Poll with a bounded loop and a short delay. A completed response can itself be a refusal; read its ok field. Results are kept for about a minute. Controlling Tortie from another app needs the person's macOS Automation permission.">
+      <direct-parameter type="text" description="The request identifier."/>
+      <result type="text" description="The state JSON text, at most 262144 UTF-8 bytes plus the envelope."/>
+    </command>
+  </suite>
+</dictionary>

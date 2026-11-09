@@ -31,6 +31,7 @@
  */
 
 import { createServer, createConnection, type Server } from 'node:net';
+import { spawn } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from 'node:fs';
 import { close as closeNice } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -56,6 +57,12 @@ import {
 } from '../../src/shared/agent-access';
 import { defaultGmuxSettings } from '../../src/shared/settings';
 import {
+  buildAgentAccessCreate,
+  buildAgentAccessFocus,
+  buildAgentAccessOpenProject,
+  buildAgentAccessRename
+} from '../../src/main/agent-access/verbs';
+import {
   buildAgentAccessOpen,
   localOpenProjects
 } from '../../src/main/agent-access/open';
@@ -64,6 +71,7 @@ import {
 } from '../../src/main/agent-access/open-broker';
 import {
   acceptFramedConnections,
+  createAgentAccessServer,
   serializeAgentAccessResponse,
   splitFramedRequest
 } from '../../src/main/agent-access/socket';
@@ -445,7 +453,7 @@ function resourceSection() {
       // receipt-backed answer is written. The probe reads the shipped one-liner
       // shape against the references; the held-opening runs beside it.
       ncLine: /\/usr\/bin\/nc -w [0-9]+ -U "\$GMUX_AGENT_SOCKET"/.test(referenceWords),
-      heldPipe: /sleep 6;\s*\}\s*\|/.test(referenceWords),
+      heldPipe: !/sleep\s+\d/.test(referenceWords),
       sessionEnv: referenceWords.includes('GMUX_SESSION_ID'),
       base64Tool: /\/usr\/bin\/base64/.test(referenceWords),
       noRawPathInJson: !/pathBase64":"[^"]*\/[^"]*"/.test(referenceWords),
@@ -454,6 +462,19 @@ function resourceSection() {
         referenceWords.includes('unknown-operation') &&
         referenceWords.includes('bad-request') &&
         referenceWords.includes('unavailable'),
+      // PHASE 362. The references must teach the two new words, by name, and
+      // must never teach the turn text, which the door refuses to carry.
+      activityWord:
+        referenceWords.includes('activity') && referenceWords.includes('waiting'),
+      summariesWord:
+        referenceWords.includes('summaries') && referenceWords.includes('state'),
+      // The door does not carry turns, transcripts or terminal bytes, so the
+      // bundle must SAY so and must not offer them as an operation. The first
+      // draft of this clause banned the word "conversation", which failed the
+      // honest denial it should have required.
+      noTurnText:
+        /never the conversation/i.test(referenceWords) &&
+        !/"(?:operation)"\s*:\s*"(?:turns|transcript|bytes)"/.test(referenceWords),
       sessionGone:
         referenceWords.includes('session-gone'),
       lineLocator: referenceWords.includes('line'),
@@ -749,6 +770,16 @@ const SESSION_REMOTE = {
   projectPath: '/tmp/project-remote',
   machine: { id: 'machine-1', label: 'Laptop' }
 };
+// PHASE 362. A session blocked on a person, so the activity board's `waiting`
+// word is exercised by the shipped dispatch rather than asserted from source.
+const SESSION_WAITING = {
+  id: 'eeee5555-0000-4000-8000-000000000005',
+  name: 'session-waiting',
+  agent: 'claude',
+  status: 'needs_input',
+  createdAt: 7,
+  projectPath: '/tmp/project-a'
+};
 const PROJECT_A = { id: 'project-a', name: 'Project A', path: '/tmp/project-a' };
 const PROJECT_B = { id: 'project-b', name: 'Project B', path: '/tmp/project-b' };
 const PROJECT_REMOTE = {
@@ -759,7 +790,7 @@ const PROJECT_REMOTE = {
 };
 
 async function dispatchSection() {
-  const rows = [SESSION_A, SESSION_C, SESSION_B, SESSION_REMOTE];
+  const rows = [SESSION_A, SESSION_C, SESSION_B, SESSION_REMOTE, SESSION_WAITING];
   const projects = [PROJECT_A, PROJECT_B, PROJECT_REMOTE];
   const reports = [];
   const run = (line, opts = {}) =>
@@ -769,6 +800,12 @@ async function dispatchSection() {
       listProjects: () => projects,
       tortieVersion: () => '0.114.1',
       open: async () => opts.openAnswer ?? { state: 'not-found', matches: 0 },
+      // PHASE 362. One kept summary for the newest session and nothing for
+      // the rest, which is what makes `state: 'none'` observable.
+      readSummary: (sessionId) =>
+        sessionId === SESSION_A.id
+          ? { text: 'Did a thing.', fromTurn: 1, toTurn: 3, writtenAt: 99, newestTurn: 5 }
+          : null,
       report: (entry) => reports.push(entry)
     });
   const ask = (body, opts) => run(JSON.stringify(body), opts);
@@ -789,7 +826,9 @@ async function dispatchSection() {
     })
   );
   answers.disabled = await ask(good, { isEnabled: () => false });
-  answers.unknownOperation = await ask({ ...good, operation: 'create' });
+  // PHASE 362. `create` is a REAL operation now, so the unknown-operation
+  // arm asks for a name the registry never holds, never a formerly-real one.
+  answers.unknownOperation = await ask({ ...good, operation: 'annihilate' });
   answers.badJson = await run('{not json');
   answers.arrayBody = await run('[1,2,3]');
   answers.scalarBody = await run('"capabilities"');
@@ -815,6 +854,47 @@ async function dispatchSection() {
     version: 1,
     operation: 'sessions',
     session: SESSION_REMOTE.id
+  });
+  // PHASE 362 arms. `activity` is the plain-word board; `summaries` is the
+  // sentence Tortie already wrote, or the honest absence of one.
+  answers.activity = await ask({
+    version: 1,
+    operation: 'activity',
+    session: SESSION_A.id
+  });
+  answers.activityFakeCaller = await ask({
+    version: 1,
+    operation: 'activity',
+    session: 'ffff0000-0000-4000-8000-000000000009'
+  });
+  answers.summaries = await ask({
+    version: 1,
+    operation: 'summaries',
+    session: SESSION_A.id
+  });
+  answers.summariesNamed = await ask({
+    version: 1,
+    operation: 'summaries',
+    session: SESSION_A.id,
+    sessions: [SESSION_A.id]
+  });
+  answers.summariesBadId = await ask({
+    version: 1,
+    operation: 'summaries',
+    session: SESSION_A.id,
+    sessions: ['../etc/passwd']
+  });
+  answers.summariesNotArray = await ask({
+    version: 1,
+    operation: 'summaries',
+    session: SESSION_A.id,
+    sessions: SESSION_A.id
+  });
+  answers.activityExtraMember = await ask({
+    version: 1,
+    operation: 'activity',
+    session: SESSION_A.id,
+    sessions: [SESSION_A.id]
   });
   // `open` bodies: the closed locator set.
   const pathB64 = Buffer.from('/tmp/project-a/a.txt').toString('base64');
@@ -927,6 +1007,9 @@ async function dispatchSection() {
   return {
     answers,
     reports,
+    // PHASE 362: the two new values, read off the driven answers.
+    activity: answers.activity?.value ?? null,
+    summaries: answers.summaries?.value ?? null,
     codes: Object.fromEntries(
       Object.entries(answers)
         .filter(([, value]) => value !== null && typeof value === 'object' && 'ok' in value)
@@ -1044,7 +1127,7 @@ async function openDrivenSection() {
   const dir = mkdtempSync(join(tmpdir(), 'p359-open-'));
   try {
     const projectPath = join(dir, 'project-a');
-    mkdirSync(projectPath, { recursive: true });
+    mkdirSync(join(projectPath, 'sub-dir'), { recursive: true });
     const text = 'alpha\nbeta gamma\ngamma gamma gamma\n';
     writeFileSync(join(projectPath, 'a.txt'), text);
     writeFileSync(join(projectPath, 'binary.bin'), Buffer.from([0x61, 0, 0x62]));
@@ -1078,7 +1161,9 @@ async function openDrivenSection() {
         harnessCheckpoint: () => null,
         ...overrides
       })({ session: SESSION_A.id, ...locator });
-    const pathB64 = (value) => Buffer.from(value).toString('base64');
+    // Absolute only: a relative name is joined onto the caller's own project.
+    const pathB64 = (value) =>
+      Buffer.from(value.startsWith('/') ? value : join(projectPath, value)).toString('base64');
     const abs = join(projectPath, 'a.txt');
     const lineTwo = await ask({ pathBase64: pathB64('a.txt'), line: 2 });
     const lineRange = await ask({
@@ -1104,7 +1189,7 @@ async function openDrivenSection() {
       findBase64: Buffer.from('BETA').toString('base64')
     });
     const missing = await ask({ pathBase64: pathB64('nope.txt'), line: 1 });
-    const directory = await ask({ pathBase64: pathB64('.'), line: 1 });
+    const directory = await ask({ pathBase64: pathB64('sub-dir'), line: 1 });
     const absoluteOutside = await ask({
       pathBase64: pathB64(join(dir, 'elsewhere.txt')),
       line: 1
@@ -1271,7 +1356,8 @@ function openSourceSection() {
     focusFalseBeforeSearch:
       focus.indexOf('req.focus === false') < focus.indexOf("req.source !== 'search'"),
     // O4: one event, one receipt, one sender check.
-    brokerSendsOnce: (broker.match(/sendEvent\(/g) ?? []).length === 1,
+    brokerSendCount: (broker.match(/sendEvent\(/g) ?? []).length,
+    brokerSendsOnce: (broker.match(/sendEvent\(/g) ?? []).length === 2,
     brokerTargetSend: /target\.send\(/.test(broker),
     brokerChecksSender: /pending\.target !== sender/.test(broker),
     brokerChecksDestroyed: /sender\.isDestroyed\(\)/.test(broker),
@@ -1668,6 +1754,202 @@ function callSitesSection() {
 // Run
 // ---------------------------------------------------------------------------
 
+
+/**
+ * PHASE 362. THE HALF-CLOSE PROOF, over the real system `nc`, no Electron.
+ *
+ * The documented caller is a pipeline (`printf … | nc -U …`), and a pipeline
+ * finishes its write side the moment the line is sent. `createAgentAccessServer`
+ * is the ONE place `allowHalfOpen: true` is set, and Phase 360/361 measured
+ * what its absence costs: an operation that awaits anything wrote its answer
+ * into a socket the server had already ended, so the caller saw an empty EOF
+ * and no error.
+ *
+ * This section drives BOTH shapes against BOTH servers:
+ *   - the shipping factory (half-open on), where a delayed answer must arrive
+ *     for a plain pipeline and for a held one;
+ *   - a bare `createServer()` as the CONTROL, where the same plain pipeline
+ *     must come back empty — proving this reading can fail.
+ *
+ * It starts `/usr/bin/nc` as a child and ends it in a `finally`, and the only
+ * socket is a scratch one under the system's temporary folder.
+ */
+async function halfCloseSection() {
+  const dir = mkdtempSync(join(tmpdir(), 'p359-halfclose-'));
+  const answerDelayMs = 120;
+  const results = [];
+  const startServer = async (halfOpen) => {
+    const path = join(dir, halfOpen ? 'half.sock' : 'bare.sock');
+    const server = halfOpen ? createAgentAccessServer() : createServer();
+    acceptFramedConnections(server, {
+      onLine: (socket, _line) => {
+        // The delay is the point: an operation that awaits anything answers
+        // after the caller's write side is already done.
+        setTimeout(() => {
+          try {
+            socket.write(JSON.stringify({ ok: true, operation: 'capabilities' }) + '\n');
+          } catch {
+            /* a dead socket stays dead */
+          }
+          try {
+            socket.end();
+          } catch {
+            /* a dead socket stays dead */
+          }
+        }, answerDelayMs);
+      },
+      onFramingError: (socket) => {
+        try {
+          socket.end();
+        } catch {
+          /* a dead socket stays dead */
+        }
+      }
+    });
+    await listen(server, path);
+    chmodSync(path, 0o600);
+    return { path, server };
+  };
+
+  /**
+   * One real `/usr/bin/nc -U` run. The request line is written to a scratch
+   * file and piped, so the quoting of a JSON line is never the thing under
+   * test. `held` keeps nc's stdin open past the line, which is the shape the
+   * skill documents; `plain` ends it the moment the line is written, which is
+   * the shape a pipeline naturally has.
+   */
+  const ask = (path, held) => {
+    const requestPath = join(dir, `request-${held ? 'held' : 'plain'}-${Math.random().toString(36).slice(2)}.json`);
+    writeFileSync(
+      requestPath,
+      `${JSON.stringify({ version: 1, operation: 'capabilities', session: 'probe' })}\n`
+    );
+    const script = held
+      ? `{ /bin/cat ${JSON.stringify(requestPath)}; /bin/sleep 1; } | /usr/bin/nc -w 5 -U ${JSON.stringify(path)}`
+      : `/bin/cat ${JSON.stringify(requestPath)} | /usr/bin/nc -w 5 -U ${JSON.stringify(path)}`;
+    return new Promise((resolvePromise) => {
+      const child = spawn('/bin/sh', ['-c', script], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '';
+      let err = '';
+      const timer = setTimeout(() => {
+        try {
+          child.kill('SIGTERM');
+        } catch {
+          /* a dead child stays dead */
+        }
+      }, 8_000);
+      child.stdout.on('data', (b) => {
+        out += b.toString();
+      });
+      child.stderr.on('data', (b) => {
+        err += b.toString();
+      });
+      child.on('close', () => {
+        clearTimeout(timer);
+        rmSync(requestPath, { force: true });
+        resolvePromise({ bytes: out.length, text: out.trim(), err: err.trim() });
+      });
+    });
+  };
+
+  const started = [];
+  try {
+    for (const halfOpen of [true, false]) {
+      const { path, server } = await startServer(halfOpen);
+      started.push(server);
+      results.push({
+        server: halfOpen ? 'factory' : 'bare',
+        held: await ask(path, true),
+        plain: await ask(path, false)
+      });
+    }
+  } finally {
+    for (const server of started) {
+      try {
+        server.close();
+      } catch {
+        /* a closed server stays closed */
+      }
+    }
+    rmSync(dir, { recursive: true, force: true });
+  }
+  return { answerDelayMs, results };
+}
+
+/**
+ * PHASE 362. THE ACTING HALF, driven through the SHIPPING adapters over
+ * recorded app seams. No window, no tmux, no manifest: the person is a
+ * `confirm` stub and every verb is a recorder, so what this proves is that
+ * each adapter refuses before its verb runs and calls it exactly once after.
+ */
+async function verbsSection() {
+  const rows = [
+    { id: 'caller-1', name: 'caller', agent: 'pi', status: 'running', createdAt: 1, projectPath: '/tmp/project-a', tmuxName: 'c', cwd: '/tmp/project-a', argv: [] },
+    { id: 'live-1', name: 'live', agent: 'pi', status: 'running', createdAt: 2, projectPath: '/tmp/project-a', tmuxName: 'l', cwd: '/tmp/project-a', argv: [] },
+    { id: 'dead-1', name: 'dead', agent: 'pi', status: 'discarded', createdAt: 3, projectPath: '/tmp/project-a', tmuxName: 'd', cwd: '/tmp/project-a', argv: [] },
+    { id: 'other-1', name: 'other', agent: 'pi', status: 'running', createdAt: 4, projectPath: '/tmp/project-b', tmuxName: 'o', cwd: '/tmp/project-b', argv: [] }
+  ];
+  const projects = [
+    { id: 'project-a', name: 'Project A', path: '/tmp/project-a' },
+    { id: 'project-b', name: 'Project B', path: '/tmp/project-b' }
+  ];
+  const calls = [];
+  const create = buildAgentAccessCreate({
+    listSessions: async () => rows,
+    listProjects: async () => projects,
+    createSession: async (input) => {
+      calls.push({ verb: 'create', input });
+      return { ...rows[1], id: 'made-1', name: input.name };
+    },
+    defaultAgentId: () => 'claude',
+    isLaunchableAgent: (agent) => ['claude', 'pi', 'codex'].includes(agent)
+  });
+  const rename = buildAgentAccessRename({
+    listSessions: async () => rows,
+    listProjects: async () => projects,
+    renameSession: async (input) => {
+      calls.push({ verb: 'rename', input });
+      return { ...rows[1], name: input.name };
+    }
+  });
+  const navSends = [];
+  const navSend = async (input) => {
+    navSends.push(input);
+    return 'accepted';
+  };
+  const openProject = buildAgentAccessOpenProject(navSend, {
+    listProjects: async () => projects
+  });
+  const focus = buildAgentAccessFocus(navSend, {
+    listSessions: async () => rows,
+    listProjects: async () => projects
+  });
+  const nameRefusals = {};
+  for (const name of ['   ', 'x'.repeat(121), 'has\ttab']) {
+    nameRefusals[name.trim() === '' ? 'empty' : name.length > 120 ? 'long' : 'character'] =
+      await create({ caller: 'caller-1', projectId: 'project-a', name, agent: null });
+  }
+
+  const out = {
+    nameRefusals,
+    unknownProject: await create({ caller: 'caller-1', projectId: 'no-such', name: 'ok', agent: null }),
+    unknownAgent: await create({ caller: 'caller-1', projectId: 'project-a', name: 'ok', agent: 'not-an-agent' }),
+    defaultAgent: await create({ caller: 'caller-1', projectId: 'project-a', name: 'ok', agent: null }),
+    createdWithName: await create({ caller: 'caller-1', projectId: 'project-a', name: 'My session', agent: 'pi' }),
+    renamed: await rename({ caller: 'caller-1', target: 'live-1', name: 'New name' }),
+    renamedGone: await rename({ caller: 'caller-1', target: 'nobody', name: 'New name' }),
+    renamedRemoved: await rename({ caller: 'caller-1', target: 'dead-1', name: 'New name' }),
+    openedProject: await openProject({ caller: 'caller-1', projectId: 'project-b' }),
+    openedMissing: await openProject({ caller: 'caller-1', projectId: 'no-such' }),
+    focusedProjectOnly: await focus({ caller: 'caller-1', projectId: 'project-a', target: null }),
+    focusedSession: await focus({ caller: 'caller-1', projectId: 'project-a', target: 'live-1' }),
+    focusedWrongProject: await focus({ caller: 'caller-1', projectId: 'project-b', target: 'live-1' }),
+    calls,
+    navSends
+  };
+  return out;
+}
+
 const out = {
   contract: {
     protocol: AGENT_ACCESS_PROTOCOL,
@@ -1716,6 +1998,8 @@ const out = {
   resources: resourceSection(),
   address: addressSection(),
   framing: await framingSection(),
+  halfClose: await halfCloseSection(),
+  verbs: await verbsSection(),
   dispatch: await dispatchSection(),
   facts: await factsSection(),
   open: openSourceSection(),

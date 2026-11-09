@@ -57,6 +57,7 @@ const { execFileSync } = require('node:child_process');
 const { join } = require('node:path');
 const { signNestedBinaries } = require('./sign-nested-binaries.cjs');
 const { assertAgentSkills } = require('./assert-agent-skills.cjs');
+const { assertAppleEvents } = require('./assert-apple-events.cjs');
 const { assertSkillsCli } = require('./assert-skills-cli.cjs');
 const { assertMainRequires } = require('./assert-main-requires.cjs');
 
@@ -90,6 +91,8 @@ exports.default = async function afterPack(context) {
   // nothing, and the failure is invisible until a person asks an agent to
   // use it. See build/assert-agent-skills.cjs.
   assertAgentSkills(context);
+  // Phase 363. THROWS when the dictionary or the addon is missing or unwired.
+  assertAppleEvents(context);
 };
 
 /** Step 2: CFBundleName ← the bundle's own executable name, for all helpers. */

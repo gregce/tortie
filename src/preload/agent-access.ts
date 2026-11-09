@@ -10,10 +10,17 @@
  */
 
 import type { GmuxAgentAccessExtras } from '../shared/ipc';
-import { EVT_AGENT_ACCESS_OPEN } from '../shared/ipc/agent-access';
+import {
+  EVT_AGENT_ACCESS_NAV,
+  EVT_AGENT_ACCESS_OPEN
+} from '../shared/ipc/agent-access';
 import { invoke, on } from './bridge';
 
 export const agentAccess: GmuxAgentAccessExtras['agentAccess'] = {
   onOpen: (cb) => on(EVT_AGENT_ACCESS_OPEN, cb),
-  complete: (input) => invoke('agent-access:openComplete', input)
+  complete: (input) => invoke('agent-access:openComplete', input),
+  // PHASE 362. The navigation handoff: the project's tab, a session landing
+  // and its keyboard are the renderer's to move.
+  onNavigate: (cb) => on(EVT_AGENT_ACCESS_NAV, cb),
+  completeNav: (input) => invoke('agent-access:navComplete', input)
 };

@@ -175,6 +175,13 @@ files:
   - "!node_modules/better-sqlite3/prebuilds/!(darwin-arm64.node)"
   - "!node_modules/node-pty/prebuilds/!(darwin-arm64)/**"
 extraResources:
+  # Phase 363: the Apple Events dictionary and the first-party addon built by
+  # build/build-apple-events.mjs. The addon is outside the asar (it is
+  # dlopen'ed) and is signed by build/sign-nested-binaries.cjs like the rest.
+  - from: resources/automation/Tortie.sdef
+    to: Tortie.sdef
+  - from: out/native/apple-events.node
+    to: native/apple-events.node
   # The private tmux server config rides in Contents/Resources/gmux-tmux.conf.
   # Main resolves it via process.resourcesPath when app.isPackaged
   # (src/main/tmux/supervisor.ts, src/main/attach/attach-host.ts).
@@ -387,6 +394,9 @@ mac:
   # entry, and therefore it carries all of them. One home for the whole
   # declaration, never a half declaration split across two mechanisms.
   extendInfo:
+    # Phase 363: the Apple Events dictionary (Contents/Resources/Tortie.sdef).
+    NSAppleScriptEnabled: true
+    OSAScriptingDefinition: Tortie.sdef
     CFBundleDocumentTypes:
       - CFBundleTypeName: Folder
         CFBundleTypeRole: Viewer
@@ -459,6 +469,7 @@ mac:
   signIgnore:
     - '/Resources/bin/specstory$'
     - '/Resources/bin/tmux$'
+    - '/Resources/native/apple-events\.node$'
     - '/Resources/app\.asar\.unpacked/node_modules/@vscode/ripgrep-darwin-arm64/bin/rg$'
 dmg:
   # Plain drag-to-Applications layout; no signing, no license panel.
