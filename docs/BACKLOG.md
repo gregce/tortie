@@ -30803,7 +30803,7 @@ Two reproducers, independently, neither trusting the issue nor the pull request
 - No release.
 
 
-## Phase 294 — the lines printed while you read are skipped on the way back down (Phase 292's reproduction, stated when 292 landed, 2026-09-19) → IN PHASE 353, 2026-11-02
+## Phase 294 — the lines printed while you read are skipped on the way back down (Phase 292's reproduction, stated when 292 landed, 2026-09-19) → IN PHASE 353, 2026-11-02 ✅ LANDED `99e0d298`, 2026-11-08
 
 **Subject.** `fix(terminal): the way back down shows what printed while you read`
 
@@ -31069,7 +31069,7 @@ The operator's two rulings:
 - No release.
 
 
-## Phase 295 — a history copy on a busy pane can come out one line off (Phase 292's verifiers, 2026-09-19) → IN PHASE 353, 2026-11-02
+## Phase 295 — a history copy on a busy pane can come out one line off (Phase 292's verifiers, 2026-09-19) → IN PHASE 353, 2026-11-02 ✅ LANDED `99e0d298`, 2026-11-08
 
 **Subject.** `fix(capture): a copy from a busy session's history is the lines you selected`
 
@@ -31938,7 +31938,7 @@ The Tier 3 verify ran three lenses (attribute, re-derive, parent) and a judge ov
 **What is still not true, in his terms.** The window does not keep painting while a large conversation is counted for the first time: the read is still on the main thread and the sheet still draws `…` for every row of the chunk until the invoke returns, and how long it draws it is exactly what it was — about 1.7 s on a record the size of his largest, about 0.4 s on the 200 MiB fixture, about 0.8 s on his own 186.8 MiB record as measured on 2026-09-19. Only the repeat ask is now nothing. The 200 MiB class on a record of his own shape (58 percent `item_completed` against the synthesised 100) was never measured by any run.
 
 
-## Phase 301 — the app keeps the drawing surfaces of sessions that have ended (found by Phase 293's battery, 2026-09-19) → IN PHASE 353, 2026-11-02
+## Phase 301 — the app keeps the drawing surfaces of sessions that have ended (found by Phase 293's battery, 2026-09-19) → IN PHASE 353, 2026-11-02 ✅ LANDED `99e0d298`, 2026-11-08
 
 **Subject.** `fix(terminal): a closed session's glyph atlas is released with it`
 
@@ -31994,7 +31994,7 @@ At **today's build**, `origin/main` `50bd2561`, it failed worse and on two profi
 
 **What is NOT in this phase.** No xterm or `@xterm/addon-webgl` version move; the repair is a bounded patch under `patches/` in the shape the two existing ones use, and Phase 265's refusal is carried forward unchanged. **No repair of the two owners today's build shows on profile c** — `div.ed-skeleton` (`src/renderer/editor/MonacoHost.tsx:478-486`) and `div.overview-layer` (`src/renderer/overview/OverviewLayer.tsx:162`) — because Phase 293's head reads 4 detached on that profile and the parent's 190 → 121 → 307 is not monotone; the phase **re-measures c quiet at HEAD and states the answer**, and if it reproduces it is queued as its own entry rather than absorbed here. The 50 budget is not raised, and it is not lowered either. `P167_DETACHED`, the census, the roots limit and the snapshot-on-finding machinery are not touched. Past Sessions history is not trimmed. No Monaco service is replaced, wrapped or configured, and no third-party module is loaded to reach any of this. No user-facing surface is added, renamed or removed, so no native menu changes. No script reaching `build/electron-run.mjs` is added, so `HELPER_USER_FLOOR` does not move; nothing in the shared IPC contract, the manifest schema, a `gmux.*` key or a `GMUX_*` name changes, so `docs/audits/contract-baseline.txt` is not regenerated. `conformance:hue`, the remote profile and the other P167 profiles stay out, and no long soak is run in place of the deterministic clause.
 
-## Phase 302 — a session ended and then removed can lose its tombstone (Phase 293's press attack, 2026-09-19) → IN PHASE 353, 2026-11-02
+## Phase 302 — a session ended and then removed can lose its tombstone (Phase 293's press attack, 2026-09-19) → IN PHASE 353, 2026-11-02 ✅ LANDED `99e0d298`, 2026-11-08
 
 **Subject.** `fix(sessions): a removed session keeps its tombstone whatever else is in flight`
 
@@ -32370,7 +32370,7 @@ copy is true.
   the default lift write over an unkept sign in, exactly as Phase 287 left it in its section 7. Stated, not fixed.
 - **No release.**
 
-## Phase 305 — a Restart can hard-delete the record of a session the person removed (found by Phase 302's census, 2026-09-20) → IN PHASE 353, 2026-11-02
+## Phase 305 — a Restart can hard-delete the record of a session the person removed (found by Phase 302's census, 2026-09-20) → IN PHASE 353, 2026-11-02 ✅ LANDED `99e0d298`, 2026-11-08
 
 **Subject.** `fix(restart): a restart never deletes a row the person removed`
 
@@ -35570,7 +35570,7 @@ and a reboot wipes it. The numbers below marked "run 2" were read from its `A/re
 - **No menu, no new surface, and no copy change** beyond the version list where it is already drawn.
 - **No release.**
 
-## Phase 325 — "never by the user's own input to that session" — Tortie reads his own words as the agent's question (CLAUDE.md's UI rule, research 129 §9 item 6, left owed its own entry by his ruling on Phase 319, 2026-09-23) → IN PHASE 353, 2026-11-02
+## Phase 325 — "never by the user's own input to that session" — Tortie reads his own words as the agent's question (CLAUDE.md's UI rule, research 129 §9 item 6, left owed its own entry by his ruling on Phase 319, 2026-09-23) → IN PHASE 353, 2026-11-02 → OUT OF 353 on his ruling of 2026-11-08 ("2. a"), redone as 325.1
 
 **Subject.** `fix(activity): words typed into a session are never its question`
 
@@ -35988,7 +35988,7 @@ Condition 44's probe uses `9.9z` (`build/machines-conformance-probe.mts:447-473`
 - **No menu change, no new sentence, no surface.**
 - **No release.**
 
-## Phase 328 — antigravity reads "running" at rest — the limit Phase 321 named and left to its own entry (research 129 §9 item 4; `build/p321/SPEC.md` §1.3 item 2, 2026-09-23) → IN PHASE 353, 2026-11-02
+## Phase 328 — antigravity reads "running" at rest — the limit Phase 321 named and left to its own entry (research 129 §9 item 4; `build/p321/SPEC.md` §1.3 item 2, 2026-09-23) → IN PHASE 353, 2026-11-02 ✅ LANDED `99e0d298`, 2026-11-08
 
 **Subject.** `fix(activity): antigravity reads idle at its prompt`
 
@@ -44356,7 +44356,7 @@ the checks, with 285's attack), fix once, an independent reverify, one commit. I
 ruled round. It shares only CLAUDE.md, CHANGELOG.md and `build/verification-checks.mjs` with 350, which the main session
 merges at landing.
 
-## Phase 353 — the same words of 2026-11-02 — sessions and the terminal: seven queued entries in one phase, reviewed together (operator, 2026-11-02)
+## Phase 353 — the same words of 2026-11-02 — sessions and the terminal: seven queued entries in one phase, reviewed together (operator, 2026-11-02) ✅ LANDED `99e0d298`, 2026-11-08, the seven items without 325 (his ruling; 325.1)
 
 **Subject.** `fix(sessions): keep records, read status truly, scroll and copy whole`
 
@@ -44427,7 +44427,7 @@ Build lane, one workflow, as for 352: spec, four builders on disjoint files, int
 lenses reviewing together (the records with the manifest attack and 354's restore matrix; status with the matrix; the
 terminal live beside the parent), fix once, an independent reverify, one commit.
 
-## Phase 354 — "Add it to Phase 353" — a session whose folder path holds a `#` starts in the home folder (Phase 350's reverify, 2026-11-02; operator, 2026-11-03) → IN PHASE 353, 2026-11-03
+## Phase 354 — "Add it to Phase 353" — a session whose folder path holds a `#` starts in the home folder (Phase 350's reverify, 2026-11-02; operator, 2026-11-03) → IN PHASE 353, 2026-11-03 ✅ LANDED `99e0d298`, 2026-11-08
 
 **Subject.** Rides in Phase 353's one commit; its spec may widen 353's subject to say so.
 
@@ -46586,3 +46586,4 @@ cycle rather than only the evening it was written.
 - 2026-11-08, **PHASE 363 LANDED, `5f61797d` — what a crash dump keeps near the registers, `docs/research/144-what-a-crash-dump-keeps-near-the-registers.md`** (research: two investigators, an adversary, a judge and a writer, eight deliberate crashes in scratch, about an hour). An Electron 43.3.0 main-process minidump written as Tortie writes it holds each thread's stack and nothing else: no heap and no window around a register that points off the stack. Three readers in two languages agreed over the same four dumps, and a groomed crash at his faulting instruction and address, with a valid 4.6 KB heap buffer in x8, x10 and x19, still captured nothing there. His x8, x10 and x19 are heap addresses, so his dump cannot tell a foreign free from a zero-filled take, and **the main session read nothing of it**: his word allowed the read only if such ranges existed. 364, the diagnostic build, goes ahead unchanged and is the only route left to name the code. His shell history unmoved; his crash reports folder went from 28 to 33 during the adversary's run, five `Electron Helper-2026-11-08-175629` reports, unopened and not attributed. Worktree and scratch removed.
 - 2026-11-08, **PHASE 361 LANDED, `d8796dc1` — the fault battery ends its tmux pair and proves it gone** (no CHANGELOG item; Tier 2). The fault battery's teardown, `build/scratch-tmux.mjs`, reads each case's server and every client through the tmux the app ran, ends what it named (the client first, each command line read again before its signal), proves the server gone, and fails the battery on any process left on its sockets; `build/electron-run.mjs`'s step 6 asks the same module for a probe's own scratch server, and a ps that cannot answer is never read as gone. `conformance:scratchtmux` holds it: T1 to T15, 24 ablations, about a minute. The gate runner's half is out on his ruling ("3. a"), kept whole at `scratch/owed-p3611/` for 361.1. The drop round's independent reverify approved, seven no-regression rows none worse, its own step an ablation nobody ran (a command-line read held across the teardown) and a held client made by a raw socket; its final tool call was malformed, so the workflow recorded no output, and the main session decoded the typed verdict from the reverifier's own tool input and checked it against the schema (six fields, approved, no problems). Landing battery green: typecheck, build, vitest (22,336 passed, 7 skipped), package, `conformance:scratchtmux`, smoke:t1, smoke and smoke:t3; his shell history unmoved; no Electron left. Next for this line: 361.1, conformance:pocket finishing its verdict before it exits.
 - 2026-11-08, **361.1 STARTED — conformance:pocket's red verdict reaches `ablation:p313` whole**, its section above, Tier 2, one workflow (`wkm7l07qj`): a spec step that measures the pipe loss at the parent with 361's slow reader rebuilt from its SPEC and chooses where the size check lives, one builder, an independent verifier (the parent beside HEAD under a slow reader of its own, and the attack), fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p3611` at `02739f4d`. 361's file runner stays out.
+- 2026-11-08, **PHASE 353 LANDED, `99e0d298` — sessions and the terminal, seven items** (Unreleased, six CHANGELOG items; Tier 3). 294: scrolling back down passes through what an agent printed while he read (3.7b; 3.6a keeps today's jump). 295: a copy from a busy session's history holds exactly the lines selected. 301: the WebGL addon's warm-up queue (no item). 302: a session ended and then removed stays in Past. 305: Restart during a removal keeps the old row in Past. 328: Antigravity at its prompt reads idle. 354: a folder holding `#` or ending in `;` starts in that folder, here and far, and a restored session keeps its folder. 325 is out on his ruling ("2. a"), kept at `scratch/owed-p3251/` for 325.1. The move to main resolved six conflicts with both sides kept, 302's re-read inside 357's `try` around the session-death write. The move's independent reverify approved, twenty rows beside the parent none worse (a parked reap, a parked restart and 357's stop inside the reap among its own steps). Its minor: 301's patch applies only on a clean install; CI's `npm ci` carries it, but **his checkout's `node_modules` holds main's two hunks, so its next `npm install` refuses the patch as mixed until `@xterm/addon-webgl` is reinstalled once** (`rm -rf node_modules/@xterm/addon-webgl && npm install`), and a worktree copied from it gets 301's hunk by hand meanwhile. Three wording nits fixed at landing. Not run at landing: `conformance:resume:capture`, which starts real agents under his HOME (stand-ins only). Landing battery green: typecheck, build (gate:electron 184 of 184, `-L gmux` ceiling 94), vitest (22,732 passed), package, fourteen conformance gates, smoke:t1, smoke, smoke:t3; his shell history unmoved. Unblocked: 360 and 325.1.

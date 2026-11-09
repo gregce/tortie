@@ -8,12 +8,12 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- Scroll back to read while an agent on this Mac keeps printing, then scroll back down, and you now pass through everything it printed while you read instead of jumping past it to the bottom; getting back to the bottom takes as many lines as were printed, and typing still takes you there at once
-- Copying lines from the history of a busy session on this Mac, after dragging a selection past its edge, now puts exactly the lines you selected on the clipboard
-- A session you ended and then removed stays in Past Sessions, and no longer comes back to your sessions list with nothing behind it
-- Restarting a session while you remove it no longer deletes it for good: the new session starts and the removed one stays in Past Sessions
-- An Antigravity session no longer shows as running while it waits at its prompt; its questions still do not turn amber, and they now read as idle
-- A session in a folder whose name holds a # or ends in ; now starts in that folder, on this Mac and on another machine; a session started before this update and restored keeps the folder it ran in, so its conversation is found
+- Scroll back to read while an agent on this Mac keeps printing, then scroll back down, and you now pass through everything it printed while you read instead of jumping past it to the bottom; getting back to the bottom takes as many lines as were printed, and typing still takes you there at once ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
+- Copying lines from the history of a busy session on this Mac, after dragging a selection past its edge, now puts exactly the lines you selected on the clipboard ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
+- A session you ended and then removed stays in Past Sessions, and no longer comes back to your sessions list with nothing behind it ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
+- Restarting a session while you remove it no longer deletes it for good: the new session starts and the removed one stays in Past Sessions ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
+- An Antigravity session no longer shows as running while it waits at its prompt; its questions still do not turn amber, and they now read as idle ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
+- A session in a folder whose name holds a # or ends in ; now starts in that folder, on this Mac and on another machine; a session started before this update and restored keeps the folder it ran in, so its conversation is found ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
 
 ## 0.114.1 (2026-11-05)
 
