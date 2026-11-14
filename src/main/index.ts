@@ -74,6 +74,11 @@ import {
   runLogBootSequence
 } from './log';
 import { startCrashCapture } from './log/crash';
+// Phase 364: the diagnostic build's one flag, and its page-cache checker's
+// handshake. Reached only through an `if (DIAGNOSTIC_BUILD)` statement, so the
+// normal build holds neither (build/p364/SPEC.md D3, D7).
+import { DIAGNOSTIC_BUILD } from './diagnostic-build/flag';
+import { armChecker } from './diagnostic-build/checker';
 // Phase 357: the session list's own refusal, which the crash handler logs and
 // never draws, because the notice it posted has already told the person.
 // Phase 357.1: and the count of its connections the quit held open, which the
@@ -163,6 +168,14 @@ startCrashCapture({
   harness: isHarnessLaunch(process.env),
   isStopped: isManifestStopped
 });
+// Phase 364, the diagnostic build only: tell the page-cache checker where
+// app.log is (SPEC D7). Above the userData migration below, the first thing
+// that opens a SQLite connection, and after the crash capture, which Phase 357
+// pins as the statement right after initLogging(), so a fault while the
+// checking module loads is still caught. The variable it uses exists only
+// inside this one call, so no process ever inherits it, the crash handler the
+// capture just started included.
+if (DIAGNOSTIC_BUILD) armChecker();
 const bootLog = getLog('boot');
 
 // ---------------------------------------------------------------------------

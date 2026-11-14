@@ -48,6 +48,12 @@
  *    2026-08-15. The diagnosis is docs/research/46-updater-wreckage.md. The
  *    guard is `handedToInstaller` below, and `rearmUpdateChecks()` is the
  *    one way to undo it, called by ./recovery.ts after a repair.
+ * 7. THE DIAGNOSTIC BUILD DOES NOT UPDATE (Phase 364, build/p364/SPEC.md
+ *    D11). It never checks, downloads or installs: checkForUpdatesNow
+ *    answers `unsupported`, and Check for Updates says so in ./ui.ts's own
+ *    words. An update would install the normal app over it at a quit and
+ *    end his measurement without a word, so going back stays his act:
+ *    installing the normal release.
  *
  * LOGGING (Phase 31). Every line this module logs, including everything
  * electron-updater says through the logger hook below, goes through
@@ -105,6 +111,7 @@ import { logUpdateEvent } from './log';
 import { isConfirmedRehearsal } from './rehearsal';
 import { readUpdateState, writeUpdateState } from './state';
 import { activeTmuxSocket } from '../tmux/supervisor';
+import { DIAGNOSTIC_BUILD } from '../diagnostic-build/flag';
 
 // UpdateUiState is the `updates:state` response type, so it lives in
 // src/shared/ipc.ts with the channel. The outcome union below is shared only
@@ -115,7 +122,7 @@ export type UpdateCheckOutcome =
   | { kind: 'downloading'; version: string }
   | { kind: 'none'; currentVersion: string }
   | { kind: 'failed' } // detail already logged; dialogs use fixed copy
-  | { kind: 'unsupported' }; // dev build
+  | { kind: 'unsupported' }; // dev build, or the diagnostic build (rule 7)
 
 // ---------------------------------------------------------------------------
 // Timers and logging
@@ -412,6 +419,12 @@ let initialized = false;
 export function initUpdater(): void {
   if (initialized) return;
   initialized = true;
+  // Rule 7: one line, and nothing is wired. No logger, no listener, no timer,
+  // so no check, no download and no install can ever start in this build.
+  if (DIAGNOSTIC_BUILD) {
+    logInfo('updates are off in this diagnostic build');
+    return;
+  }
   if (!app.isPackaged) {
     // Dev builds do not update. forceDevUpdateConfig stays unused on
     // purpose, because the rehearsal runs a real packaged app.
@@ -573,6 +586,9 @@ async function backgroundCheck(): Promise<void> {
  * the reporting live in ./ui.ts with fixed copy.
  */
 export async function checkForUpdatesNow(): Promise<UpdateCheckOutcome> {
+  // Rule 7: the diagnostic build answers as a build that does not update. No
+  // journey, so no ring either. Above the try below, where rollup folds it.
+  if (DIAGNOSTIC_BUILD) return { kind: 'unsupported' };
   if (!app.isPackaged) return { kind: 'unsupported' };
   // Phase 58: the journey either starts checking or ADOPTS an in flight
   // background journey, which makes the ring visible from here on. This

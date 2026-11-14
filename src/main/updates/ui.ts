@@ -21,7 +21,9 @@
  *    asked stays a dialog. It is not a chain.
  *  - The dev build dialog. Dev builds never initialize the updater, so the
  *    ring never exists there, and without the dialog Check for Updates
- *    would be a dead menu item in dev.
+ *    would be a dead menu item in dev. The diagnostic build (Phase 364)
+ *    answers the same question in its own words, because it is packaged and
+ *    "a development build" would be false of it.
  *  - The refusal dialog and the standing wreck dialog, the whole
  *    `announceRefusedInstallIfAny` surface (Phase 31, widened in Phase 43).
  *    A failed install explaining itself at the next launch is a launch time
@@ -61,6 +63,7 @@ import {
 } from './refusal-check';
 import { repairUpdaterState } from './recovery';
 import { logUpdateEvent } from './log';
+import { DIAGNOSTIC_BUILD } from '../diagnostic-build/flag';
 
 /**
  * The body of the install prompt. The promise it makes is the product's
@@ -417,6 +420,25 @@ export async function confirmInstallStagedUpdate(): Promise<void> {
 }
 
 /**
+ * "Check for Updates…" in the diagnostic build (Phase 364, updater.ts rule
+ * 7), whose updater never checks. Never rejects, like every other path here.
+ */
+async function showUpdatesOff(): Promise<void> {
+  try {
+    await showOkDialog(
+      'info',
+      'Updates are off in this build',
+      'This diagnostic build does not update itself. Install the normal release to go back.'
+    );
+  } catch (err) {
+    logUpdateEvent(
+      'warn',
+      `the interactive check did not finish: ${(err as Error).message}`
+    );
+  }
+}
+
+/**
  * "Check for Updates…" was clicked. Phase 58 moved the journey into the
  * ring, so this path shows a dialog only for the two answers the ring
  * cannot carry: "there is nothing to update" and "this build does not
@@ -430,6 +452,17 @@ export async function confirmInstallStagedUpdate(): Promise<void> {
  * into the menu's event loop.
  */
 export async function runInteractiveUpdateCheck(): Promise<void> {
+  // Phase 364 (build/p364/SPEC.md D11, §5): the diagnostic build's updater is
+  // off, so it answers in its own words and asks the engine nothing, whose
+  // answer there is always `unsupported`. ABOVE THE TRY ON PURPOSE: rollup's
+  // try-catch deoptimization keeps every statement inside a try block, so
+  // this statement in the `unsupported` case below left `if (DIAGNOSTIC_BUILD) ;`
+  // and the flag's const in the normal bundle (measured, rollup 4.62.4). Here
+  // it folds away whole, and the normal bundle is byte for byte today's.
+  if (DIAGNOSTIC_BUILD) {
+    await showUpdatesOff();
+    return;
+  }
   try {
     const outcome = await checkForUpdatesNow();
     switch (outcome.kind) {

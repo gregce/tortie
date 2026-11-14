@@ -1,4 +1,12 @@
-# The release lane. It runs on v* tags only, and it publishes a DRAFT.
+# The release lane. Its release job runs on v* tags only, and it publishes a
+# DRAFT.
+#
+# Its second job, diagnostic (Phase 364, build/p364/SPEC.md D13 and §4.7),
+# runs only when someone presses Run workflow with "diagnostic" ticked. It
+# builds the diagnostic Tortie with build/diagnostic/package.mjs, signs and
+# notarizes it with the same five secrets, and keeps the DMG as an artifact
+# of that run for 14 days. It publishes nothing and makes no draft, and the
+# release job never runs on a dispatch.
 #
 # The shape follows docs/research/27-release-and-updates.md sections 3.7.1 and
 # 7.9, and the signing steps follow the working precedent at
@@ -30,6 +38,12 @@ name: release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      diagnostic:
+        description: 'Build the diagnostic app (an artifact, not a release)'
+        type: boolean
+        default: false
 concurrency:
   # Never cancel a half-finished notarization; a duplicate is cheaper than a
   # torn one (research 27 section 7.7).
@@ -41,6 +55,7 @@ permissions:
   attestations: write
 jobs:
   release:
+    if: github.event_name == 'push'
     runs-on: macos-15 # never macos-latest (research 27 section 7.3)
     timeout-minutes: 60 # the notary queue is 2 to 15 min and has no SLA
     env:
@@ -239,6 +254,142 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-logs
+          path: |
+            release/builder-debug.yml
+            ${{ runner.temp }}/**/*.log
+          retention-days: 3
+  # The diagnostic Tortie (Phase 364): an artifact of this run, never a
+  # release. The file's header says what it is and what it never does.
+  diagnostic:
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic
+    runs-on: macos-15 # never macos-latest (research 27 section 7.3)
+    timeout-minutes: 60 # the notary queue is 2 to 15 min and has no SLA
+    permissions:
+      contents: read
+    env:
+      NODE_OPTIONS: --max-old-space-size=5120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history, so package.mjs can read the newest release's
+          # session list format beside this build's (SPEC D14).
+          fetch-depth: 0
+      - name: Fail closed when a signing secret is missing
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PWD: ${{ secrets.APPLE_CERT_PWD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PWD: ${{ secrets.APPLE_APP_PWD }}
+        run: |
+          missing=""
+          for name in APPLE_CERT_P12 APPLE_CERT_PWD APPLE_ID APPLE_TEAM_ID APPLE_APP_PWD; do
+            eval "value=\${$name:-}"
+            if [ -z "$value" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::missing required secrets:$missing"
+            exit 1
+          fi
+      - uses: ./.github/actions/setup
+      - name: Cache the electron-builder toolsets (dmg-builder, 96 MB)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/electron-builder
+          key: ebuilder-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npm run typecheck
+      - run: npm test
+      # The normal out/ and every gate in the build. package.mjs then builds
+      # out/ again as the diagnostic app and checks it before it packs.
+      - run: npm run build
+      - name: Build the checking better-sqlite3
+        run: |
+          node build/diagnostic/build-checker.mjs --variant diagnostic \
+            --out "$RUNNER_TEMP/bs3" \
+            --devdir "$RUNNER_TEMP/electron-gyp" \
+            --fetch-headers \
+            --json "$RUNNER_TEMP/bs3.json"
+      - name: Import the Developer ID certificate into a temporary keychain
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PWD: ${{ secrets.APPLE_CERT_PWD }}
+        run: |
+          cert="$RUNNER_TEMP/developer-id.p12"
+          keychain="$RUNNER_TEMP/tortie-signing.keychain-db"
+          echo "$APPLE_CERT_P12" | base64 -D > "$cert"
+          security create-keychain -p "" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "" "$keychain"
+          security import "$cert" -k "$keychain" -P "$APPLE_CERT_PWD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$keychain"
+          rm -f "$cert"
+          echo "CSC_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+      - name: Package, sign, notarize and staple the diagnostic app
+        timeout-minutes: 45
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PWD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          node build/diagnostic/package.mjs \
+            --checker "$RUNNER_TEMP/bs3/build/Release/better_sqlite3.node" \
+            --notarize \
+            --json "$RUNNER_TEMP/diagnostic.json"
+      - name: The DMG gets its own ticket
+        timeout-minutes: 20
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PWD: ${{ secrets.APPLE_APP_PWD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euxo pipefail
+          dmg="$(ls release/Tortie-*-diagnostic-arm64.dmg)"
+          xcrun notarytool submit "$dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PWD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          node build/stapler.mjs staple "$dmg"
+          node build/stapler.mjs validate "$dmg"
+      - name: The packaged app launches and passes the basic smoke
+        run: |
+          node build/harness-socket.mjs gmux-smoke-pkg \
+            "GMUX_SMOKE=basic './release/mac-arm64/Tortie.app/Contents/MacOS/Tortie' --user-data-dir='$RUNNER_TEMP/pkg'"
+      # The app and the copy inside the DMG, each through the signing gate
+      # with its ticket required. There is no ZIP, so --artifacts is not used.
+      - name: The app and the DMG pass the signing gate
+        run: |
+          set -euxo pipefail
+          dmg="$(ls release/Tortie-*-diagnostic-arm64.dmg)"
+          node build/verify-signed.mjs --expect-notarized | tee "$RUNNER_TEMP/verify-app.log"
+          mount="$RUNNER_TEMP/diagnostic-dmg"
+          mkdir -p "$mount"
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount"
+          trap 'hdiutil detach "$mount" -force' EXIT
+          node build/verify-signed.mjs --expect-notarized "$mount/Tortie.app" | tee "$RUNNER_TEMP/verify-dmg.log"
+          if grep -q 'WARN' "$RUNNER_TEMP/verify-app.log" "$RUNNER_TEMP/verify-dmg.log"; then
+            echo "::error::verify-signed reported warnings; the inline notarization path must produce zero"
+            exit 1
+          fi
+      - name: Gather the DMG and the two build records
+        run: |
+          set -euxo pipefail
+          kept="$RUNNER_TEMP/tortie-diagnostic"
+          mkdir -p "$kept"
+          cp release/Tortie-*-diagnostic-arm64.dmg "$RUNNER_TEMP/bs3.json" "$RUNNER_TEMP/diagnostic.json" "$kept/"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tortie-diagnostic-${{ github.sha }}
+          path: ${{ runner.temp }}/tortie-diagnostic
+          if-no-files-found: error
+          retention-days: 14
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: diagnostic-logs
           path: |
             release/builder-debug.yml
             ${{ runner.temp }}/**/*.log

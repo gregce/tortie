@@ -1414,7 +1414,9 @@ const UPDATER_REFUSALS = [
     fragments: [
       'TORTIE_UPDATE_FEED is set, but this launch is not a confirmed rehearsal, so the override is ignored.',
       'The update feed stays the release feed.'
-    ]
+    ],
+    // PHASE 364: in the diagnostic bundle the check itself is gone (below).
+    diagnosticAbsent: ['.setFeedURL(', '.checkForUpdates(']
   },
   {
     id: 'updater.self-check-missing-resources',
@@ -1459,7 +1461,9 @@ const UPDATER_REFUSALS = [
     fragments: [
       'Tortie is not checking for updates again, because it already handed an update to the installer in this run.',
       'A second check would delete the copy the installer is waiting on.'
-    ]
+    ],
+    // PHASE 364: in the diagnostic bundle the check itself is gone (below).
+    diagnosticAbsent: ['.checkForUpdates(']
   },
   {
     id: 'updater.repair-never-touches-a-ready-update',
@@ -1923,6 +1927,28 @@ function main() {
   const staleTable = [];
   const missingFromBundle = [];
 
+  // PHASE 364 (build/p364/SPEC.md D11, src/main/updates/updater.ts rule 7).
+  // The diagnostic build's updater never checks: initUpdater returns after one
+  // line and checkForUpdatesNow answers `unsupported`, so rollup removes the
+  // code the two rows marked `diagnosticAbsent` guard, and their sentences go
+  // with it. In that bundle, and only there, each such row holds by the
+  // stronger fact instead: the calls it guards are absent too. The bundle is
+  // the diagnostic one when its STAMP says so, and by nothing else (the fix
+  // round, lens B's ablation 3): asking for rule 7's line as well let a
+  // diagnostic bundle whose guard had been deleted read as a normal one, with
+  // `.checkForUpdates(` in it. Its stamp says Diagnostic, so it must also hold
+  // rule 7's line.
+  const diagnostic = /^const BUILD_COMMIT = "[^"\n]* Diagnostic";$/m.test(bundle);
+  if (diagnostic && !bundle.includes('updates are off in this diagnostic build')) {
+    console.error(
+      '[refusals] the bundle is stamped Diagnostic but does not say ' +
+        '"updates are off in this diagnostic build": its updater must never ' +
+        'check (src/main/updates/updater.ts rule 7), and that line is how it says so.'
+    );
+    process.exit(1);
+  }
+  const stillGuarded = [];
+
   for (const refusal of [
     ...REFUSALS,
     ...SKILLS_REFUSALS,
@@ -1952,15 +1978,33 @@ function main() {
       );
       continue;
     }
+    const byAbsence = diagnostic && refusal.diagnosticAbsent !== undefined;
     for (const fragment of refusal.fragments) {
       if (!source.includes(fragment)) {
         staleTable.push(`${refusal.id}: ${refusal.source} no longer contains ${JSON.stringify(fragment)}`);
         continue;
       }
-      if (!shipped.includes(fragment)) {
+      if (!byAbsence && !shipped.includes(fragment)) {
         missingFromBundle.push({ refusal, fragment });
       }
     }
+    if (byAbsence) {
+      for (const call of refusal.diagnosticAbsent) {
+        if (shipped.includes(call)) stillGuarded.push({ refusal, call });
+      }
+    }
+  }
+
+  if (stillGuarded.length > 0) {
+    console.error(
+      '[refusals] the diagnostic bundle still calls the updater. Its updater ' +
+        'must never check (src/main/updates/updater.ts rule 7), so the refusals ' +
+        'that guard a check are held by the check being absent.'
+    );
+    for (const { refusal, call } of stillGuarded) {
+      console.error(`  ${refusal.id}: out/main/index.js still holds ${JSON.stringify(call)}`);
+    }
+    process.exit(1);
   }
 
   if (staleTable.length > 0) {
@@ -2003,7 +2047,9 @@ function main() {
     `[refusals] ${String(MACHINE_REFUSALS.length)} machine confirm-gate refusals are in out/main/index.js.`
   );
   console.log(
-    `[refusals] ${String(UPDATER_REFUSALS.length)} updater refusals are in the shipped bundles (one, the ring's ready promise, is renderer code).`
+    diagnostic
+      ? `[refusals] ${String(UPDATER_REFUSALS.length)} updater refusals hold in the diagnostic bundle: ${String(UPDATER_REFUSALS.filter((r) => r.diagnosticAbsent === undefined).length)} by their words, and ${String(UPDATER_REFUSALS.filter((r) => r.diagnosticAbsent !== undefined).length)} by the check they guard being absent (updater.ts rule 7).`
+      : `[refusals] ${String(UPDATER_REFUSALS.length)} updater refusals are in the shipped bundles (one, the ring's ready promise, is renderer code).`
   );
   console.log(
     `[refusals] ${String(LOG_REFUSALS.length)} crash-capture refusal is in out/main/index.js.`

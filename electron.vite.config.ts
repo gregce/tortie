@@ -46,6 +46,19 @@ function buildCommit(): string {
   }
 }
 
+/**
+ * Phase 364: the diagnostic Tortie (build/p364/SPEC.md D3, §4.4). Only
+ * build/diagnostic/package.mjs sets TORTIE_DIAGNOSTIC=1. Then the main
+ * bundle's one diagnostic define reads true, which src/main/diagnostic-build/
+ * flag.ts exports as DIAGNOSTIC_BUILD, and the stamp ends in " Diagnostic",
+ * so About says which app is running. Unset, the define reads false, rollup
+ * drops every `if (DIAGNOSTIC_BUILD)` statement and the module behind it, and
+ * the stamp is today's, so the normal out/ is byte for byte what it was
+ * (measured, SPEC §2.5). Main only: the preload and the renderers never see
+ * either.
+ */
+const DIAGNOSTIC = process.env.TORTIE_DIAGNOSTIC === '1';
+
 export default defineConfig({
   main: {
     // Keep native/node deps (node-pty, better-sqlite3, @parcel/watcher…)
@@ -55,7 +68,8 @@ export default defineConfig({
     // fill before any renderer exists, so it is bundled rather than required.
     plugins: [externalizeDepsPlugin({ exclude: ['culori'] })],
     define: {
-      __TORTIE_BUILD_COMMIT__: JSON.stringify(buildCommit())
+      __TORTIE_BUILD_COMMIT__: JSON.stringify(buildCommit() + (DIAGNOSTIC ? ' Diagnostic' : '')),
+      __TORTIE_DIAGNOSTIC__: JSON.stringify(DIAGNOSTIC)
     },
     resolve: {
       alias: { '@shared': resolve(__dirname, 'src/shared') }

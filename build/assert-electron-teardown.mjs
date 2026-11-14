@@ -625,12 +625,24 @@ const HELPER = 'electron-run.mjs';
  * every stand-in pid is ended in its `finally`. Phase 359 raises it 186 to 187
  * in its own tree too, so whichever lands second makes it 188.
  *
+ * PHASE 364 RAISED IT FROM 187 TO 188, by one for build/p364/probe-p364.mjs
+ * (`probe:p364`), the diagnostic Tortie beside the normal app: Electrons
+ * through the helper ONE AT A TIME, each launch on its own scratch profile,
+ * HOME and ZDOTDIR with HISTFILE=/dev/null and the socket gmux-p364…; the
+ * packaged diagnostic and normal apps by their absolute binary path, never
+ * through LaunchServices, each on a loopback update feed; the checker's test
+ * variant loaded into main by build/diagnostic/hook-bs3.cjs, every deliberate
+ * fault ended by that variant's own handler with exit 139 and every Crashpad
+ * dump in a scratch profile deleted; every probed registry row but its
+ * stand-ins hidden before every launch. Phase 359, if it lands first with its
+ * own one, makes this 189 at the second landing.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 187;
+const HELPER_USER_FLOOR = 188;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

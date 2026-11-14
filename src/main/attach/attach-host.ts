@@ -43,6 +43,11 @@
  * well as across a quit. So an unexpected exit with kind 'remote' means the link
  * went rather than the session ended, and the session owner maps it to unknown
  * rather than to exited.
+ *
+ * The diagnostic build alone (Phase 364, build/p364/SPEC.md D9) records each
+ * spawn and each exit as one `diagnostic.terminal` line: the session id, the
+ * kind, the pid, the exit code, the signal and whether Tortie caused it. Never
+ * the argv, and never anything the terminal printed.
  */
 
 import { ipcMain } from 'electron';
@@ -73,6 +78,8 @@ import type {
 } from '../machines/context';
 import { attachPlan } from './attach-plan';
 import { getLog } from '../log';
+import { DIAGNOSTIC_BUILD } from '../diagnostic-build/flag';
+import { diagnosticEvent } from '../diagnostic-build/events';
 import { markMilestone, MILESTONES } from '../diagnostics/milestones';
 import { noteEvent, noteInvoke } from '../diagnostics/ipc-sample';
 
@@ -288,6 +295,8 @@ export class AttachHost {
     // Phase 163: the first client this launch spawned is the milestone. It
     // lands after the spawn so a failed spawn is never counted as an attach.
     markMilestone(MILESTONES.firstAttach);
+    // PHASE 364 (D9): the spawn, by session, kind and the new pid. Never its argv.
+    if (DIAGNOSTIC_BUILD) diagnosticEvent('terminal', 'spawn', { sessionId: req.sessionId, kind, pid: pty.pid });
 
     const client: AttachClient = {
       sessionId: req.sessionId,
@@ -393,6 +402,13 @@ export class AttachHost {
     // ---- pty exit ---------------------------------------------------------
     pty.onExit(({ exitCode, signal }) => {
       const expected = client.expectedExit;
+      // PHASE 364 (D9): the exit, by session, code, signal and whether Tortie caused it.
+      if (DIAGNOSTIC_BUILD) diagnosticEvent('terminal', 'exit', {
+        sessionId: req.sessionId,
+        code: exitCode,
+        ...(signal === undefined ? {} : { signal }),
+        expected: expected ? 'yes' : 'no'
+      });
       const stillCurrent = this.clients.get(req.sessionId) === client;
       // Deliver whatever tmux printed on the way out (e.g. "no such session")
       // before announcing the exit.

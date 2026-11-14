@@ -1114,6 +1114,20 @@ export const CHECKS = [
   // the pinned tsx, for S8's driven half, which starts nothing, opens no
   // database and reads nothing under any home. About 1 to 3 s.
   pure('conformance:stoppedlist'),
+  // PHASE 364 (build/p364/SPEC.md §7.1). The diagnostic Tortie's two promises
+  // as text: the normal app does not change (the build flag named only in
+  // src/main/diagnostic-build/flag.ts, read only as the whole test of an
+  // else-less `if`, the diagnostic modules called only inside one, menu.ts and
+  // build-info.ts untouched, the define true only under TORTIE_DIAGNOSTIC=1 and
+  // false under vitest), and the shipped checker cannot plant and cannot fault
+  // (build/diagnostic/sqlite-checker.c read by its own lexer and `#if` reader:
+  // every plant behind `#ifdef TCHK_PLANT`, one variable read then removed, one
+  // file opened to append, every read through a page-cache pointer after a
+  // tchkReadable of it), with the build scripts' pins, the release lane's two
+  // jobs and, given `--node`, a built module's bytes. Each clause asked again
+  // over in-memory copies with it broken, every one red, beside controls that
+  // stay green. It starts nothing and writes nothing. About a second.
+  pure('conformance:diagnostic'),
   adapter(
     'conformance:specstory:entitlement',
     'macOS codesign and the vendored specstory binary; it signs scratch copies and runs them'
@@ -1296,6 +1310,36 @@ export const CHECKS = [
   // inside npm run build.
   pure('gate:stapler'),
   adapter('verify:signed', 'macOS codesign and spctl over the packaged app', SKIP.release),
+  // PHASE 364 (build/p364/SPEC.md §4.1). Not in any battery: it compiles the
+  // page-cache checker into copies of the pinned better-sqlite3 13.0.3 (the
+  // test, diagnostic and plain variants, then one build per rule with that
+  // rule's clause compiled out) through build/diagnostic/build-checker.mjs,
+  // each into a folder of its own under --out and never under node_modules,
+  // then runs research 143 §2.2's rows in plain node children and shows every
+  // rule go from caught to missed with its clause gone. It starts no Electron
+  // and needs no /bin/ps, so it runs under the history block; its few
+  // deliberate faults are each ended by the test variant's own handler with
+  // exit 139, and his reports folder is read by name and mtime before and
+  // after. About three minutes, most of it one node-gyp build per variant.
+  adapter(
+    'check:checker',
+    'node-gyp from the repository install, Python 3 and the Xcode command line tools (clang, make, nm, strings), and Electron\'s own headers for the installed version already on disk in the --devdir it is handed; it downloads nothing',
+    'never skips: with no headers in --devdir, or a better-sqlite3 that is not the pinned 13.0.3, it refuses with exit 2 and the reason; it is in no battery and no build gate reads its result'
+  ),
+  // PHASE 364 (build/p364/SPEC.md §4.4). Not a check: it PACKAGES the
+  // diagnostic Tortie, being TORTIE_DIAGNOSTIC=1 electron-vite build, the
+  // package script's read-only checks, then electron-builder with the
+  // diagnostic after-pack, a null publish and a -diagnostic- name, unsigned
+  // unless the release lane passes --notarize, and reads the result back (the
+  // packed module by sha256, no update feed file, the bundle id, the stamp, the
+  // session list format beside the newest release's). It is classified here
+  // because the release lane's diagnostic job and the phase's verifiers run it;
+  // off the runner it runs only in a copy of the checkout with .git removed.
+  adapter(
+    'package:diagnostic',
+    'electron-builder and @electron/asar from the repository install, a diagnostic better_sqlite3.node built by build/diagnostic/build-checker.mjs, Electron\'s zip in the electron cache or a mirror, macOS plutil and nm; codesign and the notary service only with --notarize on the release runner',
+    'never skips: in a checkout holding .git off the runner, with a module that is not the diagnostic checker, or with --notarize off the runner it refuses with exit 1 and one sentence; it is in no battery'
+  ),
 
   // Electron smokes on scratch profiles and scratch tmux sockets.
   electron('smoke'),
@@ -1746,6 +1790,28 @@ export const CHECKS = [
   // `--grader-self-test` grades build/p365/fixtures/ and starts nothing;
   // `--preflight` starts nothing.
   electron('probe:p365'),
+  // PHASE 364 (build/p364/SPEC.md §8): the diagnostic Tortie he will run as his
+  // everyday app, beside the normal app it must leave unchanged. Electrons
+  // through build/electron-run.mjs ONE AT A TIME and never at once, each launch
+  // on its own scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null and
+  // SHELL=/bin/sh and the socket gmux-p364…, the tokens a crash dump would carry
+  // taken out of its environment. The packaged diagnostic app and the normal
+  // package are launched by their absolute binary path, never through
+  // LaunchServices, each on a loopback update feed it holds and counts. The
+  // damage is the checker's own plants, made by its TEST variant loaded into
+  // the diagnostic build's main by build/diagnostic/hook-bs3.cjs; at most five
+  // deliberate faults, each ended by that variant's own handler (exit 139)
+  // before macOS writes a report, and every Crashpad dump under a scratch
+  // profile counted and deleted. Every probed registry row but its stand-ins
+  // is hidden through build/hidden-agents.mjs and `agents:list` read back; the
+  // churn arm runs the development builds over the Tailscale and DNS
+  // stand-ins, so no agent runs, no token is spent and nothing leaves the Mac.
+  // `--grader-self-test` grades build/p364/fixtures/ and starts nothing;
+  // `--preflight`, `--list-graders` and `--instruments` start nothing.
+  electron(
+    'probe:p364',
+    `${NEEDS.electron}; the packaged diagnostic app (build/diagnostic/package.mjs --dir in a copy of the checkout with .git removed), this tree's normal package, and the checker's test variant built by build/diagnostic/build-checker.mjs; an arm whose input is absent reads UNREADABLE`
+  ),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

@@ -28,6 +28,15 @@ export default defineConfig({
       electron: resolve(__dirname, 'src/test/electron-stub.cjs')
     }
   },
+  // Phase 364 (build/p364/SPEC.md §6, D1): the suite runs the NORMAL build's
+  // flag, as electron.vite.config.ts defines it without TORTIE_DIAGNOSTIC=1.
+  // Vitest hands a define to the module as a global rather than rewriting the
+  // text, so a test that drives the diagnostic build stubs it with
+  // vi.stubGlobal('__TORTIE_DIAGNOSTIC__', true). conformance:diagnostic D1.d
+  // holds this line.
+  define: {
+    __TORTIE_DIAGNOSTIC__: 'false'
+  },
   test: {
     // Phase 58 added the .tsx form. The update ring's renderer test is a
     // component test, and without this second glob vitest would skip the

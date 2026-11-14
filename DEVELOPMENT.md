@@ -136,6 +136,17 @@ and the patch is reviewed, not skipped.
 | `npm run pin:tmux:check` | Prove `build/tmux-release.json` and `src/main/tmux/version.ts` say the same thing. Spawns nothing, makes no request, measured at 0.1 s. `npm run package` runs it too, so a drifted pin cannot reach a build. |
 | `npm run conformance:tmux-pair` | Drive the release's one tested tmux version pair with a real attach: a warm server on the older tmux, the app's create and verify smoke halves as the newer client, and proof the old server never moved. |
 
+**The diagnostic build is never a release** (Phase 364). Beside the release
+job, `.github/workflows/release.yml` has a second job, `diagnostic`, which runs
+only when someone presses Run workflow with `diagnostic` ticked. It builds the
+checking better-sqlite3 with `build/diagnostic/build-checker.mjs`, packages the
+diagnostic Tortie with `build/diagnostic/package.mjs` (`npm run
+package:diagnostic`), signs and notarizes it with the release secrets, and keeps
+the DMG as an artifact of that run for 14 days. It makes no tag, no draft and no
+update feed, and the updater never offers it. Off the runner `package.mjs`
+packages unsigned, in a copy of the checkout with `.git` removed.
+`build/p364/CHECKLIST.md` is how the operator installs it and goes back.
+
 **A drive script writes its result to a file** (Phase 261). `build/drive-result.mjs`
 is the convention: call `writeDriveResult(name, value)` at the end of a run and
 the answer lands at `<dir>/<name>-<pid>.json` with the path printed on one line,

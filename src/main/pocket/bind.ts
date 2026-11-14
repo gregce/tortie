@@ -45,12 +45,19 @@
  * `src/main/capabilities.ts` runs, and they run BEFORE `shutdownGmuxCore()`,
  * because every route reads session truth and turns through owners that the
  * same disposer closes further down.
+ *
+ * The diagnostic build alone (Phase 364, build/p364/SPEC.md D9) records the
+ * door process's fork, open and unexpected stop as `diagnostic.door` lines: a
+ * generation, the door's own loopback port and a pid. Never a peer, a query or
+ * a body.
  */
 
 import { join } from 'node:path';
 import { utilityProcess } from 'electron';
 
 import type { PocketRouteId } from '@shared/ipc/pocket';
+import { DIAGNOSTIC_BUILD } from '../diagnostic-build/flag';
+import { diagnosticEvent } from '../diagnostic-build/events';
 import { getLog } from '../log';
 import type { DoorPin, DoorRequest, DoorSpawner, DoorChild, ToDoor } from './door/wire';
 import { fromDoorOf, toDoorOf } from './door/wire';
@@ -320,6 +327,9 @@ export class PocketDoor {
       log.warn('the door process could not be started');
       return refuse('bind-failed');
     }
+    // PHASE 364 (D9): the fork, by generation. A forked process has no pid yet
+    // (Electron gives it one at its 'spawn' event), so its pid is on the open.
+    if (DIAGNOSTIC_BUILD) diagnosticEvent('door', 'fork', { generation: this.generation });
     this.child = child;
     admissions.set(this.generation, this.admission);
     const first = new Promise<FirstWord>((resolve) => {
@@ -365,6 +375,12 @@ export class PocketDoor {
     // from, held only while something is actually answering with it.
     holdDoorIdentity(identity);
     log.info('the door is open', { localPort: this.port, generation: this.generation });
+    // PHASE 364 (D9): the open, by its own loopback port, generation and pid. Never a peer.
+    if (DIAGNOSTIC_BUILD) diagnosticEvent('door', 'open', {
+      localPort: this.port,
+      generation: this.generation,
+      ...(child.pid === undefined ? {} : { pid: child.pid })
+    });
     return this.opened();
   }
 
@@ -574,6 +590,8 @@ function diedUnasked(door: PocketDoor): void {
   lastRefusal = 'door-exited';
   holdDoorIdentity(null);
   log.warn('the door process stopped unexpectedly');
+  // PHASE 364 (D9): the unexpected stop, by generation.
+  if (DIAGNOSTIC_BUILD) diagnosticEvent('door', 'stopped', { generation: door.generation });
   for (const listener of exitListeners) {
     try {
       listener();

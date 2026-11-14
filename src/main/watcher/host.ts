@@ -76,11 +76,15 @@
  *
  * Its log lines (scope `watcher`, words in `WATCHER_LINES`) name no watched
  * path: only counts, codes, operations and generations. The sites' own lines,
- * which name their folders, are theirs.
+ * which name their folders, are theirs. The diagnostic build alone (Phase 364,
+ * build/p364/SPEC.md D9) adds one `diagnostic.watcher` record per request,
+ * process start, exit and restart, with the same kind of fields.
  */
 
 import { join } from 'node:path';
 import { app, utilityProcess } from 'electron';
+import { DIAGNOSTIC_BUILD } from '../diagnostic-build/flag';
+import { diagnosticEvent } from '../diagnostic-build/events';
 import { appLifecycleState } from '../lifecycle';
 import { getLog } from '../log';
 import { trackWatcherClose } from './teardown';
@@ -394,6 +398,8 @@ export function createWatcherHost(overrides: Partial<WatcherHostDeps> = {}): Wat
 
   function send(proc: Proc, message: ToWatcher): void {
     if (proc.retired) return;
+    // PHASE 364 (D9): each request, by its op, its id and its process. Never its folder.
+    if (DIAGNOSTIC_BUILD) diagnosticEvent('watcher', 'send', { op: message.kind, req: message.req, generation: proc.generation });
     try {
       proc.child.post(message);
     } catch {
@@ -485,6 +491,9 @@ export function createWatcherHost(overrides: Partial<WatcherHostDeps> = {}): Wat
   }
 
   function exited(proc: Proc, code: number | null): void {
+    // PHASE 364 (D9): every exit, asked or not, by generation and code. Its
+    // pid is on its start: Electron no longer names it here.
+    if (DIAGNOSTIC_BUILD) diagnosticEvent('watcher', 'exit', { generation: proc.generation, ...(code === null ? {} : { code }) });
     if (proc.retired) return; // a replacement this host asked for, already counted
     if (!quitting()) {
       deps.log.warn(`${WATCHER_LINES.exited} (code ${String(code)})`, { code, generation: proc.generation });
@@ -636,6 +645,8 @@ export function createWatcherHost(overrides: Partial<WatcherHostDeps> = {}): Wat
       rebound: done.rebound,
       gone: done.gone
     });
+    // PHASE 364 (D9): the restart, by generation and the watches it bound again.
+    if (DIAGNOSTIC_BUILD) diagnosticEvent('watcher', 'restart', { generation: done.generation, rebound: done.rebound });
   }
 
   function leaveWave(entry: Entry, bound: boolean | null): void {
@@ -721,6 +732,14 @@ export function createWatcherHost(overrides: Partial<WatcherHostDeps> = {}): Wat
     }
     switch (message.kind) {
       case 'ready':
+        // PHASE 364 (D9): the process's start, at its first word, by pid and
+        // generation. In Electron 43.8.7 a forked process has no pid until its
+        // 'spawn' event, after adopt, and none again in its 'exit' listener
+        // (measured), so this is the one record that can name it.
+        if (DIAGNOSTIC_BUILD) diagnosticEvent('watcher', 'start', {
+          generation: proc.generation,
+          ...(proc.child.pid === undefined ? {} : { pid: proc.child.pid })
+        });
         return;
       case 'watching':
         answered(message.req, message.sub, null);
