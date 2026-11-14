@@ -1,0 +1,9 @@
+backups
+config
+hooks
+manifest.db
+manifest.db-shm
+manifest.db-wal
+manifest.db.damaged-20261109T070346Z
+manifest.db.damaged-20261109T070346Z-shm
+manifest.db.damaged-20261109T070346Z-wal

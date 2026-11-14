@@ -1,0 +1,7 @@
+backups
+config
+hooks
+manifest.db
+manifest.db-shm
+manifest.db-wal
+snapshots

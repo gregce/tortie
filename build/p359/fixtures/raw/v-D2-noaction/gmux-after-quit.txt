@@ -1,0 +1,3 @@
+manifest.db
+manifest.db-shm
+manifest.db-wal

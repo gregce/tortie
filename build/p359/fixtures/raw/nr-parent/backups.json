@@ -1,0 +1,28 @@
+{
+ "version": 1,
+ "source": "constructed",
+ "capsules": [
+  {
+   "generation": 2,
+   "reason": "quit",
+   "capturedAt": 1794220041740,
+   "digests": {
+    "sessions": "b1a2c3d4e5f60718293a4b5c6d7e8f90b1a2c3d4e5f60718293a4b5c6d7e8f90"
+   },
+   "rows": {
+    "sessions": 434
+   }
+  },
+  {
+   "generation": 1,
+   "reason": "launch",
+   "capturedAt": 1794220000240,
+   "digests": {
+    "sessions": "a1a2a3a4a5a6a7a8a9b0b1b2b3b4b5b6b7b8b9c0c1c2c3c4c5c6c7c8c9d0d1d2"
+   },
+   "rows": {
+    "sessions": 418
+   }
+  }
+ ]
+}

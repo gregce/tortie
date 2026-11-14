@@ -1,0 +1,7 @@
+{
+ "source": "CONSTRUCTED: the spec step ran no harness arm (SPEC §8, \"HC not yet measured\"). Its shape is GMUX_SMOKE=shutdown-refusal’s own (src/main/harness/shutdown-refusal.ts: two boots in one process through getGmuxCore, eight numbered lines, app.exit(0) with no before-quit), its frames are the spec step’s recorded boot frames with the harness’s function as the caller, its times and pids are made up",
+ "shim": {
+  "text": "[gmux-smoke] 1/8 isolated: socket gmux-p359-12345, profile inside /private/var/tmp/tortie-wt/scratch/p359/probe-run/tmp/gmux-p359-12345/p359\n[gmux-smoke] 2/8 booted ready and created \"p116-first\" (s-1); 1 manifest rows, 1 tmux sessions\n[gmux-smoke] 3/8 snapshot pass wrapped with a held promise\n[gmux-smoke] 4/8 admitted create \"p116-admitted\" resolved BEFORE the snapshot pass (order: create-resolved -> snapshot-entered)\n[gmux-smoke] 5/8 refused while held: getGmuxCore() and createSession() both rejected with SHUTTING_DOWN\n[gmux-smoke] 6/8 nothing happened: 2 manifest rows, 2 tmux sessions, pane pids unchanged\n[gmux-smoke] 7/8 clean re-boot: lifecycle walked back to empty and a REAL second boot reads both sessions\n[gmux-smoke] 8/8 PASS (shutdown-refusal)\n",
+  "code": 0
+ }
+}

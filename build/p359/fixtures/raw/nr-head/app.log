@@ -1,0 +1,7 @@
+{"ts":"2026-11-09T10:28:40.160Z","level":"info","scope":"tmux","pid":62000,"proctype":"main","msg":"macOS login session 186b0. Every session Tortie starts joins it."}
+{"ts":"2026-11-09T10:28:40.270Z","level":"info","scope":"tmux","pid":62000,"proctype":"main","msg":"macOS login session 186b0. Every session Tortie starts joins it."}
+{"ts":"2026-11-09T10:29:21.700Z","level":"info","scope":"sessions","pid":62000,"proctype":"main","msg":"scrollback pass (app-quit) over 434 sessions: 16 written, 0 had nothing on screen, 418 were not running, 0 had no pane on this Mac, 0 could not be written."}
+{"ts":"2026-11-09T10:29:21.788Z","level":"info","scope":"manifest","pid":62000,"proctype":"main","msg":"the session list connection is left open at quit, so no close walks its cache"}
+{"ts":"2026-11-09T10:29:22.059Z","level":"info","scope":"quit","pid":62000,"proctype":"main","msg":"the remembered settings were on disk after 155 ms; ending the quit","landing":"settled","waitedMs":155,"moved":false}
+{"ts":"2026-11-09T10:29:24.000Z","level":"info","scope":"tmux","pid":62001,"proctype":"main","msg":"macOS login session 186b0. Every session Tortie starts joins it."}
+{"ts":"2026-11-09T10:29:24.110Z","level":"info","scope":"tmux","pid":62001,"proctype":"main","msg":"macOS login session 186b0. Every session Tortie starts joins it."}

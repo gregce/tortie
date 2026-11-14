@@ -77,6 +77,37 @@ function defaultDeps(): ProjectCreateDeps {
 }
 
 /**
+ * PHASE 359, THE FIX ROUND (build/p359/SPEC.md "### The fix round"). Every
+ * `projects:create` admitted and not yet settled. A create makes the folder,
+ * runs `git init`, then adds the project through the session core, so one
+ * admitted just before a quit can ask the core for the first time after the
+ * quit's shutdown. Until Phase 359 that ask booted a second core inside the
+ * quitting process, which wrote the project row; now the quit boots no core,
+ * so the quit's project step (`disposeProjectCloneIpc` below, which the
+ * ordered disposer awaits before the core's shutdown) tells every create to
+ * stop waiting for git (`quitBegun`) and joins its add, bounded, so the add
+ * reaches the core that is still running. Admission itself is closed by the
+ * typed invoke wrapper the moment the quit begins, so this set only shrinks
+ * once it is joined. Each entry is the create's outcome with its rejection
+ * already answered, so the set holds nothing that can reject.
+ */
+const creates = new Set<Promise<void>>();
+
+/** PHASE 359, THE FIX ROUND. Resolved on the quit's project step's first line. */
+let quitBegins: () => void = () => undefined;
+const quitBegun = new Promise<void>((resolve) => {
+  quitBegins = resolve;
+});
+
+/**
+ * The bound on the quit's project step: the three seconds the clone step has
+ * always had, now shared by the creates and the clones' adds it also joins,
+ * so the step is never longer than it was. A quit with nothing in flight
+ * waits for nothing.
+ */
+const PROJECT_QUIT_JOIN_MS = 3_000;
+
+/**
  * Register `projects:create`. Call once during main-process boot. `deps` is
  * for tests; production passes nothing.
  */
@@ -84,8 +115,20 @@ export function registerProjectCreateIpc(
   ipc: IpcMain,
   deps?: ProjectCreateDeps
 ): void {
-  const creator = createProjectCreator(deps ?? defaultDeps());
-  handle(ipc, 'projects:create', (_e, input) => creator.create(input));
+  const creator = createProjectCreator(deps ?? defaultDeps(), quitBegun);
+  handle(ipc, 'projects:create', (_e, input) => {
+    const made = creator.create(input);
+    // The renderer still gets `made`, its answer and its refusal unchanged.
+    const settled = made.then(
+      () => undefined,
+      () => undefined
+    );
+    creates.add(settled);
+    void settled.then(() => {
+      creates.delete(settled);
+    });
+    return made;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -136,7 +179,35 @@ export function registerProjectCloneIpc(ipc: IpcMain): void {
  * path as pressing Cancel. Awaited by `before-quit`, and bounded there, so a
  * quit during a clone never leaves a repository half written and never waits
  * on a network.
+ *
+ * PHASE 359, THE FIX ROUND. It is also the quit's join of every project add
+ * already admitted: a create making its folder or running `git init`, which
+ * stops waiting for git from this line (`quitBegun`), and a clone whose git
+ * exited and whose add is still to come, which stops waiting for its branch
+ * (the engine's own `dispose`). Each add reaches the session core before its
+ * shutdown, which is the step after this one in the ordered disposer, because
+ * once the quit has begun no core boots to answer an add that comes later. One
+ * bound covers the whole step, the clone step's three seconds: an add that
+ * could not be made inside it (a folder the disk has not made, a rename not
+ * done) reaches the core after its shutdown and is refused, and what is on
+ * disk stays there, to be opened again.
  */
-export function disposeProjectCloneIpc(): Promise<void> {
-  return cloneEngine.dispose();
+export async function disposeProjectCloneIpc(
+  timeoutMs = PROJECT_QUIT_JOIN_MS
+): Promise<void> {
+  quitBegins();
+  const adds = [...creates];
+  const clones = cloneEngine.dispose(timeoutMs);
+  if (adds.length === 0) return clones;
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      Promise.all([clones, ...adds]),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
 }

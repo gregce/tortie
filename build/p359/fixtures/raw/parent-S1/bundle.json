@@ -1,0 +1,21 @@
+{
+ "source": "the spec step's run S1 at the parent (7bd05d4e), batch b2 (build/p359/SPEC.md §2.1, §2.3; scratch/p359/spec/fixtures-raw/parent-S1): events.jsonl byte for byte as recorded; app.log as recorded less the lines that name his home (the login PATH capture) and the boot.env records; gmux-after-quit.txt is the recorded listing and backups.json the recorded index, both taken after the quit (the arm had no relaunch); the rest below is the spec step's recorded reading, from report-b2.json",
+ "constructed": {
+  "shim": "the shim's own line (node_modules/electron/cli.js) made from the recorded exit {\"code\":0,\"signal\":null}; the spec step kept the parsed exit, not the output"
+ },
+ "shim": {
+  "text": "",
+  "code": 0
+ },
+ "world": {
+  "created": 0,
+  "damage": null,
+  "listAfterDamage": null,
+  "liveStart": null,
+  "loadAtPress": [
+   2.99658203125,
+   2.890625,
+   4.9501953125
+  ]
+ }
+}

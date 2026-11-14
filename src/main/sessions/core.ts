@@ -20,6 +20,9 @@ import type { WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { readdir, rm } from 'node:fs/promises';
 import { join, resolve as resolvePath } from 'node:path';
+// PHASE 359 (build/p359/SPEC.md D1). The app's one-way quit flag, which
+// getGmuxCore() reads before it boots a core. A leaf: it imports nothing.
+import { appLifecycleState } from '../lifecycle';
 import type {
   AddRemoteProjectInput,
   AddRemoteProjectResult,
@@ -4566,12 +4569,35 @@ let shutdownPromise: Promise<void> | null = null;
  * The boot callbacks are guarded on the `booting` state: a shutdown can
  * start while boot is still in flight, and the boot resolving later must not
  * overwrite `shuttingDown` with `ready`.
+ *
+ * PHASE 359. Once the quit has begun, nothing BOOTS a core. The quit's one
+ * `shutdownGmuxCore()` empties the slot and sets the lifecycle back to
+ * `empty`, and the quit runs on after it, so a window's blur, a sleep or a
+ * wake, a Live Diagnostics tick and a startup the quit overtook each asked
+ * here after that and booted a second core inside the quitting process, one
+ * nothing disposes. That core passed the manifest gate, quarantined and put
+ * back a damaged session list with nobody told, rewrote the sessions table
+ * after the quit generation and spent a backup generation on a copy of it
+ * (build/p359/SPEC.md §0.1). So the boot branch, and only the boot branch,
+ * gives the same typed `SHUTTING_DOWN` refusal while the app is quitting. A
+ * core already in the slot, ready or still booting, is handed back as before,
+ * because the disposer's steps before `shutdownGmuxCore()` ask for it, and a
+ * refusal touches neither `corePromise` nor `lifecycle`. The check reads the
+ * app's one-way quit flag (src/main/lifecycle.ts) and not this module's own
+ * lifecycle, for two reasons: a quit pressed before startup asked never
+ * enters the shutdown's body, so this module would still read `empty`; and a
+ * harness that boots, shuts down and boots again in one process needs `empty`
+ * after its shutdown and never marks the app quitting, so its second boot is
+ * unchanged.
  */
 export function getGmuxCore(): Promise<GmuxCore> {
   if (lifecycle === 'shuttingDown') {
     return Promise.reject(shutdownRefusal('getGmuxCore'));
   }
   if (corePromise === null) {
+    if (appLifecycleState() === 'quitting') {
+      return Promise.reject(shutdownRefusal('getGmuxCore'));
+    }
     lifecycle = 'booting';
     corePromise = GmuxCore.boot();
     corePromise.then(
@@ -4654,7 +4680,8 @@ export async function shutdownGmuxCore(): Promise<void> {
       corePromise = null;
       shutdownPromise = null;
       // Phase 116. The circle closes: a later boot in the same process, e.g.
-      // the second cycle every durability harness runs, starts from `empty`.
+      // the second cycle every durability harness runs, starts from `empty`,
+      // unless the app is quitting (Phase 359), when getGmuxCore() refuses it.
       lifecycle = 'empty';
     }
   })();

@@ -47,3 +47,5 @@ ios/**/*.xcuserstate
 # own name, and its grader self-test reads each one. `*.log` above would leave
 # them out of a plain `git add`, and the committed self-test would then fail.
 !build/p362/fixtures/raw/*/app.log
+# Phase 359: probe:p359's raw fixtures do the same, for the same reason.
+!build/p359/fixtures/raw/*/app.log

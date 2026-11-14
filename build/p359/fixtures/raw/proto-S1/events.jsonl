@@ -1,0 +1,11 @@
+{"t":1794207802355,"pid":59631,"ev":"loaded","mode":"quit-at-ready"}
+{"t":1794207802470,"pid":59631,"ev":"hooked"}
+{"t":1794207802512,"pid":59631,"ev":"tmux-spawn","argv":["-V"],"child":59723,"quitting":false}
+{"t":1794207802516,"pid":59631,"ev":"quit-at-ready","windows":0}
+{"t":1794207802516,"pid":59631,"ev":"before-quit","pass":1,"windows":0}
+{"t":1794207802527,"pid":59631,"ev":"before-quit","pass":2,"windows":0}
+{"t":1794207802527,"pid":59631,"ev":"will-quit","windows":0}
+{"t":1794207802527,"pid":59631,"ev":"quit"}
+{"t":1794207802528,"pid":59631,"ev":"process-exit","code":0}
+{"t":1794207802573,"pid":59631,"ev":"window-created","id":1,"quitting":true}
+{"t":1794207802612,"pid":59631,"ev":"window-closed","id":1}

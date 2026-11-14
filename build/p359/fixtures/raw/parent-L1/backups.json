@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "source": "/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/L1/profile/gmux/manifest.db",
+  "capsules": [
+    {
+      "version": 1,
+      "generation": 3,
+      "parent": 2,
+      "path": "/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/L1/profile/gmux/backups/manifest.db.000003",
+      "source": "/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/L1/profile/gmux/manifest.db",
+      "bytes": 106496,
+      "sha256": "4b8acefac7000496754dc8d639843ff956839cf85ead9aca0e9b5ac1fa586140",
+      "digests": {
+        "closed_remote_folders": "1f11006b7524b82307d1ba10c9797a9fae5a3c6504b139fe73577ac0b3894650",
+        "meta": "229ce7543282b872383be72c62bc1d92680f4d396f3c28199236f160d5e48814",
+        "migrations": "d868ac98826c052e1d9a7599d010d5789725ad7240d203f5c238d05b504cd442",
+        "projects": "368d9c2348c039e1f483262b2e9abbe13621f76a03a2271ab77ebe774a96655d",
+        "remote_executions": "2cce930ba72cc3c4058a6608492dc8f15bdcf71f64ad3b9e20fef5bd8d45e50a",
+        "remote_folder_pins": "1a7e779ecc88c49553a2675223c92910f66ba579878cf10d9023db064fe18ca9",
+        "remote_projects": "1d5996f493e5870c53ab75cde6516466b166cb0d3432b226e3d21a0c7c48ea94",
+        "restore_attempts": "72dfe68393d6294dbb6f072823f00137452bac70e579f2d667f1741954a112e3",
+        "sessions": "0cf7dc90d0366dfcd81b519fb57b4842d086c313baa6ecb50f3acadfe8d76467"
+      },
+      "rows": {
+        "closed_remote_folders": 0,
+        "meta": 2,
+        "migrations": 20,
+        "projects": 0,
+        "remote_executions": 0,
+        "remote_folder_pins": 0,
+        "remote_projects": 0,
+        "restore_attempts": 0,
+        "sessions": 3
+      },
+      "integrity": "ok",
+      "sourceMatched": true,
+      "differences": [],
+      "reason": "launch",
+      "capturedAt": 1794207090458,
+      "ms": 17
+    },
+    {
+      "version": 1,
+      "generation": 2,
+      "parent": 1,
+      "path": "/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/L1/profile/gmux/backups/manifest.db.000002",
+      "source": "/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/L1/profile/gmux/manifest.db",
+      "bytes": 106496,
+      "sha256": "4b5fae44d5a9540f4517f4c2b2553b760b9b908d9d0b4c8ce32b79986d8de25b",
+      "digests": {
+        "closed_remote_folders": "1f11006b7524b82307d1ba10c9797a9fae5a3c6504b139fe73577ac0b3894650",
+        "meta": "229ce7543282b872383be72c62bc1d92680f4d396f3c28199236f160d5e48814",
+        "migrations": "d868ac98826c052e1d9a7599d010d5789725ad7240d203f5c238d05b504cd442",
+        "projects": "368d9c2348c039e1f483262b2e9abbe13621f76a03a2271ab77ebe774a96655d",
+        "remote_executions": "2cce930ba72cc3c4058a6608492dc8f15bdcf71f64ad3b9e20fef5bd8d45e50a",
+        "remote_folder_pins": "1a7e779ecc88c49553a2675223c92910f66ba579878cf10d9023db064fe18ca9",
+        "remote_projects": "1d5996f493e5870c53ab75cde6516466b166cb0d3432b226e3d21a0c7c48ea94",
+        "restore_attempts": "72dfe68393d6294dbb6f072823f00137452bac70e579f2d667f1741954a112e3",
+        "sessions": "d9a5c7d6ef0aa33c237cc1d934e26e13f0eb2382a8146d5c17b54fe448a33fd7"
+      },
+      "rows": {
+        "closed_remote_folders": 0,
+        "meta": 2,
+        "migrations": 20,
+        "projects": 0,
+        "remote_executions": 0,
+        "remote_folder_pins": 0,
+        "remote_projects": 0,
+        "restore_attempts": 0,
+        "sessions": 3
+      },
+      "integrity": "ok",
+      "sourceMatched": true,
+      "differences": [],
+      "reason": "quit",
+      "capturedAt": 1794207090271,
+      "ms": 14
+    },
+    {
+      "version": 1,
+      "generation": 1,
+      "parent": null,
+      "path": "/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/L1/profile/gmux/backups/manifest.db.000001",
+      "source": "/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/L1/profile/gmux/manifest.db",
+      "bytes": 106496,
+      "sha256": "2abaf06f706ecd769abe3739042bdb8a07ef6a8081ae6dbcfd4ed3322d864221",
+      "digests": {
+        "closed_remote_folders": "1f11006b7524b82307d1ba10c9797a9fae5a3c6504b139fe73577ac0b3894650",
+        "meta": "229ce7543282b872383be72c62bc1d92680f4d396f3c28199236f160d5e48814",
+        "migrations": "d868ac98826c052e1d9a7599d010d5789725ad7240d203f5c238d05b504cd442",
+        "projects": "368d9c2348c039e1f483262b2e9abbe13621f76a03a2271ab77ebe774a96655d",
+        "remote_executions": "2cce930ba72cc3c4058a6608492dc8f15bdcf71f64ad3b9e20fef5bd8d45e50a",
+        "remote_folder_pins": "1a7e779ecc88c49553a2675223c92910f66ba579878cf10d9023db064fe18ca9",
+        "remote_projects": "1d5996f493e5870c53ab75cde6516466b166cb0d3432b226e3d21a0c7c48ea94",
+        "restore_attempts": "72dfe68393d6294dbb6f072823f00137452bac70e579f2d667f1741954a112e3",
+        "sessions": "79d8fd0745afcafe783eadc06300cc31696b740f3d6368c87a2db679408dc58b"
+      },
+      "rows": {
+        "closed_remote_folders": 0,
+        "meta": 2,
+        "migrations": 20,
+        "projects": 0,
+        "remote_executions": 0,
+        "remote_folder_pins": 0,
+        "remote_projects": 0,
+        "restore_attempts": 0,
+        "sessions": 0
+      },
+      "integrity": "ok",
+      "sourceMatched": true,
+      "differences": [],
+      "reason": "launch",
+      "capturedAt": 1794207081255,
+      "ms": 26
+    }
+  ]
+}

@@ -104,6 +104,8 @@ import { appLifecycleState, markAppQuitting } from './lifecycle';
 import { manifestRefusal } from './manifest/refusal';
 import { isSchemaRefusal } from './db/schema-version';
 import { presentManifestRefusal } from './notice/refusal-screen';
+// Phase 359: the startup catch reads the core's quit refusal by its code.
+import { isGmuxError } from './errors';
 import { reconcileLoginItem } from './restore';
 // Phase 42 stage 1: navigation, new-window and IPC sender trust — one policy
 // module, applied to every window Tortie creates for its own renderers.
@@ -639,6 +641,12 @@ app.whenReady().then(async () => {
     // same screen rather than at a toast in the corner of an empty window.
     if (isSchemaRefusal(err)) {
       void presentManifestRefusal(err);
+      return;
+    }
+    // PHASE 359. A quit pressed before startup asked for the core: getGmuxCore()
+    // refuses to boot one in a quitting app, which is the quit, not a failure.
+    if (isGmuxError(err, 'SHUTTING_DOWN')) {
+      bootLog.info('the session core was not started, because Tortie is quitting');
       return;
     }
     bootLog.error(`core boot failed: ${(err as Error).message}`);

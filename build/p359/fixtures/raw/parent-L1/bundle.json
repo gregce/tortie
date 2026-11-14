@@ -1,0 +1,28 @@
+{
+ "source": "the spec step's run L1 at the parent (7bd05d4e), batch b2 (build/p359/SPEC.md §2.1, §2.3; scratch/p359/spec/fixtures-raw/parent-L1): events.jsonl byte for byte as recorded; app.log as recorded less the lines that name his home (the login PATH capture) and the boot.env records; gmux-after-quit.txt is the recorded listing and backups.json the recorded index, both taken after the quit (the arm had no relaunch); the rest below is the spec step's recorded reading, from report-b2.json",
+ "constructed": {
+  "shim": "the shim's own line (node_modules/electron/cli.js) made from the recorded exit {\"code\":1,\"signal\":\"SIGKILL\"}; the spec step kept the parsed exit, not the output"
+ },
+ "shim": {
+  "text": "/private/var/tmp/tortie-wt/scratch/p359/spec/parent/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron exited with signal SIGKILL\n",
+  "code": 1
+ },
+ "world": {
+  "agents": {
+   "ok": true,
+   "said": "no agent resolved"
+  },
+  "created": 3,
+  "damage": null,
+  "listAfterDamage": null,
+  "liveStart": {
+   "started": true,
+   "intervalMs": 2000
+  },
+  "loadAtPress": [
+   2.6484375,
+   2.8212890625,
+   4.9384765625
+  ]
+ }
+}

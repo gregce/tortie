@@ -1,5 +1,5 @@
 {
-  "readings": 202,
+  "readings": 224,
   "honest": {
     "PA": {
       "counter": [
@@ -298,6 +298,12 @@
         "ran": true,
         "quarantined": true,
         "rows": 102
+      },
+      "quitBoots": {
+        "pid": 4242,
+        "at": 1794200000000,
+        "before": 2,
+        "after": 0
       }
     },
     "HQ": {
@@ -467,6 +473,12 @@
         "crashUnexpected": 0,
         "canaryLines": 0,
         "malformed": 0
+      },
+      "quitBoots": {
+        "pid": 4242,
+        "at": 1794200000000,
+        "before": 2,
+        "after": 0
       }
     },
     "HD": {
@@ -598,7 +610,13 @@
         "key": "be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f",
         "sameKey": true
       },
-      "dialogTitleOnStdout": false
+      "dialogTitleOnStdout": false,
+      "quitBoots": {
+        "pid": 4242,
+        "at": 1794200000000,
+        "before": 2,
+        "after": 0
+      }
     },
     "RUN": {
       "tailscalePreflight": true,
@@ -720,6 +738,12 @@
           "p357-b",
           "p357-c"
         ]
+      },
+      "quitBoots": {
+        "pid": 4242,
+        "at": 1794200000000,
+        "before": 2,
+        "after": 0
       }
     }
   },
@@ -1494,6 +1518,58 @@
       "mustFail": [
         "the relaunch listed every session the window listed before the quit, and no other"
       ]
+    },
+    {
+      "arm": "HA",
+      "name": "PHASE 359: a session core began to boot after the quit was pressed (two login-session lines of the quitting process after the press, one boot)",
+      "ops": [
+        {
+          "set": "quitBoots.after",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "PHASE 359: a session core began to boot after the quit was pressed (two login-session lines of the quitting process after the press, one boot)",
+      "ops": [
+        {
+          "set": "quitBoots.after",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "PHASE 359: a session core began to boot after the quit was pressed (two login-session lines of the quitting process after the press, one boot)",
+      "ops": [
+        {
+          "set": "quitBoots.after",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "CS-head",
+      "name": "PHASE 359: a session core began to boot after the quit was pressed (two login-session lines of the quitting process after the press, one boot)",
+      "ops": [
+        {
+          "set": "quitBoots.after",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
     }
   ],
   "unreadable": [
@@ -2157,6 +2233,58 @@
       ],
       "mustMiss": [
         "neither quit took Phase 36’s wedged-watcher escape"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "PHASE 359: no login-session line of the quitting process before the press, so its count after the press reads no process at all",
+      "ops": [
+        {
+          "set": "quitBoots.before",
+          "value": 0
+        }
+      ],
+      "mustMiss": [
+        "app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "PHASE 359: no login-session line of the quitting process before the press, so its count after the press reads no process at all",
+      "ops": [
+        {
+          "set": "quitBoots.before",
+          "value": 0
+        }
+      ],
+      "mustMiss": [
+        "app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "PHASE 359: no login-session line of the quitting process before the press, so its count after the press reads no process at all",
+      "ops": [
+        {
+          "set": "quitBoots.before",
+          "value": 0
+        }
+      ],
+      "mustMiss": [
+        "app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process"
+      ]
+    },
+    {
+      "arm": "CS-head",
+      "name": "PHASE 359: no login-session line of the quitting process before the press, so its count after the press reads no process at all",
+      "ops": [
+        {
+          "set": "quitBoots.before",
+          "value": 0
+        }
+      ],
+      "mustMiss": [
+        "app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process"
       ]
     }
   ],
@@ -4459,6 +4587,347 @@
       },
       "mustFail": [
         "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "PHASE 359, the spec step’s parent (7bd05d4e, arm B1): the quitting process’s third and fourth login-session lines came after the press, a second core during the quit",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T06:50:55.327Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T06:50:55.329Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T06:50:55.369Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T06:50:55.384Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:50:55.496Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T06:50:55.502Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:50:56.615Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T06:50:58.896Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T06:50:58.924Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T06:50:59.028Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:50:59.051Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:50:59.188Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":53000,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 157 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":157,\"moved\":false}"
+          ],
+          "pid": 53000,
+          "pressAt": 1794207058816
+        }
+      },
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "PHASE 359, the spec step’s prototype (arm B1): two login-session lines, both before the press, none after",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:03:06.805Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:03:06.808Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.855Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.876Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.978Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.983Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:08.099Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:03:10.586Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.615Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.879Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 156 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":156,\"moved\":false}"
+          ],
+          "pid": 41349,
+          "pressAt": 1794207790505
+        }
+      }
+    },
+    {
+      "arm": "HB",
+      "name": "PHASE 359: a third line in the other spelling (no SECURITYSESSIONID) after the press is still a boot after the press",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:03:06.805Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:03:06.808Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.855Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.876Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.978Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.983Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:08.099Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:03:10.586Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.615Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.879Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 156 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":156,\"moved\":false}",
+            "{\"ts\":\"2026-11-09T07:03:10.718Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"no macOS login session number in this process. A session Tortie starts will join whichever one macOS gives its pane.\"}"
+          ],
+          "pid": 41349,
+          "pressAt": 1794207790505
+        }
+      },
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "PHASE 359: the relaunch’s own boot lines after the press are another process’s and are not counted",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:03:06.805Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:03:06.808Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.855Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.876Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.978Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.983Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:08.099Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:03:10.586Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.615Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.879Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 156 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":156,\"moved\":false}",
+            "{\"ts\":\"2026-11-09T07:03:11.705Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41350,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:11.805Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41350,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}"
+          ],
+          "pid": 41349,
+          "pressAt": 1794207790505
+        }
+      }
+    },
+    {
+      "arm": "CS-head",
+      "name": "PHASE 359: the quitting process could not be read (the shim had no child at the press): unreadable, never a pass",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:03:06.805Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:03:06.808Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.855Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.876Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.978Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.983Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:08.099Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:03:10.586Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.615Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.879Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 156 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":156,\"moved\":false}"
+          ],
+          "pid": null,
+          "pressAt": 1794207790505
+        }
+      },
+      "mustMiss": [
+        "app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process"
+      ]
+    },
+    {
+      "arm": "CS-head",
+      "name": "PHASE 359: a line at the press’s own millisecond is at the press, and counts",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:03:06.805Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:03:06.808Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.855Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.876Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.978Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:03:06.983Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:08.099Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:03:10.586Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.615Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:03:10.879Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 156 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":156,\"moved\":false}",
+            "{\"ts\":\"2026-11-09T07:03:10.505Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":41349,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}"
+          ],
+          "pid": 41349,
+          "pressAt": 1794207790505
+        }
+      },
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "REVIEW: HEAD’s recorded control quit (the prototype’s C0, build/p359/fixtures/raw/proto-C0): two login-session lines before the press, none after",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:03:01.721Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:03:01.723Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:03:01.770Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:03:01.968Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:02.054Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:03:02.060Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:03.178Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:03:05.500Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:03:05.527Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:03:05.789Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 155 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":155,\"moved\":false}"
+          ],
+          "pid": 34918,
+          "pressAt": 1794207785424
+        }
+      }
+    },
+    {
+      "arm": "CS-head",
+      "name": "REVIEW: a recorded parent quit with no door (the spec step’s second C0, b4): nothing after the press, a pass for this clause",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:00:57.078Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:00:57.081Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:00:57.121Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:00:57.137Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:00:57.256Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:00:57.261Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:00:58.383Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:01:00.839Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:01:00.863Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:01:01.121Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":22340,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 151 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":151,\"moved\":false}"
+          ],
+          "pid": 22340,
+          "pressAt": 1794207660767
+        }
+      }
+    },
+    {
+      "arm": "HC",
+      "name": "REVIEW: A SECOND BOOT IN A QUITTING PID, recorded under load (the spec step’s second B1, b3, load 13.1): the blur’s core began 195 ms after the press, 3 ms before will-quit",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T06:54:26.378Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T06:54:26.380Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T06:54:26.421Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T06:54:26.436Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:54:26.550Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T06:54:26.556Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:54:27.666Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":2,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T06:54:29.908Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T06:54:29.938Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T06:54:30.042Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:54:30.080Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:54:30.201Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":61000,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 156 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":156,\"moved\":false}"
+          ],
+          "pid": 61000,
+          "pressAt": 1794207269847
+        }
+      },
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "REVIEW: A SECOND BOOT IN A QUITTING PID from the sleep handler, recorded (the spec step’s P1): two lines 93 ms and more after the press",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:00:52.115Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:00:52.121Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:00:52.201Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:00:52.238Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:00:52.352Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:00:52.358Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:00:53.450Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:00:55.753Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:00:55.778Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:00:55.780Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:00:55.881Z\",\"level\":\"info\",\"scope\":\"power\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"resume: clearing the terminal glyph atlas\"}",
+            "{\"ts\":\"2026-11-09T07:00:55.910Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:00:56.005Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"scrollback pass (system-sleep) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:00:56.006Z\",\"level\":\"info\",\"scope\":\"power\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"suspend: the manifest has not changed, so no generation was taken\"}",
+            "{\"ts\":\"2026-11-09T07:00:56.006Z\",\"level\":\"info\",\"scope\":\"power\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"suspend: the capture and the manifest generation both finished in 226 ms\",\"tookMs\":226}",
+            "{\"ts\":\"2026-11-09T07:00:56.040Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":16506,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 155 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":155,\"moved\":false}"
+          ],
+          "pid": 16506,
+          "pressAt": 1794207655687
+        }
+      },
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "REVIEW: a second core 3.1 s after the press, at the late drain’s hide, recorded (the spec step’s H1): late is late however late",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T06:54:02.461Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T06:54:02.464Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T06:54:02.508Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T06:54:02.524Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:54:02.636Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T06:54:02.641Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:54:03.761Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T06:54:06.235Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T06:54:06.267Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T06:54:09.271Z\",\"level\":\"warn\",\"scope\":\"quit\",\"pid\":30987,\"proctype\":\"main\",\"event\":\"quit.late_drain\",\"msg\":\"watcher closes are still pending after the drain. Waiting up to 15 s more, so this quit is not a crash.\",\"pending\":2,\"waitMs\":15000}",
+            "{\"ts\":\"2026-11-09T06:54:09.281Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:54:09.325Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T06:54:12.276Z\",\"level\":\"warn\",\"scope\":\"quit\",\"pid\":30987,\"proctype\":\"main\",\"event\":\"quit.late_settled\",\"msg\":\"the late watcher closes settled. Quitting cleanly.\",\"settledMs\":3004}",
+            "{\"ts\":\"2026-11-09T06:54:12.429Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":30987,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 151 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":151,\"moved\":false}"
+          ],
+          "pid": 30987,
+          "pressAt": 1794207246155
+        }
+      },
+      "mustFail": [
+        "no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press"
+      ]
+    },
+    {
+      "arm": "CS-head",
+      "name": "REVIEW: a quit pressed before startup asked for the core, recorded at the parent (the spec step’s S1): its only boot came after the press, so this reader has no boot before it to read the process by: UNREADABLE, never a pass (probe:p359’s S1 arm reads that door)",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T06:51:31.556Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":77151,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T06:51:31.558Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":77151,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T06:51:31.598Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":77151,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/parent/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T06:51:31.606Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":77151,\"proctype\":\"main\",\"msg\":\"settled phone alerts: 1 step(s), joined after 0 ms\",\"steps\":1,\"joined\":true,\"waitedMs\":0}",
+            "{\"ts\":\"2026-11-09T06:51:31.609Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":77151,\"proctype\":\"main\",\"msg\":\"reaped 1 in-flight probe(s)\",\"reaped\":1}",
+            "{\"ts\":\"2026-11-09T06:51:31.616Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":77151,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}"
+          ],
+          "pid": 77151,
+          "pressAt": 1794207091599
+        }
+      },
+      "mustMiss": [
+        "app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "REVIEW: an app.log that held no line at all: UNREADABLE, never a pass",
+      "derive": {
+        "quitBoots": {
+          "appLog": [],
+          "pid": 34918,
+          "pressAt": 1794207785424
+        }
+      },
+      "mustMiss": [
+        "app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "REVIEW: a press whose time was not read: UNREADABLE, never a pass",
+      "derive": {
+        "quitBoots": {
+          "appLog": [
+            "{\"ts\":\"2026-11-09T07:03:01.721Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"cache policy: chromium-default, the renderer is loaded from the built files, which Chromium never stores, so its default ceiling stands and is never reached\",\"mode\":\"chromium-default\",\"httpCacheCeilingBytes\":null,\"chromiumDefaultHttpCacheCeilingBytes\":1342177280,\"codeCacheCeilingBytes\":335544320}",
+            "{\"ts\":\"2026-11-09T07:03:01.723Z\",\"level\":\"info\",\"scope\":\"shell\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"launch arguments beyond one folder path were ignored: YES (not an absolute path)\"}",
+            "{\"ts\":\"2026-11-09T07:03:01.770Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"This development build runs /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux. It is the copy this checkout carries, which is the version a packaged Tortie ships.\",\"path\":\"/private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux\",\"source\":\"dev-vendored\"}",
+            "{\"ts\":\"2026-11-09T07:03:01.968Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:02.054Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"tmux server created, running 3.7b, from /private/var/tmp/tortie-wt/scratch/p359/spec/proto/build/vendor/tmux/bin/tmux, the copy this checkout carries.\"}",
+            "{\"ts\":\"2026-11-09T07:03:02.060Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"macOS login session 186b0. Every session Tortie starts joins it.\"}",
+            "{\"ts\":\"2026-11-09T07:03:03.178Z\",\"level\":\"info\",\"scope\":\"logins\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"logins.boot\",\"ms\":1,\"securityCalls\":0,\"rows\":2,\"migration\":{\"refused\":true,\"reason\":\"harness\",\"moved\":0,\"deleted\":0,\"kept\":0,\"failed\":0}}",
+            "{\"ts\":\"2026-11-09T07:03:05.500Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"scrollback pass (app-quit) over 3 sessions: 3 written, 0 had nothing on screen, 0 were not running, 0 had no pane on this Mac, 0 could not be written.\"}",
+            "{\"ts\":\"2026-11-09T07:03:05.527Z\",\"level\":\"info\",\"scope\":\"manifest\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"the session list connection is left open at quit, so no close walks its cache\"}",
+            "{\"ts\":\"2026-11-09T07:03:05.789Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":34918,\"proctype\":\"main\",\"msg\":\"the remembered settings were on disk after 155 ms; ending the quit\",\"landing\":\"settled\",\"waitedMs\":155,\"moved\":false}"
+          ],
+          "pid": 34918,
+          "pressAt": null
+        }
+      },
+      "mustMiss": [
+        "app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process"
       ]
     }
   ]

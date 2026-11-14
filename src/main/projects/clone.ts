@@ -411,6 +411,38 @@ export class CloneEngine {
   private readonly runs = new Map<string, CloneRun>();
 
   /**
+   * PHASE 359, THE FIX ROUND (build/p359/SPEC.md "### The fix round"). The
+   * runs whose git has exited and whose `finish` is still running: the rename,
+   * the HEAD read and the project add. `finish` takes a run out of `runs` on
+   * its first line, so a clone whose git exited just before a quit was in
+   * nothing `dispose()` joined, and its add asked the session core for the
+   * first time after the quit's shutdown. Until Phase 359 that ask booted a
+   * second core inside the quitting process, which wrote the project row; now
+   * the quit boots no core, so `dispose()` joins these runs too, bounded, and
+   * the add reaches the core that is still running, before its shutdown. His
+   * ruled round (2026-11-14): only a run that will add a project is held here.
+   */
+  private readonly finishing = new Set<CloneRun>();
+
+  /**
+   * PHASE 359, THE FIX ROUND. Set by `dispose()`, which is the quit's: a
+   * `start()` already admitted but still preparing when the quit began spawns
+   * no git after it, because nothing would join that clone before the core's
+   * shutdown. Pressing Cancel on it would have ended it the same way.
+   */
+  private closing = false;
+
+  /**
+   * PHASE 359, THE FIX ROUND. Resolves on `dispose()`'s first line. A clone
+   * already renamed into place stops waiting for its branch from then and adds
+   * its project at once: the branch is one line of copy for a window that is
+   * closing, and a read that waited past the core's shutdown would cost the
+   * project row.
+   */
+  private readonly closed: Promise<void>;
+  private markClosed: () => void = () => undefined;
+
+  /**
    * `addProject` is injected for the same reason create.ts injects its deps:
    * production passes nothing and gets the manifest-backed add that ⌘O
    * already goes through, and a test can drive a real clone without an
@@ -425,7 +457,11 @@ export class CloneEngine {
       const { getGmuxCore } = await import('../sessions');
       return (await getGmuxCore()).addProject(path);
     }
-  ) {}
+  ) {
+    this.closed = new Promise<void>((resolve) => {
+      this.markClosed = resolve;
+    });
+  }
 
   /**
    * Validate, make the temporary directory, spawn git. Resolves with the
@@ -504,6 +540,28 @@ export class CloneEngine {
         name,
         env,
         stderr: (err as Error).message
+      });
+      return cloneId;
+    }
+
+    // PHASE 359, THE FIX ROUND. The quit began while this start was preparing.
+    // Its run would enter `runs` after `dispose()` had taken what it joins, so
+    // its git would run on into the quit and its add would reach the session
+    // core after the core's shutdown, which boots no second core any more. So
+    // it ends here as a cancelled clone, exactly as Cancel ends one: nothing is
+    // spawned, the empty temporary folder is removed and the last frame says
+    // cancelled. This is the last line before the spawn, and nothing between
+    // them awaits, so a start is either joined by `dispose()` or ends here.
+    if (this.closing) {
+      const leftover = await removeTemp(tempPath);
+      setImmediate(() => {
+        if (!sink.alive()) return;
+        sink.send(cloneId, {
+          cloneId,
+          done: true,
+          cancelled: true,
+          ...(leftover !== null ? { leftoverPath: leftover } : {})
+        });
       });
       return cloneId;
     }
@@ -599,15 +657,33 @@ export class CloneEngine {
    * Quit-time teardown. Cancelling on quit is the same code path as pressing
    * Cancel, which is what stops a hard kill leaving a repository mid write.
    * Bounded, because quit must never wait on a network.
+   *
+   * PHASE 359, THE FIX ROUND. It also joins, inside the same bound, every run
+   * whose git had already exited and whose finish is still running, so a clone
+   * that finished just before the quit is added as a project by the session
+   * core that is still running, without waiting for its branch (`closed`); and
+   * from its first line no admitted start spawns a git (`closing`). The
+   * ordinary quit, with no clone at all, still resolves in this same tick.
    */
   async dispose(timeoutMs = 3_000): Promise<void> {
-    const pending = [...this.runs.values()].map((run) => run.finished);
+    this.closing = true;
+    this.markClosed();
+    const pending = [...this.runs.values(), ...this.finishing].map(
+      (run) => run.finished
+    );
     for (const run of [...this.runs.values()]) this.cancel(run.id);
     if (pending.length === 0) return;
-    await Promise.race([
-      Promise.all(pending),
-      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
-    ]);
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        Promise.all(pending),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, timeoutMs);
+        })
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
   }
 
   /** A failure found before git was spawned. Nothing exists on disk yet. */
@@ -725,6 +801,13 @@ export class CloneEngine {
     this.clearTimers(run);
     run.pending = null;
     this.runs.delete(run.id);
+    // PHASE 359, THE FIX ROUND: still joined by `dispose()` until its last
+    // frame is sent, its project add included. His ruled round (2026-11-14):
+    // only a clone that will add a project. A failed one adds nothing, and its
+    // message can wait up to 3 s for `gh auth status`, which held the quit.
+    if (!run.cancelled && outcome.code === 0 && outcome.spawnErrorCode === undefined) {
+      this.finishing.add(run);
+    }
 
     // Whatever is still in the buffer is a line git wrote without a trailing
     // separator, and the line git dies on is exactly the one that classifies
@@ -761,6 +844,7 @@ export class CloneEngine {
         }
       });
     } finally {
+      this.finishing.delete(run);
       run.markFinished();
     }
   }
@@ -796,7 +880,13 @@ export class CloneEngine {
       return;
     }
 
-    const defaultBranch = await readHeadBranch(run.finalPath);
+    // PHASE 359, THE FIX ROUND. Once the quit has begun the branch is not waited
+    // for (`closed`), so the add below reaches the session core before its
+    // shutdown however slowly the disk answers this read.
+    const defaultBranch = await Promise.race([
+      readHeadBranch(run.finalPath),
+      this.closed.then(() => null)
+    ]);
     try {
       // The same add projects:create calls, so the manifest is written by
       // one function whichever way a project came into existence.

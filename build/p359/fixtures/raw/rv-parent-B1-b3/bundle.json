@@ -1,0 +1,25 @@
+{
+ "source": "RECORDED, added by the probe review (docs/method/HOW-WE-BUILT-THIS.md rule 9): the spec step's run B1 at the parent (7bd05d4e), batch b3 (build/p359/SPEC.md §2.1; scratch/p359/spec/tmp/…/p359s/B1), which the builder did not commit: events.jsonl byte for byte as recorded; app.log as recorded less the login PATH capture (it names a home) and the boot.env record; backups.json the recorded index and gmux-after-quit.txt the gmux folder's names, both as they stand after the quit (the arm had no relaunch); the rest below is the spec step's recorded reading, from report-b3.json",
+ "constructed": {
+  "shim": "the shim's own line (node_modules/electron/cli.js) made from the recorded exit {\"code\":1,\"signal\":\"SIGKILL\"}; the spec step kept the parsed exit, not the output"
+ },
+ "shim": {
+  "text": "/private/var/tmp/tortie-wt/scratch/p359/spec/parent/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron exited with signal SIGKILL\n",
+  "code": 1
+ },
+ "world": {
+  "agents": {
+   "ok": true,
+   "said": "no agent resolved"
+  },
+  "created": 3,
+  "damage": null,
+  "listAfterDamage": null,
+  "liveStart": null,
+  "loadAtPress": [
+   13.0908203125,
+   7.25390625,
+   6.4052734375
+  ]
+ }
+}

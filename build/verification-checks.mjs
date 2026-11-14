@@ -1768,6 +1768,29 @@ export const CHECKS = [
   // named by P3571_BS3. `--grader-self-test` grades build/p362/fixtures/ and
   // starts nothing; `--preflight` and `--list-graders` start nothing.
   electron('probe:p362'),
+  // PHASE 359 (build/p359/SPEC.md §8): a second session core that boots while
+  // Tortie quits, door by door at the parent and at HEAD. Electrons through
+  // build/electron-run.mjs ONE AT A TIME and never at once, the parent's
+  // (`P359_PARENT_CHECKOUT`, a built 7bd05d4e, 357.1 and 362 as landed,
+  // required) first in every pair, each arm on its own scratch profile, HOME
+  // and ZDOTDIR with HISTFILE=/dev/null and SHELL=/bin/sh and the socket
+  // gmux-p359…; an arm whose first launch a relaunch reads again (D2, D2n, NR)
+  // passes `tmuxSocket: null` to it and the relaunch names the socket. Every
+  // probed registry row is hidden by build/hidden-agents.mjs before each launch
+  // and `agents:list` read back, so every arm runs shells and no agent runs.
+  // A scratch witness preload it writes, never a file under src/, is loaded
+  // into main by NODE_OPTIONS and records each boot's synchronous stack, every
+  // open of the session list and every tmux spawn; each door is the app's own
+  // event emitted in main (a window's blur, powerMonitor's suspend and resume),
+  // Live Diagnostics' top answered by a `/bin/sleep 90` stand-in, a quit pressed
+  // at whenReady, or the late drain held by four FIFOs on the uv pool, every
+  // stand-in ended by pid and every FIFO removed in a `finally`. The world is
+  // three shells, or his recorded shape through build/p3167/seed-sessions.mts
+  // (counts only) plus 16 live shells for NR; HC is GMUX_SMOKE=shutdown-refusal
+  // through the helper. The Tailscale and DNS stand-ins are probe:p362's.
+  // `--grader-self-test` grades build/p359/fixtures/ and starts nothing;
+  // `--preflight`, `--list-graders` and `--derive` start nothing.
+  electron('probe:p359'),
   // PHASE 365 (build/p365/SPEC.md §8): Tortie's file watches, at the parent
   // and at HEAD. Electrons through build/electron-run.mjs ONE AT A TIME and
   // never at once, the parent's (`P365_PARENT_CHECKOUT`, a clone of ce4c77f6,

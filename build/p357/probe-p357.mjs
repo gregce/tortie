@@ -64,6 +64,13 @@
  * probe:p362 (build/p362/probe-p362.mjs, its CM arms F1's, ported), and no arm
  * here drives them.
  *
+ * NO CORE BOOTS AFTER THE PRESS (Phase 359, build/p359/SPEC.md D7). A boot
+ * logs two login-session lines and a reconnect one more, so the reader keeps
+ * each line's time (`bootLines`) and every HEAD arm that quits (HA, HB, HC,
+ * CS-head) grades the quitting process's lines at or after its press
+ * (`bootsAfter`); PA and CS-parent print the same number. The doors
+ * themselves are probe:p359's.
+ *
  * THE PROBE REVIEW (2026-11-06, docs/method/HOW-WE-BUILT-THIS.md rule 9), by
  * someone who did not write it. PA describes THIS run's parent, 357 as landed
  * (it described `0547383e` and failed by construction, so HQ could never be
@@ -182,6 +189,11 @@ export const CLOSE_HELD_LINE = /the session list connection is left open so noth
 export const NOT_RELAUNCHED_LINE = /restart asked: a harness launch is not relaunched/;
 /** The Electron shim's line when the app it started ended by a signal (node_modules/electron/cli.js), after which the shim exits 1. */
 export const SHIM_SIGNAL_LINE = /exited with signal (SIG[A-Z0-9]+)/;
+/**
+ * The supervisor's line at every ensureServer() (src/main/tmux/supervisor.ts),
+ * in both its spellings: with SECURITYSESSIONID set, and without it.
+ */
+export const LOGIN_SESSION_LINE = /^(?:macOS login session |no macOS login session number)/;
 /**
  * HQ's floor. The spec bounds HEAD's quit by twice the parent's; the parent's own
  * quits spread from 591 to 2,783 ms at one build (SPEC §2.2), so a bound of twice
@@ -376,12 +388,24 @@ export function readAppLog(lines, { rowCanaries = [] } = {}) {
       return {};
     }
   });
-  // Boots per pid (§8 RUN): one `macOS login session` line is logged per core
-  // boot (src/main/tmux/supervisor.ts). A pid that logged more than one boot
-  // booted a second core while it ran, which §0.1 item 8 is about. PRINTED,
-  // not graded: it is older than this phase (§12, §13 owe it an entry).
+  // Login-session lines per pid (§8 RUN), and since Phase 359 their times
+  // (build/p359/SPEC.md D7). The supervisor (src/main/tmux/supervisor.ts) logs
+  // one line at EVERY ensureServer(), in either spelling (LOGIN_SESSION_LINE).
+  // A core's boot logs TWO, its own ensureServer() and its control client's
+  // first connect, whose precheck calls ensureServer() again
+  // (src/main/tmux/control-client.ts), and every reconnect logs one more. So a
+  // count of lines is no count of boots (build/p359/SPEC.md §0.1 item 8):
+  // `bootPids` is PRINTED, and a boot during a quit is graded by TIME, from
+  // `bootLines` through `bootsAfter`: the quitting pid logs no such line at or
+  // after its quit was pressed (QUIT_BOOT_CLAUSE on HA, HB, HC and CS-head).
   const bootPids = {};
-  for (const o of parsed) if (o.scope === 'tmux' && typeof o.msg === 'string' && o.msg.startsWith('macOS login session')) bootPids[String(o.pid)] = (bootPids[String(o.pid)] ?? 0) + 1;
+  const bootLines = [];
+  for (const o of parsed) {
+    if (o.scope !== 'tmux' || typeof o.msg !== 'string' || !LOGIN_SESSION_LINE.test(o.msg)) continue;
+    bootPids[String(o.pid)] = (bootPids[String(o.pid)] ?? 0) + 1;
+    const at = Date.parse(String(o.ts ?? ''));
+    bootLines.push({ pid: Number.isInteger(o.pid) ? o.pid : null, at: Number.isFinite(at) ? at : null });
+  }
   const crash = parsed.filter((o) => o.scope === 'crash');
   const stopped = parsed.filter((o) => o.event === 'manifest.stopped');
   const canaries = rowCanaries.filter((c) => typeof c === 'string' && c !== '');
@@ -415,12 +439,34 @@ export function readAppLog(lines, { rowCanaries = [] } = {}) {
     notRelaunchedLine: parsed.some((o) => o.scope === 'quit' && typeof o.msg === 'string' && NOT_RELAUNCHED_LINE.test(o.msg)),
     gateLines: kept.filter((l) => /quarantin|integrity|rebuilt|damaged|recover|unclean/.test(l)).map((l) => l.slice(0, 200)),
     bootPids,
+    bootLines,
     // Every main process that wrote a record (the envelope's `pid` and
     // `proctype`, src/main/log/format.ts): one per launch that logged at all.
-    // The `macOS login session` line above needs SECURITYSESSIONID, so it is no
-    // count of launches; this is.
+    // The login-session lines above are two per boot and one per reconnect, so
+    // they are no count of launches; this is.
     mainPids: [...new Set(parsed.filter((o) => o.proctype === 'main' && Number.isInteger(o.pid)).map((o) => o.pid))]
   };
+}
+/**
+ * How many login-session lines `pid` logged at or after `fromMs` (Phase 359
+ * D7): a core that began to boot then, or a control client that reconnected.
+ * Pure over readAppLog's `bootLines`; null when any input does not read, so a
+ * count is never made up.
+ */
+export function bootsAfter(al, pid, fromMs) {
+  if (!Array.isArray(al?.bootLines) || !Number.isInteger(pid) || !Number.isFinite(fromMs)) return null;
+  return al.bootLines.filter((b) => b.pid === pid && Number.isFinite(b.at) && b.at >= fromMs).length;
+}
+/**
+ * The quitting process's login-session lines around its quit (Phase 359 D7):
+ * `before` the press (its own boot, which proves the pid and the spelling are
+ * read) and `after` it, at or after the press (QUIT_BOOT_CLAUSE holds it to 0).
+ */
+export function quitBootsOf(al, pid, pressMs) {
+  const after = bootsAfter(al, pid, pressMs);
+  if (after === null) return { pid: Number.isInteger(pid) ? pid : null, at: Number.isFinite(pressMs) ? pressMs : null, before: null, after: null };
+  const all = al.bootLines.filter((b) => b.pid === pid && Number.isFinite(b.at)).length;
+  return { pid, at: pressMs, before: all - after, after };
 }
 export function stoppedFact(al) {
   const s = al.stopped ?? [];
@@ -687,6 +733,21 @@ const CRASH_CLAUSE = [
   'app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text',
   (r) => r.appLog.crashUnexpected === 0 && r.appLog.canaryLines === 0
 ];
+/**
+ * PHASE 359 (build/p359/SPEC.md D7, §4.3). A core that began to boot after the
+ * quit was pressed writes its login-session line from the QUITTING process
+ * (src/main/tmux/supervisor.ts), so every HEAD arm that quits (HA, HB, HC,
+ * CS-head) holds that pid to no such line at or after the press, read by time
+ * through `bootsAfter`, never by a count of lines, which is two per boot and
+ * one per reconnect. The need proves the reader reads that pid at all: its own
+ * boot was logged before the press. The parent arms PRINT the same numbers.
+ */
+const QUIT_BOOT_READS = ['quitBoots.pid', 'quitBoots.before', 'quitBoots.after'];
+const QUIT_BOOT_NEED = [
+  'app.log holds the quitting process’s own boot before the press, so its lines after the press are read for that process',
+  (r) => Number.isInteger(r.quitBoots.pid) && Number.isInteger(r.quitBoots.before) && r.quitBoots.before >= 1
+];
+const QUIT_BOOT_CLAUSE = ['no session core began to boot after the quit was pressed: the quitting process logged no login-session line at or after the press', (r) => r.quitBoots.after === 0];
 
 export const GRADERS = {
   // THE PROBE REVIEW re-scoped PA to THIS phase's parent. It described 357's
@@ -713,8 +774,8 @@ export const GRADERS = {
   },
   HA: {
     title: 'HEAD, real page damage: one notice, the last clean list, a refused create, no uncaught exception, a clean quit',
-    reads: ['counter', 'counterEnd', 'agents.ok', 'damage.changed', 'listBefore.ok', 'listBefore.ids', 'listBefore.names', 'uncaughtAtEnd', 'stopped.count', 'stopped.operation', 'stopped.code', 'stopped.file', 'stopped.rowData', 'notice.count', 'listAfter.ok', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'renamesTried', 'renamesLandedInTmux', 'renameUncaught', 'appLog.crashUnexpected', 'appLog.canaryLines', 'quit.signal', 'quit.wedgedExit', 'relaunch.ran', 'relaunch.quarantined', 'relaunch.rows'],
-    needs: [counterHeldNeed('the counter was installed in main and heard its own control exception, at boot and at the end'), AGENTS_NEED, ['the damage changed a byte of the scratch manifest', (r) => r.damage.changed === true], SHELLS_NEED, ['the relaunch on that profile ran', (r) => r.relaunch.ran === true], NOT_WEDGED_NEED('quit')],
+    reads: ['counter', 'counterEnd', 'agents.ok', 'damage.changed', 'listBefore.ok', 'listBefore.ids', 'listBefore.names', 'uncaughtAtEnd', 'stopped.count', 'stopped.operation', 'stopped.code', 'stopped.file', 'stopped.rowData', 'notice.count', 'listAfter.ok', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'renamesTried', 'renamesLandedInTmux', 'renameUncaught', 'appLog.crashUnexpected', 'appLog.canaryLines', 'quit.signal', 'quit.wedgedExit', 'relaunch.ran', 'relaunch.quarantined', 'relaunch.rows', ...QUIT_BOOT_READS],
+    needs: [counterHeldNeed('the counter was installed in main and heard its own control exception, at boot and at the end'), AGENTS_NEED, ['the damage changed a byte of the scratch manifest', (r) => r.damage.changed === true], SHELLS_NEED, ['the relaunch on that profile ran', (r) => r.relaunch.ran === true], NOT_WEDGED_NEED('quit'), QUIT_BOOT_NEED],
     clauses: [
       ['no uncaught exception reached the counter from the launch to its exit', (r) => r.uncaughtAtEnd === 0],
       ['one manifest.stopped record, naming the operation and SQLITE_CORRUPT, file damaged', (r) => r.stopped.count === 1 && typeof r.stopped.operation === 'string' && r.stopped.code === 'SQLITE_CORRUPT' && r.stopped.file === 'damaged'],
@@ -725,7 +786,8 @@ export const GRADERS = {
       ['each external rename landed in tmux and in no uncaught exception', (r) => r.renamesTried >= 2 && r.renamesLandedInTmux === r.renamesTried && r.renameUncaught === 0],
       CRASH_CLAUSE,
       ['the quit ended by the will-quit SIGKILL, never a crash (Phase 357.1 D1: the manifest is held at every quit, the damaged file included)', (r) => r.quit.signal === 'SIGKILL'],
-      ['the relaunch’s gate quarantined the damaged file and the relaunch read rows back', (r) => r.relaunch.quarantined === true && r.relaunch.rows > 0]
+      ['the relaunch’s gate quarantined the damaged file and the relaunch read rows back', (r) => r.relaunch.quarantined === true && r.relaunch.rows > 0],
+      QUIT_BOOT_CLAUSE
     ]
   },
   HQ: {
@@ -744,7 +806,7 @@ export const GRADERS = {
   },
   HB: {
     title: 'HEAD, the memory-shaped seam: the file is fine, Restart ends the process without closing it, the next launch does not quarantine, and every row is kept',
-    reads: ['counter', 'counterEnd', 'agents.ok', 'seamInstalled', 'armed', 'listBefore.ok', 'rows.read', 'uncaughtAtEnd', 'stopped.count', 'stopped.operation', 'stopped.code', 'stopped.file', 'stopped.rowData', 'notice.count', 'toast', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'restart.clicked', 'restart.code', 'restart.signal', 'restart.wedgedExit', 'restart.notRelaunchedLine', 'restart.walBefore', 'restart.walAfter', 'restart.sentinelBefore', 'restart.sentinelAfter', 'relaunch.ran', 'relaunch.quarantined', 'relaunch.unreadableNotices', 'relaunch.uncleanExit', 'relaunch.inodeBefore', 'relaunch.inodeAfter', 'relaunch.listed.read', 'appLog.crashUnexpected', 'appLog.canaryLines'],
+    reads: ['counter', 'counterEnd', 'agents.ok', 'seamInstalled', 'armed', 'listBefore.ok', 'rows.read', 'uncaughtAtEnd', 'stopped.count', 'stopped.operation', 'stopped.code', 'stopped.file', 'stopped.rowData', 'notice.count', 'toast', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'restart.clicked', 'restart.code', 'restart.signal', 'restart.wedgedExit', 'restart.notRelaunchedLine', 'restart.walBefore', 'restart.walAfter', 'restart.sentinelBefore', 'restart.sentinelAfter', 'relaunch.ran', 'relaunch.quarantined', 'relaunch.unreadableNotices', 'relaunch.uncleanExit', 'relaunch.inodeBefore', 'relaunch.inodeAfter', 'relaunch.listed.read', 'appLog.crashUnexpected', 'appLog.canaryLines', ...QUIT_BOOT_READS],
     needs: [
       counterHeldNeed('the counter was installed in main and heard its own control exception, at boot and at the end'),
       AGENTS_NEED,
@@ -752,7 +814,8 @@ export const GRADERS = {
       SHELLS_NEED,
       ['the rows were read just before the fault (by SQLite, read only) and after the first process ended (a copy)', (r) => r.rows.read === true],
       ['the relaunch on that profile ran', (r) => r.relaunch.ran === true],
-      NOT_WEDGED_NEED('restart')
+      NOT_WEDGED_NEED('restart'),
+      QUIT_BOOT_NEED
     ],
     clauses: [
       ['no uncaught exception reached the counter from the launch to its hard exit', (r) => r.uncaughtAtEnd === 0],
@@ -765,7 +828,8 @@ export const GRADERS = {
       ['nothing was written after the latch: the same session rows, every identity column unchanged', (r) => r.rows.sameIds === true && r.rows.identityUnchanged === true],
       ['the next launch kept the same file (no quarantine, no unreadable notice) and posted no unclean-exit notice', (r) => r.relaunch.quarantined === 0 && r.relaunch.unreadableNotices === 0 && r.relaunch.uncleanExit === 0 && Number.isInteger(r.relaunch.inodeBefore) && r.relaunch.inodeBefore === r.relaunch.inodeAfter],
       ['the next launch listed exactly the rows that are not removed', (r) => r.relaunch.listed.read === true && r.relaunch.listed.equal === true],
-      CRASH_CLAUSE
+      CRASH_CLAUSE,
+      QUIT_BOOT_CLAUSE
     ]
   },
   HD: {
@@ -781,8 +845,8 @@ export const GRADERS = {
   },
   HC: {
     title: 'HEAD, the crash handlers: one record per distinct error, the repeats counted under its key, no message text, no dialog in a harness launch',
-    reads: ['counter', 'counterEnd', 'agents.ok', 'uncaughtRecords', 'uncaughtName', 'uncaughtCode', 'uncaughtHasMessage', 'uncaughtMessageChars', 'rejectionRecords', 'repeats.count', 'repeats.key', 'repeats.sameKey', 'appLog.canaryLines', 'mainAnswered.ok', 'mainAnswered.controlsBefore', 'quit.signal', 'quit.wedgedExit'],
-    needs: [counterHeldNeed('the counter was installed in main and heard BOTH control exceptions, at boot and at the end', 2), AGENTS_NEED, NOT_WEDGED_NEED('quit')],
+    reads: ['counter', 'counterEnd', 'agents.ok', 'uncaughtRecords', 'uncaughtName', 'uncaughtCode', 'uncaughtHasMessage', 'uncaughtMessageChars', 'rejectionRecords', 'repeats.count', 'repeats.key', 'repeats.sameKey', 'appLog.canaryLines', 'mainAnswered.ok', 'mainAnswered.controlsBefore', 'quit.signal', 'quit.wedgedExit', ...QUIT_BOOT_READS],
+    needs: [counterHeldNeed('the counter was installed in main and heard BOTH control exceptions, at boot and at the end', 2), AGENTS_NEED, NOT_WEDGED_NEED('quit'), QUIT_BOOT_NEED],
     clauses: [
       ['one crash.uncaught record for the two identical exceptions (name Error, code P357_CONTROL, its length and never its text)', (r) => r.uncaughtRecords === 1 && r.uncaughtName === 'Error' && r.uncaughtCode === 'P357_CONTROL' && r.uncaughtHasMessage === false && r.uncaughtMessageChars === CONTROL_MESSAGES[0].length],
       ['one crash.rejection record, the control rejection’s', (r) => r.rejectionRecords === 1],
@@ -792,7 +856,8 @@ export const GRADERS = {
       // manifest at every quit and D2 ends the process by the will-quit
       // SIGKILL), so reaching that SIGKILL is what says no dialog held the quit,
       // read from the shim's own line exactly as HA's quit is.
-      ['no dialog held main: it answered an IPC after both control exceptions, and the quit reached the will-quit SIGKILL (Phase 357.1 D1/D2)', (r) => r.mainAnswered.ok === true && r.mainAnswered.controlsBefore >= 2 && r.quit.signal === 'SIGKILL']
+      ['no dialog held main: it answered an IPC after both control exceptions, and the quit reached the will-quit SIGKILL (Phase 357.1 D1/D2)', (r) => r.mainAnswered.ok === true && r.mainAnswered.controlsBefore >= 2 && r.quit.signal === 'SIGKILL'],
+      QUIT_BOOT_CLAUSE
     ]
   },
   'CS-parent': {
@@ -813,7 +878,7 @@ export const GRADERS = {
   },
   'CS-head': {
     title: 'HEAD, the crash’s own state: no read fails, the held connection is never closed, the quit ends by the will-quit SIGKILL with no crash, and the relaunch keeps everything',
-    reads: ['bs3Built', 'agents.ok', 'planted', 'plantedIn', 'readsOk', 'stopped.count', 'settingsMoved', 'listBefore.ok', 'quit.signal', 'quit.segv', 'quit.wedgedExit', 'relaunch.ran', 'relaunch.bootsLogged', 'relaunch.unclean', 'relaunch.shellsKept', 'relaunch.sameIds', 'relaunch.localStorage.kept', 'relaunch.bounds'],
+    reads: ['bs3Built', 'agents.ok', 'planted', 'plantedIn', 'readsOk', 'stopped.count', 'settingsMoved', 'listBefore.ok', 'quit.signal', 'quit.segv', 'quit.wedgedExit', 'relaunch.ran', 'relaunch.bootsLogged', 'relaunch.unclean', 'relaunch.shellsKept', 'relaunch.sameIds', 'relaunch.localStorage.kept', 'relaunch.bounds', ...QUIT_BOOT_READS],
     needs: [
       CS_BS3_NEED,
       AGENTS_NEED,
@@ -828,7 +893,8 @@ export const GRADERS = {
       ['the relaunch on that profile ran', (r) => r.relaunch.ran === true],
       // THE PROBE REVIEW: no unclean-exit notice in an app.log that never logged
       // the relaunch's boot is no reading at all, not a clean relaunch.
-      ['app.log recorded both launches’ boots, so its notices can be read', (r) => r.relaunch.bootsLogged >= 2]
+      ['app.log recorded both launches’ boots, so its notices can be read', (r) => r.relaunch.bootsLogged >= 2],
+      QUIT_BOOT_NEED
     ],
     clauses: [
       ['the quit did NOT crash: no SIGSEGV, and the process ended by the will-quit SIGKILL (Phase 357.1 D1/D2)', (r) => r.quit.segv === false && r.quit.signal === 'SIGKILL'],
@@ -836,7 +902,8 @@ export const GRADERS = {
       ['the relaunch read every seeded shell back', (r) => r.relaunch.shellsKept === true],
       ['the relaunch listed every session the window listed before the quit, and no other', (r) => r.relaunch.sameIds === true],
       ['localStorage survived, 3 of 3 (the synchronous flushStorageData kept it)', (r) => r.relaunch.localStorage.kept === 3],
-      ['the Settings window bounds survived the hard exit', (r) => r.relaunch.bounds === true]
+      ['the Settings window bounds survived the hard exit', (r) => r.relaunch.bounds === true],
+      QUIT_BOOT_CLAUSE
     ]
   },
   RUN: {
@@ -941,6 +1008,9 @@ export function deriveReading(arm, base, derive) {
     if (arm === 'HC') Object.assign(reading, hcFromAppLog(al));
     else applyAppLog(reading, al);
   }
+  // Phase 359 D7: the quitting process's login-session lines around the press,
+  // read from an app.log by the reader the four HEAD quit arms use.
+  if (d.quitBoots !== undefined) reading.quitBoots = quitBootsOf(readAppLog(d.quitBoots.appLog), d.quitBoots.pid, d.quitBoots.pressAt);
   if (d.create !== undefined) reading.create = createReading(d.create.answer, d.create.namesBefore, d.create.namesAfter, d.create.name ?? 'p357-after');
   if (d.quitText !== undefined) reading.quit = { ...reading.quit, ...quitTextReading(d.quitText) };
   if (d.csQuit !== undefined) {
@@ -1596,15 +1666,22 @@ async function buildWorld(win, p) {
   return list(win);
 }
 
-/** Quit through the window's own quit, with no main inspector held; answer the exit. */
+/**
+ * Quit through the window's own quit, with no main inspector held; answer the
+ * exit. Since Phase 359 (D7) it also answers WHEN the quit was pressed (`at`,
+ * this process's clock, which is the app's) and WHICH process quits (`pid`,
+ * the app the shim started, read before the press), so app.log can be read for
+ * a core that began to boot after the press.
+ */
 async function quitAndRead(win, handle) {
+  const pid = handle.appPid();
   const quitAt = Date.now();
   await cdpEval(win, 'window.gmux.quit().then(() => true, () => false)').catch(() => null);
   const code = await Promise.race([handle.exited, sleep(90_000).then(() => 'still running after 90 s')]);
   const ms = Date.now() - quitAt;
   // The shim's last line can follow its exit event on the pipe.
   await sleep(500);
-  return { code, ms, appText: handle.text().slice(-8_000), crashReports: crashReports(quitAt - 1_000) };
+  return { code, ms, at: quitAt, pid: pid > 0 ? pid : null, appText: handle.text().slice(-8_000), crashReports: crashReports(quitAt - 1_000) };
 }
 
 // ---------------------------------------------------------------------------
@@ -1664,8 +1741,13 @@ async function realDamageArm(id, checkout, req) {
   // Read once the app is gone: the counter's whole file and app.log, this launch's only.
   reading.counterEnd = counterLines(counterFile);
   reading.uncaughtAtEnd = nonControl(reading.counterEnd).length;
-  applyAppLog(reading, readAppLog(appLogLines(p), { rowCanaries: [...SHELL_NAMES, p.proj] }));
+  const firstLog = readAppLog(appLogLines(p), { rowCanaries: [...SHELL_NAMES, p.proj] });
+  applyAppLog(reading, firstLog);
   report.printed[`${id}-bootsPerPid`] = reading.appLog.bootPids;
+  // Phase 359 D7: graded on HA (QUIT_BOOT_CLAUSE), PRINTED at the parent.
+  reading.quitBoots = quitBootsOf(firstLog, reading.quit?.pid ?? null, reading.quit?.at ?? null);
+  report.printed[`${id}-bootsAfterQuit`] = reading.quitBoots;
+  say(`${id}: login-session lines of the quitting process at or after the press: ${J(reading.quitBoots)}`);
   Object.assign(reading.quit, quitTextReading(reading.quit.appText));
   // One relaunch on the same profile, to read what the gate does with the file.
   const relaunch = { ran: false, quarantined: null, rows: null };
@@ -1742,6 +1824,8 @@ async function seamArm(req) {
     // Press Restart in the DOM. It refuses to relaunch a harness launch, so the app quits by the hard exit.
     const walBefore = existsSync(`${p.manifest}-wal`);
     const sentinelBefore = existsSync(p.runSentinel);
+    // Phase 359 D7: the process that quits, read before the press.
+    const quitPid = handle.appPid();
     const quitAt = Date.now();
     const clicked = await clickRestart(win);
     const code = await Promise.race([handle.exited, sleep(90_000).then(() => 'still running after 90 s')]);
@@ -1750,6 +1834,8 @@ async function seamArm(req) {
     const e = exitReading(handle.text(), code);
     reading.restart = {
       clicked: clicked === true,
+      at: quitAt,
+      pid: quitPid > 0 ? quitPid : null,
       code: e.code,
       signal: e.signal,
       wedgedExit: e.wedgedExit,
@@ -1778,6 +1864,9 @@ async function seamArm(req) {
   // The handler's line may also be in app.log, whose file transport is not raced by the signal the way stdout is.
   reading.restart.notRelaunchedLine = reading.restart.notRelaunchedLine === true || hbLog.notRelaunchedLine === true;
   report.printed['HB-bootsPerPid'] = hbLog.bootPids;
+  // Phase 359 D7: the Restart press is HB's quit.
+  reading.quitBoots = quitBootsOf(hbLog, reading.restart?.pid ?? null, reading.restart?.at ?? null);
+  report.printed['HB-bootsAfterQuit'] = reading.quitBoots;
   // The rows AFTER the first process is gone, from a copy, against the rows just before the fault.
   const rowsAfter = manifestRows(p.manifest);
   reading.rows = compareRows(rowsBefore, rowsAfter);
@@ -1833,6 +1922,9 @@ async function crashArm() {
   const al = readAppLog(appLogLines(p));
   report.printed['HC-bootsPerPid'] = al.bootPids;
   Object.assign(reading, hcFromAppLog(al));
+  // Phase 359 D7.
+  reading.quitBoots = quitBootsOf(al, reading.quit?.pid ?? null, reading.quit?.at ?? null);
+  report.printed['HC-bootsAfterQuit'] = reading.quitBoots;
   // Electron's own dialog title on stdout would mean a dialog's text was printed; PRINTED (showErrorBox prints nothing on macOS).
   reading.dialogTitleOnStdout = /A JavaScript error occurred in the main process/.test(reading.quit.appText ?? '');
   return reading;
@@ -2040,13 +2132,15 @@ async function crashStateArm(id, checkout, bs3) {
     reading.settingsMoved = boundsMatch(moved?.settingsMoved ?? null);
     await cdpEval(win, `(localStorage.setItem(${J(CS_LOCAL_STORAGE_KEYS[2])}, ${J(nonce)}), true)`);
     // The quit: at the parent this faults in pcache1EnforceMaxPage; at HEAD the will-quit SIGKILL skips teardown.
+    // Phase 359 D7: the process that quits, read before the press.
+    const quitPid = handle.appPid();
     const quitAt = Date.now();
     await cdpEval(win, 'window.gmux.quit().then(() => true, () => false)').catch(() => null);
     const code = await Promise.race([handle.exited, sleep(90_000).then(() => 'still running after 90 s')]);
     // The checker's SEGV report and the shim's exit line can follow the exit on the pipe.
     await sleep(2_500);
     text = handle.text();
-    reading.quit = { ...crashStateQuit(text, code), ms: Date.now() - quitAt };
+    reading.quit = { ...crashStateQuit(text, code), ms: Date.now() - quitAt, at: quitAt, pid: quitPid > 0 ? quitPid : null };
     // Names and mtimes only; none opened (the checker exits 139 before any macOS report).
     report.printed[`${id}-crashReports`] = crashReports(quitAt - 1_000);
     reading.quitTail = text.slice(-2_000);
@@ -2058,7 +2152,12 @@ async function crashStateArm(id, checkout, bs3) {
   reading.plantedIn = target.target;
   report.printed[`${id}-plantedFile`] = target.file;
   // The first launch's app.log alone: the crash state raises no error, so nothing may have stopped the list.
-  reading.stopped = stoppedFact(readAppLog(appLogLines(p)));
+  const firstLog = readAppLog(appLogLines(p));
+  reading.stopped = stoppedFact(firstLog);
+  // Phase 359 D7: graded on CS-head (QUIT_BOOT_CLAUSE), PRINTED on CS-parent.
+  reading.quitBoots = quitBootsOf(firstLog, reading.quit?.pid ?? null, reading.quit?.at ?? null);
+  report.printed[`${id}-bootsAfterQuit`] = reading.quitBoots;
+  say(`${id}: login-session lines of the quitting process at or after the press: ${J(reading.quitBoots)}`);
   if (id === 'CS-head') {
     const relaunch = { ran: false };
     try {

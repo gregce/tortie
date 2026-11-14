@@ -48,7 +48,17 @@ export interface ProjectCreator {
 }
 
 export function createProjectCreator(
-  deps: ProjectCreateDeps
+  deps: ProjectCreateDeps,
+  /**
+   * PHASE 359, THE FIX ROUND (build/p359/SPEC.md "### The fix round"). Resolves
+   * when the quit's project step begins (`disposeProjectCloneIpc` in
+   * ./index.ts, awaited before the session core's shutdown). From then a
+   * create still in `git init` adds its project without waiting for git, the
+   * way a failed `git init` already does, so the add reaches the core that is
+   * still running; once the quit has begun no core boots to answer an add that
+   * comes later. Without it a create waits for git as it always has.
+   */
+  quitBegun?: Promise<void>
 ): ProjectCreator {
   const create = async (
     input: CreateProjectInput
@@ -106,11 +116,23 @@ export function createProjectCreator(
     let isRepo = false;
     let gitError: string | undefined;
     if (input.gitInit) {
+      const failed = (err: unknown) => ({ ok: false as const, message: (err as Error).message });
+      let init: Promise<{ ok: boolean; message: string | undefined }>;
       try {
-        await deps.gitInit(path);
-        isRepo = true;
+        init = deps.gitInit(path).then(() => ({ ok: true as const, message: undefined }), failed);
       } catch (err) {
-        gitError = (err as Error).message;
+        init = Promise.resolve(failed(err));
+      }
+      // PHASE 359, THE FIX ROUND. A quit that begins while git runs ends the
+      // wait: the folder is made and opens as a project either way, and git
+      // finishes its own `init` on its own.
+      const ran =
+        quitBegun === undefined
+          ? await init
+          : await Promise.race([init, quitBegun.then(() => null)]);
+      if (ran !== null) {
+        isRepo = ran.ok;
+        gitError = ran.message;
       }
     }
 

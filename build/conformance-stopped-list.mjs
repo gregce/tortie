@@ -3,7 +3,7 @@
  * `npm run conformance:stoppedlist`. PHASE 357 — A SESSION LIST THAT GOES BAD
  * WHILE TORTIE RUNS ASKS FOR ONE RESTART (build/p357/SPEC.md §7.1).
  *
- * About two seconds. It reads this repository's source with the TypeScript
+ * About four seconds. It reads this repository's source with the TypeScript
  * parser (the pinned `typescript` in node_modules) and asserts over it, and it
  * spawns ONE process, the pinned tsx (build/ts-runner.mjs `tsxCli()`), for
  * rule S8's driven half. That process imports three source files and calls
@@ -259,6 +259,84 @@
  *       (src/main/log/sentinel.ts) reads the sentinel once into a const and
  *       writes nothing on a path where that const may be null, so it never
  *       creates a sentinel where none was.
+ *   S16 (new, Phase 359, build/p359/SPEC.md D1, D2, D4, D5 and §7.1) NO
+ *       SESSION CORE BOOTS ONCE THE QUIT HAS BEGUN. The quit's one
+ *       `shutdownGmuxCore()` empties the slot and the quit runs on after it, so
+ *       a window's blur, a sleep, a Live Diagnostics tick and a startup the
+ *       quit overtook each asked `getGmuxCore()` there and booted a second core
+ *       inside the quitting process, one nothing disposes: it quarantined and
+ *       put back a damaged session list with nobody told, rewrote the sessions
+ *       table after the quit generation and spent a backup generation on a copy
+ *       of it (build/p359/SPEC.md §2.1). (a) THE ONE BOOT: `GmuxCore.boot` is
+ *       reached exactly once under src/main, as `corePromise =
+ *       GmuxCore.boot();`, a statement of getGmuxCore's own `if (corePromise
+ *       === null)` block, and by no key, destructure, instance `constructor`
+ *       or static `this` anywhere; the class is constructed once, inside its
+ *       static boot(); and it is never handed on as a value, extended, renamed
+ *       on an import, an export or a destructure, or its name bound to
+ *       anything else, because a renamed alias is a second boot path this rule
+ *       cannot follow, so it is refused where it is made (a type-only import
+ *       may rename it). (b) THE CHECK: that block's FIRST statement is an `if`
+ *       with no else whose test is exactly `appLifecycleState() ===
+ *       'quitting'` and whose consequent is exactly `return
+ *       Promise.reject(shutdownRefusal(<a string literal>));`, and
+ *       `shutdownRefusal` is core.ts's one function returning
+ *       `gmuxError('SHUTTING_DOWN', …)`, Phase 116's refusal and the code the
+ *       startup's catch reads (D5). (c) THE FLAG: `appLifecycleState` is bound
+ *       in core.ts by one import, by name, from '../lifecycle', and declared,
+ *       assigned or bound by nothing else there, and getGmuxCore names it in
+ *       that one test only. (d) THE RUNNING CORE: getGmuxCore is exactly three
+ *       statements, Phase 116's `if (lifecycle === 'shuttingDown') return
+ *       Promise.reject(shutdownRefusal(…));`, the boot branch with no else, and
+ *       `return corePromise;`, so a core in the slot is still handed back while
+ *       the quit runs, because the disposer's steps before the core's shutdown
+ *       ask for it (D2); a refusal of the running core through any reader,
+ *       between those statements or in the return, is red. (e) THE STARTUP
+ *       LINE: in src/main/index.ts the catch handed to the first
+ *       `getGmuxCore()` inside `app.whenReady().then(…)` holds, as a statement
+ *       of its own after its `if (isSchemaRefusal(<err>))` branch and before
+ *       its `core boot failed` line, exactly one `if (isGmuxError(<err>,
+ *       'SHUTTING_DOWN'))` with no else whose block is exactly
+ *       `bootLog.info('<…quitting…>'); return;`; isGmuxError is imported from
+ *       ./errors and bound by nothing else; and bootLog is index.ts's one
+ *       `const bootLog = getLog('boot')`. Nothing but those two branches stands
+ *       before the `core boot failed` line (the probe review's, rule 9: a third
+ *       statement there can end the handler first, and an error that is neither
+ *       would not say the boot failed). (f) THE DOORS ANSWER THE REFUSAL
+ *       (D3, Phase 359's fix round; the attack lens's hostile copy T12, a focus
+ *       listener whose `getGmuxCore().then(…)` had no catch, read green on
+ *       every rule before it): every `getGmuxCore()` under src/main outside a
+ *       test, src/main/harness/ and the five harness modes ASK_HARNESS_MODES
+ *       names, answers its rejection on every path, because once the quit has
+ *       begun an empty slot answers every ask with the refusal: its chain's
+ *       last link, `.finally(…)` aside, is `.catch(h)` or `.then(a, h)` with
+ *       `h` a function written there that does not throw, no `throw` and no
+ *       `Promise.reject(…)` outside its own nested functions (nor may a
+ *       `.finally(f)` after it); or it is awaited inside the try block of a
+ *       `try` whose catch and finally do not throw, in its own function; or it
+ *       is an element of `Promise.race`, `.all` or `.any`, read the same way
+ *       (`.allSettled` answers it); or it is awaited or returned into a
+ *       function that is an IPC handler (the last argument of
+ *       `handle(…)` beside a string channel), a callback of a chain that ends
+ *       in a catch after it, or one of the ASK_SEAMS rows, each naming where
+ *       it is handed (`seamOf`), who answers it and where the function's
+ *       callers are: every caller there is read as the ask is read, and one
+ *       that hands the refusal on again is listed in the row with who answers
+ *       it, a listed caller with a reach of its own read in turn (his ruled
+ *       round, 2026-11-14: `.catch(undefined)`, `.then(a, undefined)`, a catch
+ *       or a try's catch that throws the refusal again, `localProjectRoots()`
+ *       with no catch in a blur listener and a new caller of `coreReady()`
+ *       with no catch were each green on every rule before it). Anything else
+ *       (a floating chain, a held promise, an async listener or timer, a
+ *       callback of an uncaught chain, a top-level await) is red, and so is
+ *       the name read other than by a call (handed on, or imported, exported
+ *       or destructured under another name); and a seam row, a listed caller
+ *       or a harness mode that no longer asks, and a reach that finds nothing,
+ *       are red, so no list can rot. The check reads the app's one-way
+ *       quit flag and not this module's lifecycle (D1): a quit before startup
+ *       asked never enters the shutdown, and a harness that boots, shuts down
+ *       and boots again never marks the app quitting, so its cycles keep their
+ *       real second boot.
  *
  * THE PROBE REVIEW (2026-11-05, docs/method/HOW-WE-BUILT-THIS.md rule 9) put
  * nineteen hostile copies of its own through this gate by `--root`; twelve were
@@ -275,9 +353,10 @@
  * the unedited tree. One copy, the spec's "a member that reads this.sessions
  * directly", names two rules on purpose, because reaching a repository outside
  * an arrow breaks the one statement shape (S1) and is itself a reach (S2). A
- * CONTROL copy, changed in nine of the files these rules read but in nothing
+ * CONTROL copy, changed in eleven of the files these rules read but in nothing
  * they hold (each change names a rule's own words in a string, a comment or a
- * helper of its own), must stay green on every rule. A copy whose edit no
+ * helper of its own, or, for S16 (f), is a door that answers the refusal),
+ * must stay green on every rule. A copy whose edit no
  * longer finds its text fails the gate, because an ablation that cannot be
  * made proves nothing;
  * and a rule with no ablation fails it, because it has never been shown to
@@ -343,7 +422,7 @@ export const FILES = Object.freeze({
   tray: 'src/main/tray/index.ts'
 });
 
-export const RULES = Object.freeze(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15']);
+export const RULES = Object.freeze(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15', 'S16']);
 
 /** The three members that answer instead of refusing (D4). */
 const QUIET_MEMBERS = Object.freeze(['contentFingerprint', 'schemaState', 'describeSchema']);
@@ -3050,7 +3129,1098 @@ export function ruleS15(tree) {
   return f;
 }
 
-export const RULE_FNS = Object.freeze({ S1: ruleS1, S2: ruleS2, S3: ruleS3, S4: ruleS4, S5: ruleS5, S6: ruleS6, S7: ruleS7, S8: ruleS8, S9: ruleS9, S10: ruleS10, S11: ruleS11, S12: ruleS12, S13: ruleS13, S14: ruleS14, S15: ruleS15 });
+// ---------------------------------------------------------------------------
+// S16: no session core boots once the quit has begun (Phase 359)
+// ---------------------------------------------------------------------------
+
+/** The class whose one boot S16 holds. */
+const CORE_CLASS = 'GmuxCore';
+/** Phase 116's refusal test, spaces aside: the core is shutting down (build/p359/SPEC.md §7.1 (d)). */
+const SHUTTING_DOWN_TESTS = Object.freeze(["lifecycle==='shuttingDown'", "'shuttingDown'===lifecycle"]);
+
+/** True when `stmt` is exactly `return Promise.reject(shutdownRefusal(<a string literal>));`, bare or alone in a block. */
+function isRefusalReturn(stmt) {
+  if (stmt === undefined) return false;
+  if (ts.isBlock(stmt)) return stmt.statements.length === 1 && isRefusalReturn(stmt.statements[0]);
+  if (!ts.isReturnStatement(stmt) || stmt.expression === undefined) return false;
+  const reject = peel(stmt.expression);
+  if (reject === undefined || !ts.isCallExpression(reject) || flatText(reject.expression) !== 'Promise.reject' || reject.arguments.length !== 1) return false;
+  const made = peel(reject.arguments[0]);
+  return made !== undefined && ts.isCallExpression(made) && ts.isIdentifier(made.expression) && made.expression.text === 'shutdownRefusal' && made.arguments.length === 1 && ts.isStringLiteralLike(made.arguments[0]);
+}
+/** True when `stmt` is an `if` with no else, its test one of `tests` (spaces aside) and its consequent that refusal. */
+const isRefusalIf = (stmt, tests) => stmt !== undefined && ts.isIfStatement(stmt) && stmt.elseStatement === undefined && tests.includes(flatText(stmt.expression)) && isRefusalReturn(stmt.thenStatement);
+
+/** getGmuxCore in core.ts: its declarations, the one function, its statements, its `if (corePromise === null)` branch and that branch's statements. */
+function getGmuxCoreParts(sf) {
+  const decls = functionsNamed(sf, 'getGmuxCore');
+  const fn = decls.length === 1 && ts.isFunctionDeclaration(decls[0]) ? decls[0] : null;
+  const body = fn === null ? null : stmtsOf(bodyOf(fn));
+  const branch = body?.find((s) => ts.isIfStatement(s) && isNullTestOf(s.expression, 'corePromise')) ?? null;
+  const block = branch !== null && ts.isBlock(branch.thenStatement) ? [...branch.thenStatement.statements] : null;
+  return { decls, fn, body, branch, block };
+}
+
+/** The wrappers a value passes through unchanged: parentheses, `as`, `satisfies`, `!` and `<T>x`. */
+const isWrapper = (n) => ts.isParenthesizedExpression(n) || ts.isAsExpression(n) || ts.isSatisfiesExpression(n) || ts.isNonNullExpression(n) || ts.isTypeAssertionExpression(n);
+/** An expression past those wrappers. */
+function unwrap(e) {
+  let x = e;
+  while (x !== undefined && isWrapper(x)) x = x.expression;
+  return x;
+}
+/** What uses a value, past those wrappers: `{ user, node }`, `node` the outermost wrapper (or the value itself). */
+function useOf(n) {
+  let node = n;
+  while (node.parent !== undefined && isWrapper(node.parent) && node.parent.expression === node) node = node.parent;
+  return { user: node.parent, node };
+}
+/** True when an identifier sits in a type: a type node, an interface's heritage or an `implements` (a class's `extends` is a value). */
+function inType(n) {
+  for (let p = n.parent; p !== undefined; p = p.parent) {
+    if (ts.isHeritageClause(p)) return !(p.token === ts.SyntaxKind.ExtendsKeyword && ts.isClassLike(p.parent));
+    if (ts.isExpressionWithTypeArguments(p)) continue;
+    if (ts.isTypeNode(p)) return true;
+  }
+  return false;
+}
+/** The `this` nodes of a class's static members, each of which is the class itself (an arrow keeps its `this`, any other function rebinds it). */
+function staticThisOf(cls) {
+  const out = new Set();
+  for (const m of cls.members) {
+    if (!ts.isClassStaticBlockDeclaration(m) && !hasModifier(m, ts.SyntaxKind.StaticKeyword)) continue;
+    for (const n of nodesOf(m)) {
+      if (!isThis(n)) continue;
+      const owner = ancestor(n, (p) => (ts.isFunctionLike(p) && !ts.isArrowFunction(p)) || ts.isClassLike(p) || ts.isClassStaticBlockDeclaration(p) || (ts.isPropertyDeclaration(p) && p.parent !== undefined && ts.isClassLike(p.parent)));
+      if (owner === m) out.add(n);
+    }
+  }
+  return out;
+}
+/** What an expression is when it is the class: its name, a module's member of that name, an instance's `constructor`, or `this` in a static member; or null. */
+function classRefKind(e, statics) {
+  const x = unwrap(e);
+  if (x === undefined) return null;
+  if (ts.isIdentifier(x)) return x.text === CORE_CLASS ? 'name' : null;
+  if (isThis(x)) return statics.has(x) ? 'this' : null;
+  const key = ts.isPropertyAccessExpression(x) ? x.name.text : ts.isElementAccessExpression(x) && ts.isStringLiteralLike(x.argumentExpression) ? x.argumentExpression.text : null;
+  if (key === CORE_CLASS) return 'member';
+  if (key === 'constructor') return 'constructor';
+  return null;
+}
+
+/**
+ * One file's reaches of the class: every reach of `boot` on it, every
+ * construction of it, its declarations in core.ts, and, as findings, every
+ * place it is handed on, extended, renamed, reached by a computed key or its
+ * name bound to something else. Read once per text.
+ */
+function readCoreUses(rel, sf) {
+  const u = { reaches: [], builds: [], classes: [], bad: [] };
+  const at = (n) => where(rel, n);
+  const cls = rel === FILES.core ? classNamed(sf, CORE_CLASS) : null;
+  const statics = cls === null ? new Set() : staticThisOf(cls);
+  const refOf = (e) => classRefKind(e, statics);
+  const handedOn = (ref, what) => {
+    const { user, node } = useOf(ref);
+    if (user === undefined) return;
+    if ((ts.isPropertyAccessExpression(user) || ts.isElementAccessExpression(user)) && user.expression === node) return;
+    if (ts.isNewExpression(user) && user.expression === node) return;
+    if (ts.isBinaryExpression(user) && user.operatorToken.kind === ts.SyntaxKind.InstanceOfKeyword && user.right === node) return;
+    if (ts.isTypeOfExpression(user)) return;
+    if (ts.isExpressionWithTypeArguments(user) && user.parent !== undefined && ts.isHeritageClause(user.parent)) {
+      u.bad.push(`${at(ref)} extends ${what}, so the subclass inherits its boot, a second boot path this rule cannot follow (Phase 359, (a))`);
+      return;
+    }
+    u.bad.push(`${at(ref)} hands ${what} on as a value (\`${user.getText().replace(/\s+/g, ' ').slice(0, 70)}\`), so its boot can be reached where this rule cannot see it (Phase 359, (a))`);
+  };
+  const nameUse = (n) => {
+    const p = n.parent;
+    if (p === undefined) return;
+    // `x.GmuxCore`, a module's member: the access is the class.
+    if (ts.isPropertyAccessExpression(p) && p.name === n) {
+      handedOn(p, 'the class');
+      return;
+    }
+    if (ts.isQualifiedName(p)) return;
+    if (
+      (ts.isPropertyAssignment(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p) || ts.isPropertySignature(p) || ts.isMethodSignature(p) || ts.isGetAccessor(p) || ts.isSetAccessor(p) || ts.isEnumMember(p) || ts.isInterfaceDeclaration(p) || ts.isTypeAliasDeclaration(p) || ts.isTypeParameterDeclaration(p)) &&
+      p.name === n
+    ) {
+      return;
+    }
+    if (ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) {
+      const typeOnly = p.isTypeOnly || p.parent?.parent?.isTypeOnly === true;
+      if (!typeOnly && (p.propertyName ?? p.name).text !== p.name.text) {
+        u.bad.push(`${at(p)} ${ts.isImportSpecifier(p) ? 'imports' : 'exports'} the class under another name (\`${p.getText()}\`), so a reach of its boot could hide behind the name (Phase 359, (a))`);
+      }
+      return;
+    }
+    if ((ts.isImportClause(p) || ts.isNamespaceImport(p) || ts.isImportEqualsDeclaration(p)) && p.name === n) {
+      const typeOnly = ts.isNamespaceImport(p) ? p.parent?.isTypeOnly === true : p.isTypeOnly;
+      if (!typeOnly) u.bad.push(`${at(n)} binds the name GmuxCore to a whole module or its default, which a reach of its boot would read as the class (Phase 359, (a))`);
+      return;
+    }
+    if (ts.isClassDeclaration(p) && p.name === n) {
+      if (rel === FILES.core) u.classes.push(p);
+      else u.bad.push(`${at(n)} declares a class of its own named GmuxCore outside ${FILES.core}, which a reach of its boot would read as the core's (Phase 359, (a))`);
+      return;
+    }
+    if ((ts.isFunctionDeclaration(p) || ts.isVariableDeclaration(p) || ts.isParameter(p) || ts.isClassExpression(p) || ts.isEnumDeclaration(p) || ts.isModuleDeclaration(p)) && p.name === n) {
+      u.bad.push(`${at(n)} binds the name GmuxCore to something of its own, which a reach of its boot would read as the class (Phase 359, (a))`);
+      return;
+    }
+    if (ts.isBindingElement(p)) {
+      // `const { GmuxCore } = <module>` keeps the name; a reach through it is counted by that name.
+      if ((p.propertyName ?? p.name).getText() !== p.name.getText()) u.bad.push(`${at(p)} destructures the class under another name (\`${p.getText()}\`), so a reach of its boot could hide behind the name (Phase 359, (a))`);
+      return;
+    }
+    if (inType(n)) return;
+    handedOn(n, 'the class');
+  };
+  for (const n of nodesOf(sf)) {
+    if (ts.isPropertyAccessExpression(n) && n.name.text === 'boot' && refOf(n.expression) !== null) u.reaches.push(n);
+    if (ts.isElementAccessExpression(n)) {
+      const kind = refOf(n.expression);
+      const key = ts.isStringLiteralLike(n.argumentExpression) ? n.argumentExpression.text : null;
+      if (kind !== null && kind !== 'constructor' && key === null) u.bad.push(`${at(n)} reaches a member of the class by a computed key (\`${n.getText().slice(0, 60)}\`), so a reach of its boot could hide behind the key (Phase 359, (a))`);
+      if (kind !== null && key === 'boot') u.reaches.push(n);
+      if (key === CORE_CLASS) handedOn(n, 'the class');
+    }
+    if (ts.isBindingElement(n) && (n.propertyName ?? n.name).getText() === 'boot') {
+      const decl = ancestor(n, (p) => ts.isVariableDeclaration(p) || ts.isParameter(p));
+      if (decl !== null && decl.initializer !== undefined && refOf(decl.initializer) !== null) u.reaches.push(n);
+    }
+    if (ts.isNewExpression(n)) {
+      const kind = refOf(n.expression);
+      // `new x.constructor(…)` is a common copy; inside the class it makes another core.
+      if (kind === 'name' || kind === 'member' || kind === 'this' || (kind === 'constructor' && cls !== null && ancestor(n, (p) => p === cls) !== null)) u.builds.push(n);
+    }
+    if (isThis(n) && statics.has(n)) handedOn(n, '`this` in a static member of GmuxCore, which is the class');
+    if (ts.isIdentifier(n) && n.text === CORE_CLASS) nameUse(n);
+  }
+  return u;
+}
+const coreUses = new WeakMap();
+/** readCoreUses, remembered per parsed text, because a copy changes a file or two of the many this clause reads. */
+function coreUsesOf(rel, sf) {
+  let byRel = coreUses.get(sf);
+  if (byRel === undefined) coreUses.set(sf, (byRel = new Map()));
+  let u = byRel.get(rel);
+  if (u === undefined) byRel.set(rel, (u = readCoreUses(rel, sf)));
+  return u;
+}
+
+const wordCache = new Map();
+/** True when `text` names `word` as a whole identifier. A text filter only; each kept file is parsed. */
+function namesWord(text, word) {
+  let byText = wordCache.get(word);
+  if (byText === undefined) wordCache.set(word, (byText = new Map()));
+  let hit = byText.get(text);
+  if (hit === undefined) byText.set(text, (hit = new RegExp(`(^|[^\\w$])${word}(?![\\w$])`).test(text)));
+  return hit;
+}
+/** The files (a) reads: core.ts, and every non-test file under src/main naming the class as a word, or an instance's `.constructor` and `boot`. */
+function bootScanFiles(tree) {
+  const out = [];
+  for (const [rel, text] of tree) {
+    if (!rel.startsWith('src/main/')) continue;
+    if (rel === FILES.core || namesWord(text, CORE_CLASS) || (names(text, '.constructor') && names(text, 'boot'))) out.push(rel);
+  }
+  return out.sort();
+}
+/** True when a reach of boot is THE boot: `corePromise = GmuxCore.boot();`, a statement of the boot branch's own block. */
+function isTheBoot(n, block) {
+  if (block === null || !ts.isPropertyAccessExpression(n) || n.name.text !== 'boot' || !ts.isIdentifier(n.expression) || n.expression.text !== CORE_CLASS) return false;
+  const call = n.parent;
+  if (call === undefined || !ts.isCallExpression(call) || call.expression !== n || call.arguments.length !== 0) return false;
+  const { user, node } = useOf(call);
+  return (
+    user !== undefined &&
+    ts.isBinaryExpression(user) &&
+    user.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+    user.right === node &&
+    ts.isIdentifier(user.left) &&
+    user.left.text === 'corePromise' &&
+    user.parent !== undefined &&
+    ts.isExpressionStatement(user.parent) &&
+    user.parent.expression === user &&
+    block.includes(user.parent)
+  );
+}
+
+/** (a) The one boot, the one construction, and no second path to either. */
+function oneBootFindings(tree, f) {
+  const reaches = [];
+  const builds = [];
+  const classes = [];
+  for (const rel of bootScanFiles(tree)) {
+    const sf = sfOf(tree, rel);
+    if (sf === null) continue;
+    const u = coreUsesOf(rel, sf);
+    for (const n of u.reaches) reaches.push({ rel, n });
+    for (const n of u.builds) builds.push({ rel, n });
+    for (const n of u.classes) classes.push(n);
+    f.push(...u.bad);
+  }
+  const at = (x) => where(x.rel, x.n);
+  if (classes.length !== 1) {
+    f.push(`${FILES.core} declares class GmuxCore ${String(classes.length)} times, not once, so its one boot cannot be read (Phase 359, (a))`);
+    return;
+  }
+  const core = sfOf(tree, FILES.core);
+  const block = core === null ? null : getGmuxCoreParts(core).block;
+  const theBoot = reaches.filter((x) => x.rel === FILES.core && isTheBoot(x.n, block));
+  if (reaches.length !== 1 || theBoot.length !== 1) {
+    f.push(`GmuxCore's boot is reached ${String(reaches.length)} times under src/main (${reaches.map(at).join(', ') || 'none'}), not exactly once, as \`corePromise = GmuxCore.boot();\`, a statement of getGmuxCore's own \`if (corePromise === null)\` block, so a core could boot without passing the quit check in front of it (Phase 359, D1, (a))`);
+  }
+  const boot = classes[0].members.find((m) => ts.isMethodDeclaration(m) && memberName(m) === 'boot' && hasModifier(m, ts.SyntaxKind.StaticKeyword));
+  const inBoot = builds.filter((x) => x.rel === FILES.core && boot !== undefined && ancestor(x.n, (p) => p === boot) !== null);
+  if (builds.length !== 1 || inBoot.length !== 1) {
+    f.push(`GmuxCore is constructed ${String(builds.length)} times (${builds.map(at).join(', ') || 'none'}), not once, inside its static boot(); a core made anywhere else is a second boot path no check stands in front of (Phase 359, (a))`);
+  }
+}
+
+/** Every import in a file that binds `name` locally: `{ node, from, named, renamed, typeOnly }`. */
+function importBindingsOf(sf, name) {
+  const out = [];
+  for (const s of sf.statements) {
+    if (ts.isImportEqualsDeclaration(s) && s.name.text === name) out.push({ node: s, from: s.moduleReference.getText(), named: false, renamed: true, typeOnly: s.isTypeOnly });
+    if (!ts.isImportDeclaration(s) || !ts.isStringLiteral(s.moduleSpecifier) || s.importClause === undefined) continue;
+    const c = s.importClause;
+    const from = s.moduleSpecifier.text;
+    if (c.name !== undefined && c.name.text === name) out.push({ node: c.name, from, named: false, renamed: true, typeOnly: c.isTypeOnly });
+    const nb = c.namedBindings;
+    if (nb !== undefined && ts.isNamespaceImport(nb) && nb.name.text === name) out.push({ node: nb, from, named: false, renamed: true, typeOnly: c.isTypeOnly });
+    if (nb !== undefined && ts.isNamedImports(nb)) {
+      for (const e of nb.elements) {
+        if (e.name.text === name) out.push({ node: e, from, named: true, renamed: e.propertyName !== undefined && e.propertyName.text !== name, typeOnly: c.isTypeOnly || e.isTypeOnly });
+      }
+    }
+  }
+  return out;
+}
+/** True for an assignment of any operator whose target is the bare name. */
+const assignsName = (n, name) => {
+  if (!ts.isBinaryExpression(n) || n.operatorToken.kind < ts.SyntaxKind.FirstAssignment || n.operatorToken.kind > ts.SyntaxKind.LastAssignment) return false;
+  const left = peel(n.left);
+  return left !== undefined && ts.isIdentifier(left) && left.text === name;
+};
+
+/** (b), (c) and (d) over core.ts, remembered per parsed text; and (e) over index.ts, the same way. */
+const coreFindings = new WeakMap();
+const startupFindings = new WeakMap();
+function getGmuxCoreFindings(tree, f) {
+  const sf = sfOf(tree, FILES.core);
+  if (sf === null) {
+    f.push(`${FILES.core} is missing`);
+    return;
+  }
+  let found = coreFindings.get(sf);
+  if (found === undefined) {
+    found = [];
+    readGmuxCoreFindings(sf, found);
+    coreFindings.set(sf, found);
+  }
+  f.push(...found);
+}
+function startupLineFindings(tree, f) {
+  const sf = sfOf(tree, FILES.index);
+  if (sf === null) {
+    f.push(`${FILES.index} is missing`);
+    return;
+  }
+  let found = startupFindings.get(sf);
+  if (found === undefined) {
+    found = [];
+    readStartupFindings(sf, found);
+    startupFindings.set(sf, found);
+  }
+  f.push(...found);
+}
+
+/** (b), (c) and (d): getGmuxCore's shape, the check in its boot branch, the flag it reads and the refusal it gives. */
+function readGmuxCoreFindings(sf, f) {
+  const at = (n) => where(FILES.core, n);
+  // (c) The flag is the lifecycle module's, bound by one import and nothing else.
+  const binds = importBindingsOf(sf, 'appLifecycleState');
+  const own = binds.filter((b) => b.from === '../lifecycle' && b.named && !b.renamed && !b.typeOnly);
+  if (binds.length !== 1 || own.length !== 1) {
+    f.push(`${FILES.core} binds appLifecycleState by ${String(binds.length)} imports (${binds.map((b) => `${at(b.node)} from '${b.from}'`).join(', ') || 'none'}), not by one, by name, from '../lifecycle'; the check reads the app's one-way quit flag and no stand-in for it (Phase 359, D1, (c))`);
+  }
+  for (const b of localBindings(sf, 'appLifecycleState')) f.push(`${at(b)} binds its own appLifecycleState, which stands in for the app's quit flag the check reads (Phase 359, (c))`);
+  for (const w of nodesOf(sf).filter((n) => assignsName(n, 'appLifecycleState'))) f.push(`${at(w)} assigns appLifecycleState, so the check could read something other than the app's quit flag (Phase 359, (c))`);
+  // (b) The refusal is Phase 116's own, whose code the startup's catch reads (D5).
+  const refusals = functionsNamed(sf, 'shutdownRefusal');
+  const rbody = refusals.length === 1 && ts.isFunctionDeclaration(refusals[0]) ? stmtsOf(bodyOf(refusals[0])) : null;
+  const made = rbody !== null && rbody.length === 1 && ts.isReturnStatement(rbody[0]) && rbody[0].expression !== undefined ? peel(rbody[0].expression) : undefined;
+  const code = made !== undefined && ts.isCallExpression(made) && ts.isIdentifier(made.expression) && made.expression.text === 'gmuxError' && made.arguments[0] !== undefined && ts.isStringLiteralLike(made.arguments[0]) ? made.arguments[0].text : null;
+  if (code !== 'SHUTTING_DOWN' || localBindings(sf, 'shutdownRefusal').length !== 1) {
+    f.push(`shutdownRefusal is not ${FILES.core}'s one function returning \`gmuxError('SHUTTING_DOWN', …)\` (${refusals.map(at).join(', ') || 'none'}); the boot's refusal is Phase 116's own, the code every caller's catch and the startup's catch read (Phase 359, D5, (b))`);
+  }
+  const { decls, fn, body, branch, block } = getGmuxCoreParts(sf);
+  if (fn === null || body === null) {
+    f.push(`getGmuxCore is declared ${String(decls.length)} times in ${FILES.core}, not once as a function with a body (Phase 359)`);
+    return;
+  }
+  // (d) The running core is still handed back: Phase 116's refusal, the boot branch, the slot.
+  if (!isRefusalIf(body[0], SHUTTING_DOWN_TESTS)) {
+    f.push(`getGmuxCore's first statement is not still Phase 116's \`if (lifecycle === 'shuttingDown') return Promise.reject(shutdownRefusal(…));\` (${at(body[0] ?? fn)}) (Phase 359, (d))`);
+  }
+  const bi = branch === null ? -1 : body.indexOf(branch);
+  const last = body[body.length - 1];
+  const handsBack = last !== undefined && ts.isReturnStatement(last) && last.expression !== undefined && flatText(last.expression) === 'corePromise';
+  if (body.length !== 3 || bi !== 1 || branch.elseStatement !== undefined || !handsBack) {
+    f.push(`getGmuxCore (${at(fn)}) is not exactly three statements, Phase 116's refusal, \`if (corePromise === null) { … }\` with no else, and \`return corePromise;\`; anything else in it can refuse a core already in the slot while the quit runs, and the disposer's steps before the core's shutdown ask for that core (Phase 359, D2, (d))`);
+  }
+  // The spec's own words for (d); the pin above already leaves no statement
+  // before the branch but Phase 116's, so this names the reason when it fires.
+  for (const s of bi === -1 ? body : body.slice(0, bi)) {
+    for (const r of nodesOf(s).filter((n) => ts.isIdentifier(n) && n.text === 'appLifecycleState')) {
+      f.push(`getGmuxCore reads the quit flag before its boot branch (${at(r)}), so a core already in the slot would be refused while the quit runs (Phase 359, D2, (d))`);
+    }
+  }
+  // (b) The check is the boot branch's first statement.
+  if (block === null) f.push(`getGmuxCore has no \`if (corePromise === null) { … }\` block (${at(fn)}), so where a core boots cannot be read (Phase 359, (b))`);
+  else if (!isRefusalIf(block[0], QUITTING)) {
+    f.push(`the boot branch's first statement is not exactly \`if (appLifecycleState() === 'quitting') return Promise.reject(shutdownRefusal(<a string>));\` with no else (${at(block[0] ?? branch)}); every boot passes that check before anything else in the branch runs, so once the quit has begun an empty slot is never filled again (Phase 359, D1, (b))`);
+  }
+  // (c) getGmuxCore names the flag in that one test only.
+  const reads = nodesOf(fn).filter((n) => ts.isIdentifier(n) && n.text === 'appLifecycleState');
+  const test = block !== null && block[0] !== undefined && ts.isIfStatement(block[0]) ? block[0].expression : null;
+  const inTest = test === null ? [] : reads.filter((r) => ancestor(r, (p) => p === test) !== null);
+  if (reads.length !== 1 || inTest.length !== 1) {
+    f.push(`getGmuxCore names appLifecycleState ${String(reads.length)} times (${reads.map(at).join(', ') || 'none'}), not once, in the boot branch's check (Phase 359, (c))`);
+  }
+}
+
+/** The startup's first ask for the core in index.ts: `app.whenReady().then(cb)`'s first `getGmuxCore().catch(handler)`, as `{ ready, cb, ask, handler, param, stmts }`, or `{ why }`. */
+function startupCatchOf(sf) {
+  const at = (n) => where(FILES.index, n);
+  const readies = nodesOf(sf).filter((n) => {
+    if (!ts.isCallExpression(n) || !ts.isPropertyAccessExpression(n.expression) || n.expression.name.text !== 'then') return false;
+    const inner = peel(n.expression.expression);
+    return inner !== undefined && ts.isCallExpression(inner) && inner.arguments.length === 0 && flatText(inner.expression) === 'app.whenReady';
+  });
+  if (readies.length !== 1) return { why: `${FILES.index} calls \`app.whenReady().then(…)\` ${String(readies.length)} times, not once, so the startup's first ask for the core cannot be read (Phase 359, (e))` };
+  const cb = readies[0].arguments[0] === undefined ? undefined : peel(readies[0].arguments[0]);
+  if (cb === undefined || !isFunctionLike(cb)) return { why: `\`app.whenReady().then(…)\` is not handed a function (${at(readies[0])}), so the startup's first ask for the core cannot be read (Phase 359, (e))` };
+  const asks = nodesOf(cb)
+    .filter((n) => isCallOfWith0(n, 'getGmuxCore'))
+    .sort((a, b) => a.getStart() - b.getStart());
+  if (asks.length === 0) return { why: `the startup (${at(cb)}) asks getGmuxCore() nowhere, so what it says when the quit refused it cannot be read (Phase 359, (e))` };
+  const ask = asks[0];
+  const pa = ask.parent;
+  const call = pa !== undefined && ts.isPropertyAccessExpression(pa) && pa.expression === ask && pa.name.text === 'catch' && pa.parent !== undefined && ts.isCallExpression(pa.parent) && pa.parent.expression === pa ? pa.parent : null;
+  const handler = call !== null && call.arguments.length === 1 ? peel(call.arguments[0]) : undefined;
+  const p0 = handler !== undefined && isFunctionLike(handler) && handler.parameters.length === 1 ? handler.parameters[0] : undefined;
+  if (handler === undefined || !isFunctionLike(handler) || p0 === undefined || !ts.isIdentifier(p0.name) || !ts.isBlock(handler.body)) {
+    return { why: `the startup's first getGmuxCore() (${at(ask)}) is not \`getGmuxCore().catch((<err>) => { … })\`, so what it says when the quit refused it cannot be read (Phase 359, (e))` };
+  }
+  return { ready: readies[0], cb, ask, handler, param: p0.name.text, stmts: [...handler.body.statements] };
+}
+
+/** (e) The startup the quit refused says so, once, at info, and not `core boot failed`. */
+function readStartupFindings(sf, f) {
+  const at = (n) => where(FILES.index, n);
+  if (!importsName(sf, 'isGmuxError', ['./errors'])) f.push(`${FILES.index} does not import isGmuxError from ./errors, so the startup's catch may not read the refusal's code the way every other reader does (Phase 359, D4, (e))`);
+  for (const b of localBindings(sf, 'isGmuxError')) f.push(`${at(b)} binds its own isGmuxError, which stands in for the one reader of an error's code (Phase 359, D4, (e))`);
+  const logs = localBindings(sf, 'bootLog');
+  const top = topDecl(sf, 'bootLog');
+  const scoped =
+    top !== null &&
+    logs.length === 1 &&
+    logs[0] === top.decl &&
+    (top.stmt.declarationList.flags & ts.NodeFlags.Const) !== 0 &&
+    top.decl.initializer !== undefined &&
+    /^getLog\((['"])boot\1\)$/.test(flatText(top.decl.initializer));
+  if (!scoped) f.push(`bootLog is not ${FILES.index}'s one \`const bootLog = getLog('boot')\` (${logs.map(at).join(', ') || 'none'}); the startup's quit line is said at the boot scope, beside every other startup line (Phase 359, D4, (e))`);
+  const sc = startupCatchOf(sf);
+  if (sc.why !== undefined) {
+    f.push(sc.why);
+    return;
+  }
+  const { handler, param, stmts } = sc;
+  const isQuitTest = (e) => {
+    const x = peel(e);
+    const arg = x !== undefined && ts.isCallExpression(x) && x.arguments.length === 2 ? peel(x.arguments[0]) : undefined;
+    return arg !== undefined && ts.isIdentifier(x.expression) && x.expression.text === 'isGmuxError' && ts.isIdentifier(arg) && arg.text === param && ts.isStringLiteralLike(x.arguments[1]) && x.arguments[1].text === 'SHUTTING_DOWN';
+  };
+  const isFailedLine = (s) => {
+    const c = ts.isExpressionStatement(s) ? peel(s.expression) : undefined;
+    return c !== undefined && ts.isCallExpression(c) && flatText(c.expression) === 'bootLog.error' && c.arguments[0] !== undefined && c.arguments[0].getText().includes('core boot failed');
+  };
+  const iSchema = stmts.findIndex((s) => ts.isIfStatement(s) && isCallOfWith(s.expression, 'isSchemaRefusal', param));
+  const iFailed = stmts.findIndex(isFailedLine);
+  const quits = stmts.filter((s) => ts.isIfStatement(s) && isQuitTest(s.expression));
+  if (iFailed === -1) f.push(`the startup's catch (${at(handler)}) no longer says \`core boot failed: …\` as a statement of its own; every error but a schema refusal and the quit's still says the boot failed (Phase 359, D4, (e))`);
+  if (quits.length !== 1) {
+    f.push(`the startup's catch (${at(handler)}) holds ${String(quits.length)} \`if (isGmuxError(${param}, 'SHUTTING_DOWN'))\` statements of its own, not one; a startup the quit refused would say \`core boot failed\`, a failure that did not happen (Phase 359, D4, (e))`);
+    return;
+  }
+  const q = quits[0];
+  const iq = stmts.indexOf(q);
+  if (iSchema === -1 || iq < iSchema) f.push(`the startup's quit branch (${at(q)}) is not after the catch's \`if (isSchemaRefusal(${param}))\` branch (Phase 359, (e))`);
+  if (iFailed !== -1 && iq > iFailed) f.push(`the startup's quit branch (${at(q)}) comes after the \`core boot failed\` line, so the quit is said as a failed boot first (Phase 359, D4, (e))`);
+  // THE PROBE REVIEW (docs/method/HOW-WE-BUILT-THIS.md rule 9). D4: every error
+  // but a schema refusal and the quit's still says `core boot failed`. So
+  // nothing but those two branches stands before that line. A third statement
+  // there can end the handler first, a return for one kind of error, a branch
+  // that says the quit for every error, a silent return while quitting, and the
+  // line goes unsaid with every check above still green: three hostile copies
+  // of the review's own walked past (e) that way.
+  if (iFailed !== -1) {
+    for (const s of stmts.slice(0, iFailed)) {
+      if (s === q || (iSchema !== -1 && s === stmts[iSchema])) continue;
+      f.push(`the startup's catch (${at(handler)}) holds a statement before its \`core boot failed\` line that is neither the schema refusal's branch nor the quit's (${at(s)}); it can end the handler first, so an error that is neither would not say the boot failed (Phase 359, D4, (e))`);
+    }
+  }
+  const two = q.elseStatement === undefined && ts.isBlock(q.thenStatement) && q.thenStatement.statements.length === 2 ? q.thenStatement.statements : null;
+  const say = two !== null && ts.isExpressionStatement(two[0]) ? peel(two[0].expression) : undefined;
+  const says = say !== undefined && ts.isCallExpression(say) && flatText(say.expression) === 'bootLog.info' && say.arguments.length === 1 && ts.isStringLiteralLike(say.arguments[0]) && say.arguments[0].text.includes('quitting');
+  const ends = two !== null && ts.isReturnStatement(two[1]) && two[1].expression === undefined;
+  if (!says || !ends) f.push(`the startup's quit branch (${at(q)}) is not exactly \`{ bootLog.info('<…quitting…>'); return; }\` with no else; the quit is said once, at info, and nothing after it says the boot failed (Phase 359, D4, (e))`);
+}
+
+// (f) THE DOORS ANSWER THE REFUSAL (D3; Phase 359's fix round, the attack
+// lens's hostile copy T12, a focus listener whose `getGmuxCore().then(…)` had no
+// catch, green on every rule until this clause). HIS RULED ROUND (2026-11-14,
+// "359 a") closed the reverify's six holes, each green on every rule before
+// it: a seam's own callers are read as the ask is read (R6, R9), and a
+// rejection handler must be a function, written there, that does not throw
+// (R2 to R5).
+
+/** The ask every door makes. */
+const ASK = 'getGmuxCore';
+
+/**
+ * The harness modes outside src/main/harness/, which (f) does not read: each
+ * runs only in a harness launch (`GMUX_SMOKE`), where a refusal is that mode's
+ * own failure and never a door of a quitting app. src/main/harness/ is left out
+ * whole, as the spec's own search left it (build/p359/SPEC.md §0.1 item 7).
+ * Each must still name the ask, so the list cannot rot.
+ */
+const ASK_HARNESS_MODES = Object.freeze([
+  'src/main/power/smoke.ts',
+  'src/main/manifest/reconstruct-smoke.ts',
+  'src/main/machines/remote-smoke.ts',
+  'src/main/fault/harness.ts',
+  'src/main/conformance/resume.ts'
+]);
+
+/**
+ * The functions that hand their ask's refusal to a caller that answers it. An
+ * ask caught nowhere this clause can read must sit in one of these; one named
+ * here that hands no ask any more is red, so the list cannot keep a seam that
+ * is gone. Each row is `{ file, seam, answers, reach, callers }`:
+ *
+ *   - `seam` is where the function is handed, as `seamOf` writes it, and
+ *     `answers` who answers its refusal;
+ *   - `reach` is where the function's CALLERS are (his ruled round): `file`
+ *     (or `'*'`, every file (f) reads that names it), the function they sit in
+ *     (`within`, as `seamOf` writes it; the whole file without it), and the
+ *     name or member they call it by (`name`), with `key` when `name` is a
+ *     container and the function is its member of that name;
+ *   - `callers` is every caller that hands the refusal on again instead of
+ *     answering it, by the hand-off it makes (`seamOf` for a call returned or
+ *     awaited into a function, `handoffOf` for the function handed on as a
+ *     value) and who answers it there. A caller may carry a reach and callers
+ *     of its own, read the same way.
+ *
+ * Every caller in a reach is read as the ask itself is read: one that answers
+ * the refusal needs no line, and one that hands it on must be listed. A listed
+ * caller that is gone, and a reach that finds nothing, are red. Adding a door
+ * is adding a catch at its site, or a line here that says who answers it.
+ */
+const ASK_SEAMS = Object.freeze([
+  {
+    file: 'src/main/index.ts',
+    seam: 'installPowerHandlers(#0).captureAll',
+    answers: 'suspendWork in src/main/power/index.ts, `.catch` and one warn line',
+    reach: { file: 'src/main/power/index.ts', within: 'function installPowerHandlers', name: 'deps.captureAll' },
+    callers: []
+  },
+  {
+    file: 'src/main/index.ts',
+    seam: 'installPowerHandlers(#0).takeManifestGeneration',
+    answers: 'suspendWork in src/main/power/index.ts, `.catch` and one warn line',
+    reach: { file: 'src/main/power/index.ts', within: 'function installPowerHandlers', name: 'deps.takeManifestGeneration' },
+    callers: []
+  },
+  {
+    file: 'src/main/capabilities.ts',
+    seam: 'registerContextIpc(#1)',
+    answers: 'the context channels, inside their IPC handlers',
+    reach: { file: 'src/main/context/ipc.ts', within: 'function registerContextIpc', name: 'getStore' },
+    callers: [
+      {
+        file: 'src/main/context/ipc.ts',
+        seam: 'registerContextSnapshotIpc(#1)',
+        answers: 'the launch snapshot’s channel, inside its IPC handler',
+        reach: { file: 'src/main/context/session-ipc.ts', within: 'function registerContextSnapshotIpc', name: 'getStore' },
+        callers: []
+      }
+    ]
+  },
+  {
+    file: 'src/main/capabilities.ts',
+    seam: 'registerOverviewIpc(#1)',
+    answers: 'the overview channels, inside their IPC handlers',
+    reach: { file: 'src/main/overview/ipc.ts', within: 'function registerOverviewIpc', name: 'getManifest' },
+    callers: [
+      { file: 'src/main/overview/ipc.ts', seam: 'const deps.manifest', answers: 'projectOverview and sessionsOverview, each returned into its channel’s IPC handler' }
+    ]
+  },
+  {
+    file: 'src/main/capabilities.ts',
+    seam: 'setLiveSessionsProbe(#0)',
+    answers: 'the credentials activation, inside the logins channel that asked it',
+    reach: { file: 'src/main/credentials/index.ts', within: 'function setLiveSessionsProbe', name: 'probe' },
+    callers: [
+      {
+        file: 'src/main/credentials/index.ts',
+        seam: 'liveSessionsProbe =',
+        answers: 'liveSessionsSeam, the one reader of the stored probe',
+        reach: { file: 'src/main/credentials/index.ts', name: 'liveSessionsProbe' },
+        callers: [
+          { file: 'src/main/credentials/index.ts', seam: 'const liveSessionsSeam', answers: 'the keep’s liveSessions, awaited in src/main/credentials/keep.ts inside the logins channel that asked it' }
+        ]
+      }
+    ]
+  },
+  {
+    file: 'src/main/capabilities.ts',
+    seam: 'const coreReady',
+    answers: 'the door’s open (its catch in src/main/pocket/ipc.ts) and the alerts’ arming step',
+    reach: { file: 'src/main/capabilities.ts', name: 'coreReady' },
+    callers: [
+      {
+        file: 'src/main/capabilities.ts',
+        seam: 'createPhoneAlerts(#0).ready',
+        answers: 'the alerts’ arming step',
+        reach: { file: 'src/main/alerts/index.ts', within: 'function createPhoneAlerts', name: 'deps.ready' },
+        callers: [
+          { file: 'src/main/alerts/index.ts', seam: 'const ready', answers: 'arm(), awaited by step(), which rearm runs as `chain.then(step).catch(…)` with one warn line' }
+        ]
+      },
+      {
+        file: 'src/main/capabilities.ts',
+        seam: 'new PocketHost(#0).beforeOpen',
+        answers: 'the door’s open, inside its try and catch',
+        reach: { file: 'src/main/pocket/ipc.ts', name: 'this.deps.beforeOpen' },
+        callers: []
+      }
+    ]
+  },
+  {
+    file: 'src/main/capabilities.ts',
+    seam: 'createPocketFacts(#0).overview.manifest',
+    answers: 'the door’s routes, each answering a failed read',
+    reach: { file: 'src/main/pocket/facts.ts', within: 'function createPocketFacts', name: 'deps.overview', key: 'manifest' },
+    callers: [
+      { file: 'src/main/pocket/facts.ts', seam: 'sessionActivity(#0)', answers: 'the overview reader (src/main/overview/activity.ts), awaited by the facts’ refresh, which the door’s routes ask, each answering a failed read' }
+    ]
+  },
+  {
+    file: 'src/main/projects/clone.ts',
+    seam: 'CloneEngine.constructor(addProject)',
+    answers: 'succeed’s catch, which says the folder is on disk',
+    reach: { file: 'src/main/projects/clone.ts', name: 'this.addProject' },
+    callers: []
+  },
+  {
+    file: 'src/main/projects/index.ts',
+    seam: 'defaultDeps() returns .addProject',
+    answers: 'projects:create’s IPC handler, the invoke’s answer',
+    reach: { file: 'src/main/projects/create.ts', within: 'function createProjectCreator', name: 'deps.addProject' },
+    callers: [
+      { file: 'src/main/projects/create.ts', seam: 'const create', answers: 'the creator’s create, which projects:create’s IPC handler returns as the invoke’s answer (src/main/projects/index.ts)' }
+    ]
+  },
+  {
+    file: 'src/main/fs/project-roots.ts',
+    seam: 'function localProjectRoots',
+    answers: 'the file verbs’ IPC handlers and the guarded write’s catch',
+    reach: { file: '*', name: 'localProjectRoots' },
+    callers: [
+      { file: 'src/main/baselines/ipc.ts', seam: 'createBaselineStore(#0).listProjectRoots', answers: 'the baseline store’s reads, under the baseline channels’ IPC handlers' },
+      { file: 'src/main/fs/open-with.ts', seam: 'defaultOpenWithDeps() returns .listProjectRoots', answers: 'Open With’s IPC handler' },
+      { file: 'src/main/fs/ipc.ts', seam: 'defaultFileOpsDeps() returns .listProjectRoots', answers: 'the file verbs’ IPC handlers and the guarded write’s catch' },
+      { file: 'src/main/fs/ipc.ts', seam: 'defaultDragOutDeps() returns .listProjectRoots', answers: 'the drag out’s IPC handler' }
+    ]
+  }
+]);
+
+/** The files (f) reads for a word: every non-test file under src/main naming it, but src/main/harness/ and the harness modes. */
+function scanFiles(tree, word) {
+  const out = [];
+  for (const [rel, text] of tree) {
+    if (!rel.startsWith('src/main/') || rel.startsWith('src/main/harness/') || ASK_HARNESS_MODES.includes(rel)) continue;
+    if (namesWord(text, word)) out.push(rel);
+  }
+  return out.sort();
+}
+/** The files (f) reads the ask in. */
+const askScanFiles = (tree) => scanFiles(tree, ASK);
+
+/** True for a call of the ask, bare or as a module's member: `getGmuxCore()`, `x.getGmuxCore()`, `x['getGmuxCore']()`. */
+function isAskCall(n) {
+  if (!ts.isCallExpression(n)) return false;
+  const c = unwrap(n.expression);
+  if (c === undefined) return false;
+  if (ts.isIdentifier(c)) return c.text === ASK;
+  if (ts.isPropertyAccessExpression(c)) return c.name.text === ASK;
+  return ts.isElementAccessExpression(c) && ts.isStringLiteralLike(c.argumentExpression) && c.argumentExpression.text === ASK;
+}
+
+/** The three links a promise chain is made of. */
+const CHAIN_LINKS = Object.freeze(['then', 'catch', 'finally']);
+/** The chain a value heads: every `.then`, `.catch` and `.finally` taken on it in turn, and its outermost expression. */
+function chainFrom(value) {
+  const links = [];
+  let at = value;
+  for (;;) {
+    const { user, node } = useOf(at);
+    const call =
+      user !== undefined && ts.isPropertyAccessExpression(user) && user.expression === node && CHAIN_LINKS.includes(user.name.text) && user.parent !== undefined && ts.isCallExpression(user.parent) && user.parent.expression === user
+        ? user.parent
+        : null;
+    if (call === null) return { links, end: node };
+    links.push({ name: user.name.text, call });
+    at = call;
+  }
+}
+/**
+ * True when a chain's last link, `.finally(…)` aside, answers a rejection:
+ * `.catch(h)` or `.then(a, h)` with `h` a handler that answers it. A
+ * `.then(f)` after a catch can throw again.
+ */
+function endsInCatch(links) {
+  let i = links.length - 1;
+  for (; i >= 0 && links[i].name === 'finally'; i -= 1) {
+    // A `.finally(f)` after the catch rejects the chain again when `f` throws.
+    const f = links[i].call.arguments[0];
+    if (f !== undefined && !answersRejection(f)) return false;
+  }
+  if (i < 0) return false;
+  const l = links[i];
+  if (l.name === 'catch') return l.call.arguments.length >= 1 && answersRejection(l.call.arguments[0]);
+  return l.name === 'then' && l.call.arguments.length >= 2 && answersRejection(l.call.arguments[1]);
+}
+/**
+ * True when a rejection handler answers the rejection (his ruled round, the
+ * reverify's R2 to R4): a function written there, arrow or `function`, that
+ * does not throw. `undefined`, `null` or a name this rule cannot read are not
+ * handlers, and a body that holds a `throw` or a `Promise.reject(…)` outside
+ * its own nested functions hands the refusal on again.
+ */
+function answersRejection(h) {
+  const fn = unwrap(h);
+  return fn !== undefined && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) && !throwsAgain(fn.body);
+}
+/** True when a function is called where it is written: `(() => …)()`. */
+function invokedHere(fn) {
+  const { user, node } = useOf(fn);
+  return user !== undefined && ts.isCallExpression(user) && user.expression === node;
+}
+/** True when a body, its own nested functions aside (one called where it is written is the body's own), holds a `throw` or a `Promise.reject(…)`. */
+function throwsAgain(body) {
+  // A handler whose body is a function hands that function back uncalled.
+  if (isAnyFunction(body)) return false;
+  let found = false;
+  const visit = (n) => {
+    if (found || (n !== body && isAnyFunction(n) && !invokedHere(n))) return;
+    if (ts.isThrowStatement(n) || (ts.isCallExpression(n) && flatText(n.expression) === 'Promise.reject')) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(body);
+  return found;
+}
+
+/** A function of any kind. */
+const isAnyFunction = (n) => ts.isArrowFunction(n) || ts.isFunctionExpression(n) || ts.isFunctionDeclaration(n) || ts.isMethodDeclaration(n) || ts.isConstructorDeclaration(n) || ts.isGetAccessor(n) || ts.isSetAccessor(n);
+/**
+ * True when `n` sits in the TRY block of a `try` whose catch answers it, inside
+ * `fn` (a catch or finally block catches nothing of its own). A catch block that
+ * throws the refusal again answers nothing (his ruled round, the reverify's
+ * R5), nor does one whose finally throws; a `try` around that one, still inside
+ * `fn`, may.
+ */
+function inCaughtTry(n, fn) {
+  for (let child = n, p = n.parent; p !== undefined && p !== fn; child = p, p = p.parent) {
+    if (ts.isTryStatement(p) && p.tryBlock === child && p.catchClause !== undefined && !throwsAgain(p.catchClause.block) && (p.finallyBlock === undefined || !throwsAgain(p.finallyBlock))) return true;
+  }
+  return false;
+}
+/** What a value flows into: `useOf`, and on past a conditional whose branch it is. */
+function flowOf(n) {
+  let at = useOf(n);
+  while (at.user !== undefined && ts.isConditionalExpression(at.user) && at.user.condition !== at.node) at = useOf(at.user);
+  return at;
+}
+/** The four combinators that take an array of promises. */
+const COMBINATORS = Object.freeze(['race', 'all', 'any', 'allSettled']);
+/** `Promise.race([… v …])` (or `.all`, `.any`, `.allSettled`) holding `v` as an element of its one argument: `{ name, call }`, or null. */
+function combinatorOf(user, node) {
+  if (user === undefined || !ts.isArrayLiteralExpression(user) || !user.elements.includes(node)) return null;
+  const { user: call, node: array } = useOf(user);
+  if (call === undefined || !ts.isCallExpression(call) || call.arguments.length !== 1 || call.arguments[0] !== array) return null;
+  const callee = unwrap(call.expression);
+  if (callee === undefined || !ts.isPropertyAccessExpression(callee) || flatText(callee.expression) !== 'Promise' || !COMBINATORS.includes(callee.name.text)) return null;
+  return { name: callee.name.text, call };
+}
+/** True when a function is an IPC handler, whose rejection is its invoke's answer: the last argument of `handle(…)` or `x.handle(…)`, beside a channel named by a string. */
+function isIpcHandler(fn) {
+  const { user, node } = useOf(fn);
+  if (user === undefined || !ts.isCallExpression(user) || user.arguments[user.arguments.length - 1] !== node) return false;
+  const callee = unwrap(user.expression);
+  const named = callee !== undefined && ((ts.isIdentifier(callee) && callee.text === 'handle') || (ts.isPropertyAccessExpression(callee) && callee.name.text === 'handle'));
+  return named && user.arguments.slice(0, -1).some((a) => ts.isStringLiteralLike(a));
+}
+/** True when a function is a callback of a chain link whose chain answers a rejection after it. */
+function isCaughtCallback(fn) {
+  const { user, node } = useOf(fn);
+  if (user === undefined || !ts.isCallExpression(user) || !user.arguments.includes(node)) return false;
+  const callee = unwrap(user.expression);
+  return callee !== undefined && ts.isPropertyAccessExpression(callee) && CHAIN_LINKS.includes(callee.name.text) && endsInCatch(chainFrom(user).links);
+}
+/** `C(#k)` or `new C(#k)`, where a call or a construction is handed a value as its k-th argument, or null. */
+function argumentSeam(user, node) {
+  const args = (ts.isCallExpression(user) || ts.isNewExpression(user)) && user.arguments !== undefined ? user.arguments : [];
+  return args.includes(node) ? `${ts.isNewExpression(user) ? 'new ' : ''}${flatText(user.expression)}(#${String(args.indexOf(node))})` : null;
+}
+/** `C(#k).a.b`, `new C(#k).a`, `const o.a` or `f() returns .a.b`, where an object literal holding a function is handed, or null. */
+function objectSeam(prop) {
+  const keys = [memberName(prop)];
+  let obj = prop.parent;
+  for (;;) {
+    const { user, node } = useOf(obj);
+    if (user === undefined) return null;
+    if (ts.isPropertyAssignment(user) && user.initializer === node) {
+      keys.unshift(memberName(user));
+      obj = user.parent;
+      continue;
+    }
+    const arg = argumentSeam(user, node);
+    if (arg !== null) return `${arg}.${keys.join('.')}`;
+    if (ts.isVariableDeclaration(user) && user.initializer === node && ts.isIdentifier(user.name)) return `const ${user.name.text}.${keys.join('.')}`;
+    if (ts.isReturnStatement(user)) {
+      const g = ancestor(user, isAnyFunction);
+      return g !== null && ts.isFunctionDeclaration(g) && g.name !== undefined ? `${g.name.text}() returns .${keys.join('.')}` : null;
+    }
+    return null;
+  }
+}
+/** Where a function is handed, as one line: `function f`, `C.m`, `const f`, `C(#k)`, `C(#k).a`, `f() returns .a`, `K.constructor(p)`; or null. */
+function seamOf(fn) {
+  if (ts.isFunctionDeclaration(fn)) return fn.name === undefined ? null : `function ${fn.name.text}`;
+  if (ts.isMethodDeclaration(fn) || ts.isGetAccessor(fn) || ts.isSetAccessor(fn) || ts.isConstructorDeclaration(fn)) {
+    const cls = fn.parent;
+    return `${cls !== undefined && ts.isClassLike(cls) && cls.name !== undefined ? cls.name.text : '?'}.${ts.isConstructorDeclaration(fn) ? 'constructor' : memberName(fn)}`;
+  }
+  const { user, node } = useOf(fn);
+  if (user === undefined) return null;
+  if (ts.isVariableDeclaration(user) && user.initializer === node && ts.isIdentifier(user.name)) return `const ${user.name.text}`;
+  const arg = argumentSeam(user, node);
+  if (arg !== null) return arg;
+  if (ts.isPropertyAssignment(user) && user.initializer === node) return objectSeam(user);
+  if (ts.isParameter(user) && user.initializer === node && ts.isIdentifier(user.name)) {
+    const ctor = user.parent;
+    const cls = ctor !== undefined && ts.isConstructorDeclaration(ctor) ? ctor.parent : undefined;
+    return cls !== undefined && ts.isClassLike(cls) && cls.name !== undefined ? `${cls.name.text}.constructor(${user.name.text})` : null;
+  }
+  return null;
+}
+
+/** (f) The ask's name, read where it is not called: imported, exported or destructured under its own name, its own declaration, or a type; anything else hands it on. */
+function askNameFindings(rel, n, f) {
+  const p = n.parent;
+  if (p === undefined) return;
+  const at = where(rel, n);
+  if (ts.isCallExpression(p) && p.expression === n) return;
+  if (ts.isPropertyAccessExpression(p) && p.name === n) {
+    const { user, node } = useOf(p);
+    if (user !== undefined && ts.isCallExpression(user) && user.expression === node) return;
+    f.push(`${at} hands getGmuxCore on as a value (\`${p.getText().slice(0, 60)}\`), so a door could ask through it where this rule cannot see (Phase 359, D3, (f))`);
+    return;
+  }
+  if (ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) {
+    if ((p.propertyName ?? p.name).text !== p.name.text) f.push(`${at} ${ts.isImportSpecifier(p) ? 'imports' : 'exports'} getGmuxCore under another name (\`${p.getText()}\`), so a door could ask through it where this rule cannot see (Phase 359, D3, (f))`);
+    return;
+  }
+  if (ts.isBindingElement(p)) {
+    if (p.propertyName !== undefined && p.propertyName.getText() !== p.name.getText()) f.push(`${at} destructures getGmuxCore under another name (\`${p.getText()}\`), so a door could ask through it where this rule cannot see (Phase 359, D3, (f))`);
+    return;
+  }
+  if (ts.isFunctionDeclaration(p) && p.name === n && rel === FILES.core) return;
+  if ((ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isMethodDeclaration(p) || ts.isMethodSignature(p)) && p.name === n) return;
+  if (inType(n)) return;
+  f.push(`${at} uses getGmuxCore other than by calling it (\`${p.getText().replace(/\s+/g, ' ').slice(0, 60)}\`), so a door could ask through it where this rule cannot see (Phase 359, D3, (f))`);
+}
+
+/**
+ * How a call's rejection is answered, read the same way for the ask and for a
+ * seam's callers: `{ answered: true }`; `{ why, end }` when nothing answers it
+ * (`dropped`, `top-level` or `no-function`); or `{ fn, seam }` when it is
+ * awaited or returned into a function this rule must place by its seam.
+ */
+function readRejection(call) {
+  let head = call;
+  for (;;) {
+    const { links, end } = chainFrom(head);
+    if (endsInCatch(links)) return { answered: true };
+    const { user, node } = flowOf(end);
+    // An element of Promise.race([…]), .all or .any rejects that call, which is
+    // read in its turn; .allSettled answers it (the reverify's R10, accepted).
+    const combinator = combinatorOf(user, node);
+    if (combinator !== null) {
+      if (combinator.name === 'allSettled') return { answered: true };
+      head = combinator.call;
+      continue;
+    }
+    let fn;
+    if (user !== undefined && ts.isAwaitExpression(user) && user.expression === node) {
+      fn = ancestor(user, isAnyFunction);
+      if (fn === null) return { answered: false, why: 'top-level', end };
+      if (inCaughtTry(user, fn)) return { answered: true };
+    } else if (user !== undefined && ts.isReturnStatement(user)) {
+      fn = ancestor(user, isAnyFunction);
+      if (fn === null) return { answered: false, why: 'no-function', end };
+    } else if (user !== undefined && ts.isArrowFunction(user) && user.body === node) {
+      fn = user;
+    } else {
+      return { answered: false, why: 'dropped', end };
+    }
+    if (isIpcHandler(fn) || isCaughtCallback(fn)) return { answered: true };
+    return { answered: false, fn, seam: seamOf(fn) };
+  }
+}
+
+/** (f) Every ask answers its refusal: chained to a catch that answers it, or awaited or returned into a function that answers it. */
+const askFindingsByText = new WeakMap();
+function askFileFindings(rel, sf) {
+  let byRel = askFindingsByText.get(sf);
+  if (byRel === undefined) askFindingsByText.set(sf, (byRel = new Map()));
+  let found = byRel.get(rel);
+  if (found !== undefined) return found;
+  found = { bad: [], seams: [] };
+  byRel.set(rel, found);
+  const at = (n) => where(rel, n);
+  for (const n of nodesOf(sf)) {
+    if (ts.isIdentifier(n) && n.text === ASK) askNameFindings(rel, n, found.bad);
+    if (!isAskCall(n)) continue;
+    const r = readRejection(n);
+    if (r.answered) continue;
+    if (r.why === 'top-level') found.bad.push(`${at(n)} awaits getGmuxCore() at a module's top level, where nothing answers its refusal (Phase 359, D3, (f))`);
+    else if (r.why === 'no-function') found.bad.push(`${at(n)} returns getGmuxCore() from no function (Phase 359, D3, (f))`);
+    else if (r.why === 'dropped') found.bad.push(`${at(n)} drops what getGmuxCore() answers (\`${r.end.getText().replace(/\s+/g, ' ').slice(0, 80)}\`): no catch that answers it ends its chain and nothing awaits or returns it, so once the quit has begun its refusal rejects unhandled (Phase 359, D3, (f))`);
+    else if (r.seam !== null && ASK_SEAMS.some((row) => row.file === rel && row.seam === r.seam)) found.seams.push(r.seam);
+    else found.bad.push(`${at(n)} hands getGmuxCore()'s refusal to ${r.seam === null ? 'a function this rule cannot place' : `\`${r.seam}\``}, which catches nothing around the ask and is neither an IPC handler, a callback of a chain that ends in a catch, nor a seam ASK_SEAMS names with who answers it (Phase 359, D3, (f))`);
+  }
+  return found;
+}
+
+/** The files a reach's callers are read in: its file, or for `'*'` every file (f) reads that names the name. */
+const reachFiles = (tree, reach) => (reach.file === '*' ? scanFiles(tree, reach.name) : [reach.file]);
+/** Every file the seams' reaches read, nested callers' included, for S16's inputs. */
+function seamReachFiles(tree) {
+  const out = new Set();
+  const walk = (row) => {
+    if (row.reach !== undefined) for (const rel of reachFiles(tree, row.reach)) out.add(rel);
+    for (const c of row.callers ?? []) walk(c);
+  };
+  for (const row of ASK_SEAMS) walk(row);
+  return [...out];
+}
+/** The function of a file whose seam is `within`, as `seamOf` writes it, or null. */
+const functionWithSeam = (sf, within) => nodesOf(sf).find((n) => isAnyFunction(n) && seamOf(n) === within) ?? null;
+/** The operators a binding is tested with rather than used. */
+const TEST_OPERATORS = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken]);
+/** The dotted text of a member path, `?.` read as `.` and a string key `['x']` as `.x`: `deps.captureAll`, `this.deps.beforeOpen`; or null for any other expression. */
+function pathText(e) {
+  const x = unwrap(e);
+  if (x === undefined) return null;
+  if (ts.isIdentifier(x)) return x.text;
+  if (x.kind === ts.SyntaxKind.ThisKeyword) return 'this';
+  if (ts.isPropertyAccessExpression(x) && ts.isIdentifier(x.name)) {
+    const head = pathText(x.expression);
+    return head === null ? null : `${head}.${x.name.text}`;
+  }
+  if (ts.isElementAccessExpression(x) && ts.isStringLiteralLike(x.argumentExpression)) {
+    const head = pathText(x.expression);
+    return head === null ? null : `${head}.${x.argumentExpression.text}`;
+  }
+  return null;
+}
+/** True for a member read: `a.b`, `a?.b` or `a['b']`. */
+const isMemberRead = (n) => ts.isPropertyAccessExpression(n) || (ts.isElementAccessExpression(n) && ts.isStringLiteralLike(n.argumentExpression));
+/** The member a read names: `b` of `a.b` and of `a['b']`. */
+const memberOfRead = (n) => (ts.isPropertyAccessExpression(n) ? n.name.text : n.argumentExpression.text);
+/** What an expression naming a seam's function does with it: `{ call }`, `{ value }` (handed on), or null (a store into the binding, or a test of whether it is set). */
+function functionUse(e) {
+  const { user, node } = useOf(e);
+  if (user === undefined) return { value: node };
+  if (ts.isCallExpression(user) && user.expression === node) return { call: user };
+  if (ts.isBinaryExpression(user) && ((user.operatorToken.kind === ts.SyntaxKind.EqualsToken && user.left === node) || TEST_OPERATORS.has(user.operatorToken.kind))) return null;
+  if (ts.isTypeOfExpression(user) || (ts.isPrefixUnaryExpression(user) && user.operator === ts.SyntaxKind.ExclamationToken)) return null;
+  if ((ts.isIfStatement(user) && user.expression === node) || (ts.isConditionalExpression(user) && user.condition === node)) return null;
+  return { value: node };
+}
+/**
+ * What a node is to a reach: `{ call }` or `{ value }` where it names the
+ * reach's function, or null where it does not (another name, a declaration, an
+ * import or export, a type, a store or a test, or a container's other member).
+ * A dotted name is matched whole, `?.` read as `.`; `ns.name` is the name.
+ */
+function reachRef(n, reach) {
+  const path = [...reach.name.split('.'), ...(reach.key === undefined ? [] : [reach.key])];
+  if (path.length > 1) {
+    const alias = aliasRef(n, reach, path);
+    if (alias !== undefined) return alias;
+  }
+  let named;
+  if (reach.name.includes('.')) {
+    if (!isMemberRead(n) || pathText(n) !== reach.name) return null;
+    named = n;
+  } else {
+    // `ns['name']`, a module's member by its string key, is the name itself.
+    if (ts.isStringLiteralLike(n) && n.text === reach.name && n.parent !== undefined && ts.isElementAccessExpression(n.parent) && n.parent.argumentExpression === n) return reach.key === undefined ? functionUse(n.parent) : { value: n.parent };
+    if (!ts.isIdentifier(n) || n.text !== reach.name) return null;
+    const p = n.parent;
+    if (p === undefined || inType(n) || ts.isImportClause(p) || ts.isNamespaceImport(p)) return null;
+    // Imported or exported under another name, it is called by a name this reach cannot follow.
+    if (ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) return (p.propertyName ?? p.name).text === p.name.text ? null : { value: n };
+    if (declaresName(p, n)) return null;
+    named = ts.isPropertyAccessExpression(p) && p.name === n ? p : n;
+  }
+  if (reach.key === undefined) return functionUse(named);
+  const { user, node } = useOf(named);
+  if (user !== undefined && isMemberRead(user) && user.expression === node) return memberOfRead(user) === reach.key ? functionUse(user) : null;
+  return functionUse(named);
+}
+/** True when `p` declares `n` as its own name: a parameter, a variable, a binding, a function, a class or a member. */
+const declaresName = (p, n) => (ts.isParameter(p) || ts.isVariableDeclaration(p) || ts.isBindingElement(p) || ts.isFunctionDeclaration(p) || ts.isClassDeclaration(p) || ts.isPropertySignature(p) || ts.isMethodSignature(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p) || ts.isPropertyAssignment(p)) && p.name === n;
+/**
+ * A dotted reach's function, or a container on its path, read under another
+ * name: a destructure of the path that binds its next member (`const {
+ * captureAll } = deps`), or a container on the path handed on whole
+ * (`helper(deps)`, `const d = this.deps`), `this` itself aside. Answers
+ * `{ value }` (handed on), null (not a use: a declaration, a longer access, a
+ * store or a test), or undefined when `n` is neither.
+ */
+function aliasRef(n, reach, path) {
+  if (ts.isBindingElement(n) && ts.isObjectBindingPattern(n.parent)) {
+    const decl = n.parent.parent;
+    const prop = n.propertyName ?? n.name;
+    if (!ts.isIdentifier(prop) || decl === undefined || !(ts.isVariableDeclaration(decl) || ts.isParameter(decl)) || decl.initializer === undefined) return undefined;
+    const from = pathText(decl.initializer);
+    for (let k = 1; k < path.length; k += 1) if (from === path.slice(0, k).join('.') && prop.text === path[k]) return { value: n };
+    return undefined;
+  }
+  if (!ts.isIdentifier(n) && !isMemberRead(n)) return undefined;
+  const at = pathText(n);
+  let container = false;
+  for (let k = 1; k < path.length; k += 1) {
+    const prefix = path.slice(0, k).join('.');
+    if (prefix !== 'this' && prefix === at && !(reach.key !== undefined && prefix === reach.name)) container = true;
+  }
+  if (!container) return undefined;
+  const p = n.parent;
+  if (p === undefined || inType(n) || declaresName(p, n) || ts.isImportSpecifier(p) || ts.isExportSpecifier(p) || ts.isImportClause(p) || ts.isNamespaceImport(p)) return null;
+  if ((ts.isPropertyAccessExpression(p) && (p.expression === n || p.name === n)) || (ts.isElementAccessExpression(p) && p.expression === n)) return null;
+  return functionUse(n);
+}
+/** Where a value is handed: `C(#k)`, `new C(#k)`, `C(#k).a`, `const o.a`, `f() returns .a`, `const x` or `x =`; or null. */
+function handoffOf(v) {
+  const { user, node } = useOf(v);
+  if (user === undefined) return null;
+  const arg = argumentSeam(user, node);
+  if (arg !== null) return arg;
+  if ((ts.isPropertyAssignment(user) && user.initializer === node) || (ts.isShorthandPropertyAssignment(user) && user.name === node)) return objectSeam(user);
+  if (ts.isVariableDeclaration(user) && user.initializer === node && ts.isIdentifier(user.name)) return `const ${user.name.text}`;
+  if (ts.isBinaryExpression(user) && user.operatorToken.kind === ts.SyntaxKind.EqualsToken && user.right === node) return `${flatText(user.left)} =`;
+  return null;
+}
+/**
+ * (f) A seam's callers (his ruled round, the reverify's R6 and R9): every
+ * caller in the row's reach is read as the ask itself is read. One that
+ * answers the refusal needs no line; one that hands it on must be among the
+ * row's callers, whose own reach, where it has one, is read the same way. A
+ * listed caller that is gone, and a reach that finds nothing, are red.
+ */
+function seamCallerFindings(tree, row, f) {
+  const label = `ASK_SEAMS's \`${row.seam}\` in ${row.file}`;
+  const callers = row.callers ?? [];
+  const { reach } = row;
+  const shown = reach.key === undefined ? reach.name : `${reach.name}.${reach.key}`;
+  const listed = new Set();
+  const hand = (rel, n, to, how) => {
+    if (to !== null && callers.some((c) => c.file === rel && c.seam === to)) {
+      listed.add(`${rel}|${to}`);
+      return;
+    }
+    f.push(`${where(rel, n)} ${how} ${to === null ? 'a place this rule cannot name' : `\`${to}\``}, as a caller of ${label} that neither answers the refusal nor is listed among its callers with who answers it there (Phase 359, D3, (f), his ruled round)`);
+  };
+  let placed = false;
+  let refs = 0;
+  for (const rel of reachFiles(tree, reach)) {
+    const sf = sfOf(tree, rel);
+    const scope = sf === null ? null : reach.within === undefined ? sf : functionWithSeam(sf, reach.within);
+    if (scope === null) continue;
+    placed = true;
+    for (const n of nodesOf(scope)) {
+      const ref = reachRef(n, reach);
+      if (ref === null) continue;
+      refs += 1;
+      if (ref.value !== undefined) {
+        hand(rel, n, handoffOf(ref.value), `hands \`${shown}\` on as a value to`);
+        continue;
+      }
+      const r = readRejection(ref.call);
+      if (r.answered) continue;
+      if (r.why !== undefined) f.push(`${where(rel, n)} drops what \`${shown}\` answers (\`${r.end.getText().replace(/\s+/g, ' ').slice(0, 80)}\`), as a caller of ${label}: no catch that answers it ends its chain and nothing awaits or returns it, so once the quit has begun its refusal rejects unhandled (Phase 359, D3, (f), his ruled round)`);
+      else hand(rel, n, r.seam, `calls \`${shown}\` and hands its refusal to`);
+    }
+  }
+  const at = `\`${reach.name}\`${reach.within === undefined ? '' : ` in \`${reach.within}\``} of ${reach.file === '*' ? 'the files (f) reads' : reach.file}`;
+  if (refs === 0) f.push(`${label} reaches ${at}, which ${placed ? 'names it nowhere' : 'is not there'}; a row must say where its function's callers are (Phase 359, D3, (f), his ruled round)`);
+  for (const c of callers) {
+    if (!listed.has(`${c.file}|${c.seam}`)) f.push(`${label} lists the caller \`${c.seam}\` in ${c.file}, which hands its refusal on no more; the list cannot keep a caller that is gone (Phase 359, D3, (f), his ruled round)`);
+    else if (c.reach !== undefined) seamCallerFindings(tree, c, f);
+  }
+}
+function askFindings(tree, f) {
+  const handed = new Set();
+  for (const rel of askScanFiles(tree)) {
+    const sf = sfOf(tree, rel);
+    if (sf === null) continue;
+    const found = askFileFindings(rel, sf);
+    f.push(...found.bad);
+    for (const s of found.seams) handed.add(`${rel}|${s}`);
+  }
+  for (const row of ASK_SEAMS) {
+    if (!handed.has(`${row.file}|${row.seam}`)) f.push(`ASK_SEAMS names \`${row.seam}\` in ${row.file}, which hands no ask any more; the list cannot keep a seam that is gone (Phase 359, D3, (f))`);
+    seamCallerFindings(tree, row, f);
+  }
+  for (const rel of ASK_HARNESS_MODES) {
+    const text = tree.get(rel);
+    if (text === undefined || !namesWord(text, ASK)) f.push(`ASK_HARNESS_MODES names ${rel}, which ${text === undefined ? 'is not in the tree' : 'asks for no core'}; the list of files (f) leaves out cannot keep one that is gone (Phase 359, (f))`);
+  }
+}
+
+export function ruleS16(tree) {
+  const f = [];
+  oneBootFindings(tree, f);
+  getGmuxCoreFindings(tree, f);
+  startupLineFindings(tree, f);
+  askFindings(tree, f);
+  return f;
+}
+
+export const RULE_FNS = Object.freeze({ S1: ruleS1, S2: ruleS2, S3: ruleS3, S4: ruleS4, S5: ruleS5, S6: ruleS6, S7: ruleS7, S8: ruleS8, S9: ruleS9, S10: ruleS10, S11: ruleS11, S12: ruleS12, S13: ruleS13, S14: ruleS14, S15: ruleS15, S16: ruleS16 });
 
 // ---------------------------------------------------------------------------
 // The ablations: in-memory copies, each with one rule broken
@@ -3193,6 +4363,62 @@ function markerIn(sf) {
   const name = decl.name.text;
   const none = nodesOf(fn).find((n) => ts.isIfStatement(n) && isNullTestOf(n.expression, name) && endsInReturn(n.thenStatement)) ?? null;
   return { fn, decl, none };
+}
+// PHASE 359's locators.
+/** A statement moved to just after a later one (the later edit first, so the earlier offsets still hold), or null. */
+function moveAfter(text, stmt, anchor) {
+  if (anchor.getStart() < stmt.getEnd()) return null;
+  const withCopy = `${text.slice(0, anchor.getEnd())}\n    ${stmt.getText()}${text.slice(anchor.getEnd())}`;
+  return withCopy.slice(0, stmt.getStart()) + withCopy.slice(stmt.getEnd());
+}
+/** A statement moved to just before an earlier one (the later edit first), or null. */
+function moveBefore(text, stmt, anchor) {
+  if (anchor.getStart() >= stmt.getStart()) return null;
+  const without = text.slice(0, stmt.getStart()) + text.slice(stmt.getEnd());
+  return `${without.slice(0, anchor.getStart())}${stmt.getText()}\n  ${without.slice(anchor.getStart())}`;
+}
+/** `text` with `from`, which must occur exactly once, replaced by `to`; or null. */
+function onceReplace(text, from, to) {
+  const i = text.indexOf(from);
+  return i === -1 || text.indexOf(from, i + 1) !== -1 ? null : text.slice(0, i) + to + text.slice(i + from.length);
+}
+/** index.ts's focus listener, the line the reverify planted its hostile copies after (his ruled round). */
+const FOCUS_LISTENER = "  app.on('browser-window-focus', () => syncPollCadence(true));\n";
+/** An edit that plants `body` on the line after that listener, or answers null. */
+const afterFocusListener = (body) => (text) => onceReplace(text, FOCUS_LISTENER, `${FOCUS_LISTENER}${body}\n`);
+/** The module one ablation moves the boot into; it is not in the tree. */
+const BOOT_HELPER = 'src/main/sessions/boot-core.ts';
+/**
+ * A door that asks for the core during a quit (Live Diagnostics' session read,
+ * build/p359/SPEC.md §0.1 item 2), where the cross-module shapes of a second
+ * boot are planted: no other rule reads it, so its copies cost S16 alone. The
+ * spec's own `void GmuxCore.boot()` stays in capabilities.ts.
+ */
+const DOOR_MODULE = 'src/main/diagnostics/report.ts';
+/** getGmuxCore's parts, and by their text the boot branch's quit check, its `lifecycle = 'booting'`, its boot and its `.then(…)`, or null. */
+function getGmuxCoreIn(sf) {
+  const g = getGmuxCoreParts(sf);
+  if (g.fn === null || g.body === null || g.block === null) return null;
+  const find = (test) => g.block.find(test) ?? null;
+  return {
+    ...g,
+    check: find((s) => ts.isIfStatement(s) && s.expression.getText().includes('appLifecycleState')),
+    booting: find((s) => ts.isExpressionStatement(s) && flatText(s.expression) === "lifecycle='booting'"),
+    boot: find((s) => ts.isExpressionStatement(s) && flatText(s.expression) === 'corePromise=GmuxCore.boot()'),
+    then: find((s) => ts.isExpressionStatement(s) && flatText(s.expression).startsWith('corePromise.then('))
+  };
+}
+/** The startup's first catch in index.ts, and by their text its schema refusal's branch, its quit branch and its `core boot failed` line, or null. */
+function startupIn(sf) {
+  const sc = startupCatchOf(sf);
+  if (sc.why !== undefined) return null;
+  const find = (test) => sc.stmts.find(test) ?? null;
+  return {
+    ...sc,
+    schema: find((s) => ts.isIfStatement(s) && s.expression.getText().includes('isSchemaRefusal(')),
+    quit: find((s) => ts.isIfStatement(s) && s.expression.getText().includes('isGmuxError(')),
+    failed: find((s) => s.getText().includes('core boot failed'))
+  };
 }
 
 export const ABLATIONS = [
@@ -4042,10 +5268,337 @@ export const ABLATIONS = [
   ['S15', ['S15'], 'markRunSentinelAtQuit no longer exported', (t) => withFile(t, FILES.logSentinel, (s, sf) => {
     const m = markerIn(sf);
     return m === null || !/^export\s/.test(m.fn.getText()) ? null : splice(s, m.fn, m.fn.getText().replace(/^export\s+/, ''));
+  })],
+  // S16 (Phase 359). The spec's eighteen first (build/p359/SPEC.md §7.1), then
+  // one for each clause none of them reaches alone.
+  ['S16', ['S16'], 'a retry: a second corePromise = GmuxCore.boot() in the boot’s rejection handler', (t) => withFile(t, FILES.core, (s, sf) => {
+    const then = getGmuxCoreIn(sf)?.then ?? null;
+    const call = then === null ? undefined : peel(then.expression);
+    const onRejected = call !== undefined && ts.isCallExpression(call) ? call.arguments[1] : undefined;
+    return onRejected === undefined || !isFunctionLike(onRejected) || !ts.isBlock(onRejected.body) ? null : `${s.slice(0, onRejected.body.getEnd() - 1)}  corePromise = GmuxCore.boot();\n      ${s.slice(onRejected.body.getEnd() - 1)}`;
+  })],
+  ['S16', ['S16'], 'void GmuxCore.boot() planted in capabilities.ts', (t) => withFile(t, FILES.capabilities, append('export function selfTestSecondBoot(): void {\n  void GmuxCore.boot();\n}'))],
+  ['S16', ['S16'], 'the boot branch’s quit check removed', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : splice(s, c, '');
+  })],
+  ['S16', ['S16'], 'the quit check’s test made !==', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : splice(s, c.expression, "appLifecycleState() !== 'quitting'");
+  })],
+  ['S16', ['S16'], 'the quit check’s test widened with || corePromise !== null', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : splice(s, c.expression, `${c.expression.getText()} || corePromise !== null`);
+  })],
+  ['S16', ['S16'], "the quit check moved after lifecycle = 'booting'", (t) => withFile(t, FILES.core, (s, sf) => {
+    const g = getGmuxCoreIn(sf);
+    return g === null || g.check === null || g.booting === null ? null : moveAfter(s, g.check, g.booting);
+  })],
+  ['S16', ['S16'], 'the quit check moved after GmuxCore.boot()', (t) => withFile(t, FILES.core, (s, sf) => {
+    const g = getGmuxCoreIn(sf);
+    return g === null || g.check === null || g.boot === null ? null : moveAfter(s, g.check, g.boot);
+  })],
+  ['S16', ['S16'], 'the quit check’s consequent returning corePromise', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : splice(s, c.thenStatement, '{\n      return corePromise;\n    }');
+  })],
+  ['S16', ['S16'], 'the quit check’s consequent a resolve', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : splice(s, c.thenStatement, '{\n      return Promise.resolve(undefined as unknown as GmuxCore);\n    }');
+  })],
+  ['S16', ['S16'], 'the quit check reading coreLifecycleState()', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : splice(s, c.expression, "coreLifecycleState() === 'shuttingDown'");
+  })],
+  ['S16', ['S16'], 'the quit check reading lifecycle', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : splice(s, c.expression, "lifecycle === 'shuttingDown'");
+  })],
+  ['S16', ['S16'], 'a local const appLifecycleState that answers running', (t) => withFile(t, FILES.core, (s, sf) => {
+    const imp = importOf(sf, 'appLifecycleState', '../lifecycle');
+    return imp === null ? null : `${splice(s, imp, '')}\nconst appLifecycleState = (): 'running' | 'quitting' => 'running';\n`;
+  })],
+  ['S16', ['S16'], 'the flag imported from ./lifecycle-stand-in', (t) => withFile(t, FILES.core, (s, sf) => {
+    const imp = importOf(sf, 'appLifecycleState', '../lifecycle');
+    return imp === null ? null : splice(s, imp.moduleSpecifier, "'./lifecycle-stand-in'");
+  })],
+  ['S16', ['S16'], 'the quit check moved to getGmuxCore’s first line, refusing the running core while the quit runs', (t) => withFile(t, FILES.core, (s, sf) => {
+    const g = getGmuxCoreIn(sf);
+    return g === null || g.check === null || g.body[0] === undefined ? null : moveBefore(s, g.check, g.body[0]);
+  })],
+  ['S16', ['S16'], 'the startup’s quit branch removed', (t) => withFile(t, FILES.index, (s, sf) => {
+    const q = startupIn(sf)?.quit ?? null;
+    return q === null ? null : splice(s, q, '');
+  })],
+  ['S16', ['S16'], 'the startup’s quit line said at error', (t) => withFile(t, FILES.index, (s, sf) => {
+    const q = startupIn(sf)?.quit ?? null;
+    const info = q === null ? undefined : nodesOf(q.thenStatement).find((n) => ts.isPropertyAccessExpression(n) && flatText(n) === 'bootLog.info');
+    return info === undefined ? null : splice(s, info, 'bootLog.error');
+  })],
+  ['S16', ['S16'], 'the startup’s quit branch after the core boot failed line', (t) => withFile(t, FILES.index, (s, sf) => {
+    const st = startupIn(sf);
+    return st === null || st.quit === null || st.failed === null ? null : moveAfter(s, st.quit, st.failed);
+  })],
+  ['S16', ['S16'], 'the startup’s quit branch with no return', (t) => withFile(t, FILES.index, (s, sf) => {
+    const q = startupIn(sf)?.quit ?? null;
+    const ret = q !== null && ts.isBlock(q.thenStatement) ? q.thenStatement.statements.find((x) => ts.isReturnStatement(x)) : undefined;
+    return ret === undefined ? null : splice(s, ret, '');
+  })],
+  // (a): a second boot path, in each shape it takes, refused where it is made.
+  ['S16', ['S16'], 'a second boot through the class imported under another name', (t) => withFile(t, DOOR_MODULE, append("import { GmuxCore as Engine } from '../sessions';\nexport function selfTestEngine(): void {\n  void Engine.boot();\n}"))],
+  ['S16', ['S16'], 'boot reached by its key in another module', (t) => withFile(t, DOOR_MODULE, append("import { GmuxCore } from '../sessions';\nexport function selfTestByKey(): void {\n  void GmuxCore['boot']();\n}"))],
+  ['S16', ['S16'], 'boot destructured out of the class', (t) => withFile(t, FILES.core, append('export function selfTestDestructure(): Promise<GmuxCore> {\n  const { boot } = GmuxCore;\n  return boot();\n}'))],
+  ['S16', ['S16'], 'the class handed to a helper that boots what it is given', (t) => withFile(t, DOOR_MODULE, append("import { GmuxCore } from '../sessions';\nexport function selfTestHandOn(): void {\n  void bootWith(GmuxCore);\n}\nfunction bootWith(c: { boot(): Promise<unknown> }): Promise<unknown> {\n  return c.boot();\n}"))],
+  ['S16', ['S16'], 'a second static member that boots through this.boot()', (t) => withFile(t, FILES.core, (s, sf) => {
+    const m = coreMethod(sf, 'boot');
+    return m === null ? null : insertBefore(s, m, 'static reboot(): Promise<GmuxCore> {\n    return this.boot();\n  }\n\n  ');
+  })],
+  ['S16', ['S16'], 'boot reached through an instance’s constructor', (t) => withFile(t, FILES.core, (s, sf) => {
+    const m = coreMethod(sf, 'boot');
+    return m === null ? null : insertBefore(s, m, 'rebootLike(): Promise<GmuxCore> {\n    return (this.constructor as typeof GmuxCore).boot();\n  }\n\n  ');
+  })],
+  ['S16', ['S16'], 'a second construction of the class, in a static member beside boot', (t) => withFile(t, FILES.core, (s, sf) => {
+    const m = coreMethod(sf, 'boot');
+    return m === null ? null : insertBefore(s, m, 'static fresh(dbPath: string): GmuxCore {\n    return new GmuxCore(new ManifestStore(dbPath));\n  }\n\n  ');
+  })],
+  ['S16', ['S16'], 'the boot moved into a helper of core.ts that getGmuxCore calls', (t) => withFile(t, FILES.core, (s, sf) => {
+    const b = getGmuxCoreIn(sf)?.boot ?? null;
+    return b === null ? null : `${splice(s, b, 'corePromise = bootNow();')}\nfunction bootNow(): Promise<GmuxCore> {\n  return GmuxCore.boot();\n}\n`;
+  })],
+  ['S16', ['S16'], 'the boot moved into a module core.ts imports', (t) => {
+    const copy = withFile(t, FILES.core, (s, sf) => {
+      const b = getGmuxCoreIn(sf)?.boot ?? null;
+      const imp = importOf(sf, 'appLifecycleState', '../lifecycle');
+      // The later edit first, so the earlier one's offsets still hold.
+      return b === null || imp === null ? null : insertBefore(splice(s, b, 'corePromise = bootCore();'), imp, "import { bootCore } from './boot-core';\n");
+    });
+    if (copy === null || copy.has(BOOT_HELPER)) return null;
+    copy.set(BOOT_HELPER, "import { GmuxCore } from './core';\n\nexport function bootCore(): Promise<GmuxCore> {\n  return GmuxCore.boot();\n}\n");
+    return copy;
+  }],
+  ['S16', ['S16'], 'the class re-exported under another name', (t) => withFile(t, 'src/main/sessions/index.ts', append("export { GmuxCore as Engine } from './core';"))],
+  ['S16', ['S16'], 'a member of the class reached by a computed key', (t) => withFile(t, DOOR_MODULE, append("import { GmuxCore } from '../sessions';\nexport function selfTestComputed(name: 'boot'): void {\n  void GmuxCore[name]();\n}"))],
+  ['S16', ['S16'], 'a class of its own named GmuxCore in another module', (t) => withFile(t, 'src/main/lifecycle.ts', append('export class GmuxCore {}'))],
+  ['S16', ['S16'], 'a second class GmuxCore declared in core.ts, so which one boots cannot be read', (t) => withFile(t, FILES.core, append('class GmuxCore {}'))],
+  ['S16', ['S16'], 'the class destructured out of a module under another name', (t) => withFile(t, DOOR_MODULE, append("export async function selfTestRenamed(): Promise<void> {\n  const { GmuxCore: Engine } = await import('../sessions');\n  void Engine;\n}"))],
+  ['S16', ['S16'], 'a subclass of the class, which inherits its boot', (t) => withFile(t, DOOR_MODULE, append("import { GmuxCore } from '../sessions';\nexport class LateCore extends GmuxCore {}"))],
+  ['S16', ['S16'], 'a whole module bound under the class’s name', (t) => withFile(t, DOOR_MODULE, append("import * as GmuxCore from '../lifecycle';"))],
+  ['S16', ['S16'], 'a binding of its own named GmuxCore in another module', (t) => withFile(t, DOOR_MODULE, append('export const GmuxCore = { boot: (): void => undefined };'))],
+  // (b)
+  ['S16', ['S16'], 'the boot’s refusal answering another code', (t) => withFile(t, FILES.core, (s, sf) => {
+    const fn = functionsNamed(sf, 'shutdownRefusal')[0];
+    const code = fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isStringLiteral(n) && n.text === 'SHUTTING_DOWN');
+    return code === undefined ? null : splice(s, code, "'UNKNOWN'");
+  })],
+  ['S16', ['S16'], 'the quit check moved into a helper the boot branch calls', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : `${splice(s, c.expression, 'quittingNow()')}\nfunction quittingNow(): boolean {\n  return ${c.expression.getText()};\n}\n`;
+  })],
+  ['S16', ['S16'], 'the quit check given an else', (t) => withFile(t, FILES.core, (s, sf) => {
+    const c = getGmuxCoreIn(sf)?.check ?? null;
+    return c === null ? null : `${s.slice(0, c.getEnd())} else {\n      void 0;\n    }${s.slice(c.getEnd())}`;
+  })],
+  // (c)
+  ['S16', ['S16'], 'the flag’s reader shadowed by a parameter of getGmuxCore', (t) => withFile(t, FILES.core, (s, sf) => {
+    const fn = getGmuxCoreIn(sf)?.fn;
+    const open = fn === undefined || fn.parameters.length !== 0 || fn.name === undefined ? -1 : s.indexOf('(', fn.name.getEnd());
+    return open === -1 ? null : `${s.slice(0, open + 1)}appLifecycleState = (): string => 'running'${s.slice(open + 1)}`;
+  })],
+  ['S16', ['S16'], 'the flag read a second time in getGmuxCore', (t) => withFile(t, FILES.core, (s, sf) => {
+    const last = getGmuxCoreIn(sf)?.block.at(-1);
+    return last === undefined ? null : `${s.slice(0, last.getEnd())}\n    void appLifecycleState();${s.slice(last.getEnd())}`;
+  })],
+  ['S16', ['S16'], 'the flag also imported from a stand-in under its name', (t) => withFile(t, FILES.core, (s, sf) => {
+    const imp = importOf(sf, 'appLifecycleState', '../lifecycle');
+    return imp === null ? null : insertBefore(s, imp, "import { stand as appLifecycleState } from './lifecycle-stand-in';\n");
+  })],
+  ['S16', ['S16'], 'the flag reassigned', (t) => withFile(t, FILES.core, append("export function selfTestRebind(): void {\n  appLifecycleState = (): 'running' | 'quitting' => 'running';\n}"))],
+  ['S16', ['S16'], 'a module-level function of the flag’s name beside its import', (t) => withFile(t, FILES.core, append("function appLifecycleState(): 'running' | 'quitting' {\n  return 'running';\n}"))],
+  // (d)
+  ['S16', ['S16'], 'Phase 116’s refusal removed', (t) => withFile(t, FILES.core, (s, sf) => {
+    const first = getGmuxCoreIn(sf)?.body[0];
+    return first === undefined ? null : splice(s, first, '');
+  })],
+  ['S16', ['S16'], 'Phase 116’s refusal handing back the dying core', (t) => withFile(t, FILES.core, (s, sf) => {
+    const first = getGmuxCoreIn(sf)?.body[0];
+    return first === undefined || !ts.isIfStatement(first) ? null : splice(s, first.thenStatement, '{\n    return corePromise!;\n  }');
+  })],
+  ['S16', ['S16'], 'the running core refused through another reader, before the return', (t) => withFile(t, FILES.core, (s, sf) => {
+    const ret = getGmuxCoreIn(sf)?.body.at(-1);
+    return ret === undefined ? null : `${insertBefore(s, ret, "if (quitHasBegun()) return Promise.reject(shutdownRefusal('getGmuxCore'));\n  ")}\nfunction quitHasBegun(): boolean {\n  return false;\n}\n`;
+  })],
+  ['S16', ['S16'], 'the running core refused in an else of the boot branch', (t) => withFile(t, FILES.core, (s, sf) => {
+    const b = getGmuxCoreIn(sf)?.branch;
+    return b === undefined ? null : `${s.slice(0, b.getEnd())} else if (quitHasBegun()) {\n    return Promise.reject(shutdownRefusal('getGmuxCore'));\n  }${s.slice(b.getEnd())}\nfunction quitHasBegun(): boolean {\n  return false;\n}\n`;
+  })],
+  ['S16', ['S16'], 'the return refusing the running core through another reader', (t) => withFile(t, FILES.core, (s, sf) => {
+    const ret = getGmuxCoreIn(sf)?.body.at(-1);
+    return ret === undefined || !ts.isReturnStatement(ret) || ret.expression === undefined ? null : `${splice(s, ret.expression, "quitHasBegun() ? Promise.reject(shutdownRefusal('getGmuxCore')) : corePromise")}\nfunction quitHasBegun(): boolean {\n  return false;\n}\n`;
+  })],
+  // (e)
+  ['S16', ['S16'], 'isGmuxError imported from another module', (t) => withFile(t, FILES.index, (s, sf) => {
+    const imp = importOf(sf, 'isGmuxError', './errors');
+    return imp === null ? null : splice(s, imp.moduleSpecifier, "'./errors-stand-in'");
+  })],
+  ['S16', ['S16'], 'isGmuxError replaced by a module function that answers no', (t) => withFile(t, FILES.index, (s, sf) => {
+    const imp = importOf(sf, 'isGmuxError', './errors');
+    return imp === null ? null : `${splice(s, imp, '')}\nfunction isGmuxError(_err: unknown, _code?: string): boolean {\n  return false;\n}\n`;
+  })],
+  ['S16', ['S16'], 'a local isGmuxError in the startup catch that answers no', (t) => withFile(t, FILES.index, (s, sf) => {
+    const first = startupIn(sf)?.stmts[0];
+    return first === undefined ? null : insertBefore(s, first, 'const isGmuxError = (_err: unknown, _code: string): boolean => false;\n    ');
+  })],
+  ['S16', ['S16'], 'the core boot failed line removed, so every other failed boot goes unsaid', (t) => withFile(t, FILES.index, (s, sf) => {
+    const failed = startupIn(sf)?.failed ?? null;
+    return failed === null ? null : splice(s, failed, '');
+  })],
+  ['S16', ['S16'], 'a first ask at startup with no catch, rejected unhandled in a quitting app', (t) => withFile(t, FILES.index, (s, sf) => {
+    const st = startupIn(sf);
+    const stmt = st === null ? null : ancestor(st.ask, (p) => ts.isExpressionStatement(p));
+    return stmt === null ? null : insertBefore(s, stmt, 'void getGmuxCore();\n  ');
+  })],
+  ['S16', ['S16'], 'the startup’s quit branch asking another code', (t) => withFile(t, FILES.index, (s, sf) => {
+    const q = startupIn(sf)?.quit ?? null;
+    const code = q === null ? undefined : nodesOf(q.expression).find((n) => ts.isStringLiteral(n) && n.text === 'SHUTTING_DOWN');
+    return code === undefined ? null : splice(s, code, "'MANIFEST_STOPPED'");
+  })],
+  ['S16', ['S16'], 'the startup’s quit branch asking about another value than the caught error', (t) => withFile(t, FILES.index, (s, sf) => {
+    const q = startupIn(sf)?.quit ?? null;
+    const call = q === null ? undefined : peel(q.expression);
+    const arg = call !== undefined && ts.isCallExpression(call) ? call.arguments[0] : undefined;
+    return arg === undefined ? null : splice(s, arg, "new Error('quitting')");
+  })],
+  ['S16', ['S16'], 'the startup’s quit branch before the schema refusal’s', (t) => withFile(t, FILES.index, (s, sf) => {
+    const st = startupIn(sf);
+    return st === null || st.quit === null || st.schema === null ? null : moveBefore(s, st.quit, st.schema);
+  })],
+  ['S16', ['S16'], 'the startup’s quit line not naming the quit', (t) => withFile(t, FILES.index, (s, sf) => {
+    const q = startupIn(sf)?.quit ?? null;
+    const words = q === null ? undefined : nodesOf(q.thenStatement).find((n) => ts.isStringLiteralLike(n) && n.text.includes('quitting'));
+    return words === undefined ? null : splice(s, words, "'the session core was not started'");
+  })],
+  ['S16', ['S16'], 'a local bootLog in the startup catch that writes nowhere', (t) => withFile(t, FILES.index, (s, sf) => {
+    const first = startupIn(sf)?.stmts[0];
+    return first === undefined ? null : insertBefore(s, first, 'const bootLog = { info: (_m: string): void => undefined, error: (_m: string): void => undefined };\n    ');
+  })],
+  ['S16', ['S16'], 'the startup’s quit branch given a conjunct that never holds', (t) => withFile(t, FILES.index, (s, sf) => {
+    const q = startupIn(sf)?.quit ?? null;
+    return q === null ? null : splice(s, q.expression, `${q.expression.getText()} && Date.now() < 0`);
+  })],
+  ['S16', ['S16'], 'a new first ask at startup whose catch says the quit’s refusal is a failed boot', (t) => withFile(t, FILES.index, (s, sf) => {
+    const st = startupIn(sf);
+    const stmt = st === null ? null : ancestor(st.ask, (p) => ts.isExpressionStatement(p));
+    return stmt === null ? null : insertBefore(s, stmt, 'getGmuxCore().catch((err: unknown) => {\n    bootLog.error(`the session core did not start: ${String(err)}`);\n  });\n  ');
+  })],
+  ['S16', ['S16'], 'bootLog given another scope', (t) => withFile(t, FILES.index, (s, sf) => {
+    const d = topDecl(sf, 'bootLog')?.decl;
+    return d?.initializer === undefined ? null : splice(s, d.initializer, "getLog('quit')");
+  })],
+  // THE PROBE REVIEW (rule 9): the three hostile copies that walked past (e),
+  // each a statement that ends the startup's catch before `core boot failed`.
+  ['S16', ['S16'], 'a branch before the quit’s that says the quit for every boot error', (t) => withFile(t, FILES.index, (s, sf) => {
+    const st = startupIn(sf);
+    return st === null || st.quit === null ? null : insertBefore(s, st.quit, `if (${st.param} instanceof Error) {\n      bootLog.info('the session core was not started, because Tortie is quitting');\n      return;\n    }\n    `);
+  })],
+  ['S16', ['S16'], 'a silent return while quitting, before the schema refusal’s branch, so the quit is said nowhere', (t) => withFile(t, FILES.index, (s, sf) => {
+    const st = startupIn(sf);
+    return st === null || st.schema === null ? null : insertBefore(s, st.schema, "if (appLifecycleState() === 'quitting') return;\n    ");
+  })],
+  ['S16', ['S16'], 'a silent return for one kind of error before the quit branch, which then never says the boot failed', (t) => withFile(t, FILES.index, (s, sf) => {
+    const st = startupIn(sf);
+    return st === null || st.quit === null ? null : insertBefore(s, st.quit, `if (${st.param} instanceof RangeError) return;\n    `);
+  })],
+  // (f) THE DOORS ANSWER THE REFUSAL (Phase 359's fix round): the attack lens's
+  // T12 first, then each shape a door can drop the refusal in, and the two
+  // lists the clause keeps, each shown unable to rot.
+  ['S16', ['S16'], 'a focus listener whose getGmuxCore().then(…) has no catch (the attack lens’s T12)', (t) => withFile(t, DOOR_MODULE, append("export function selfTestFocusDoor(on: (event: string, listener: () => void) => void): void {\n  on('browser-window-focus', () => {\n    void getGmuxCore().then((core) => core.setPollFocused(true));\n  });\n}"))],
+  ['S16', ['S16'], 'an async blur listener that awaits getGmuxCore() with no try', (t) => withFile(t, DOOR_MODULE, append("export function selfTestBlurDoor(on: (event: string, listener: () => Promise<void>) => void): void {\n  on('browser-window-blur', async () => {\n    const core = await getGmuxCore();\n    core.setPollFocused(false);\n  });\n}"))],
+  ['S16', ['S16'], 'a chain caught in the middle, then given a then that can throw again', (t) => withFile(t, DOOR_MODULE, append('export function selfTestCaughtThenThrown(): void {\n  void getGmuxCore()\n    .catch(() => null)\n    .then((core) => core!.scheduleRefresh());\n}'))],
+  ['S16', ['S16'], 'the ask held in a const and never caught', (t) => withFile(t, DOOR_MODULE, append('export function selfTestHeldAsk(): void {\n  const asked = getGmuxCore();\n  void asked.then((core) => core.scheduleRefresh());\n}'))],
+  ['S16', ['S16'], 'the ask awaited in a try that has a finally and no catch', (t) => withFile(t, DOOR_MODULE, append('export async function selfTestFinallyOnly(): Promise<void> {\n  try {\n    (await getGmuxCore()).scheduleRefresh();\n  } finally {\n    void 0;\n  }\n}'))],
+  ['S16', ['S16'], 'the ask awaited in a catch block, which its own try does not catch', (t) => withFile(t, DOOR_MODULE, append('export async function selfTestInCatch(): Promise<void> {\n  try {\n    void 0;\n  } catch {\n    (await getGmuxCore()).scheduleRefresh();\n  }\n}'))],
+  ['S16', ['S16'], 'a timer callback awaiting the ask, inside a try of the function around it', (t) => withFile(t, DOOR_MODULE, append('export function selfTestTimerInTry(): void {\n  try {\n    setTimeout(async () => {\n      (await getGmuxCore()).scheduleRefresh();\n    }, 0);\n  } catch {\n    void 0;\n  }\n}'))],
+  ['S16', ['S16'], 'a callback of a chain that answers no rejection after it', (t) => withFile(t, DOOR_MODULE, append('export function selfTestUncaughtCallback(): void {\n  void Promise.resolve().then(async () => {\n    (await getGmuxCore()).scheduleRefresh();\n  });\n}'))],
+  ['S16', ['S16'], 'a handler-shaped call that names no channel', (t) => withFile(t, DOOR_MODULE, append('export function selfTestNoChannel(handle: (ipc: unknown, fn: () => Promise<unknown>) => void, ipc: unknown): void {\n  handle(ipc, async () => (await getGmuxCore()).listProjects());\n}'))],
+  ['S16', ['S16'], 'the ask awaited at a module’s top level', (t) => withFile(t, DOOR_MODULE, append('export const selfTestTopLevel = (await getGmuxCore()).listProjects();'))],
+  ['S16', ['S16'], 'getGmuxCore handed on as a value', (t) => withFile(t, DOOR_MODULE, append('export const selfTestAskRef = getGmuxCore;'))],
+  ['S16', ['S16'], 'getGmuxCore imported under another name', (t) => withFile(t, DOOR_MODULE, append("import { getGmuxCore as askCore } from '../sessions';\nexport function selfTestRenamedAsk(): void {\n  void askCore();\n}"))],
+  ['S16', ['S16'], 'getGmuxCore destructured under another name', (t) => withFile(t, DOOR_MODULE, append("export async function selfTestDestructuredAsk(): Promise<void> {\n  const { getGmuxCore: askCore } = await import('../sessions');\n  void askCore;\n}"))],
+  ['S16', ['S16'], 'the power deps’ capture handed under another key, so it is not where ASK_SEAMS names it', (t) => withFile(t, FILES.index, (s, sf) => {
+    const p = nodesOf(sf).find((n) => ts.isPropertyAssignment(n) && memberName(n) === 'captureAll');
+    return p === undefined ? null : splice(s, p.name, 'captureEverything');
+  })],
+  ['S16', ['S16'], 'a seam ASK_SEAMS names that hands no ask any more', (t) => withFile(t, 'src/main/fs/project-roots.ts', (s, sf) => {
+    const fn = functionsNamed(sf, 'localProjectRoots')[0];
+    const ret = fn === undefined ? undefined : stmtsOf(bodyOf(fn))?.at(-1);
+    return ret === undefined || !ts.isReturnStatement(ret) ? null : splice(s, ret, 'return localRootsOf([]);');
+  })],
+  ['S16', ['S16'], 'a harness mode ASK_HARNESS_MODES names that asks for no core any more', (t) => withFile(t, ASK_HARNESS_MODES[0], (s) => s.replace(/\bgetGmuxCore\b/g, 'askTheCore'))],
+  // HIS RULED ROUND (2026-11-14, "359 a"): the reverify's own hostile copies,
+  // each green on every rule before it, planted where it planted them; then
+  // one more of each kind the new clauses read.
+  ['S16', ['S16'], 'the reverify’s R2: a catch handed undefined', (t) => withFile(t, FILES.index, afterFocusListener("  app.on('browser-window-blur', () => {\n    void getGmuxCore().then((core) => core.setPollFocused(false)).catch(undefined);\n  });"))],
+  ['S16', ['S16'], 'the reverify’s R3: .then(a, undefined)', (t) => withFile(t, FILES.index, afterFocusListener("  app.on('browser-window-blur', () => {\n    void getGmuxCore().then((core) => core.setPollFocused(false), undefined);\n  });"))],
+  ['S16', ['S16'], 'the reverify’s R4: a catch that throws the refusal again', (t) => withFile(t, FILES.index, afterFocusListener("  app.on('browser-window-blur', () => {\n    void getGmuxCore().then((core) => core.setPollFocused(false)).catch((err: unknown) => {\n      throw err;\n    });\n  });"))],
+  ['S16', ['S16'], 'the reverify’s R5: an async listener whose try’s catch throws the refusal again', (t) => withFile(t, FILES.index, afterFocusListener("  app.on('browser-window-blur', async () => {\n    try {\n      (await getGmuxCore()).setPollFocused(false);\n    } catch (err) {\n      throw err;\n    }\n  });"))],
+  ['S16', ['S16'], 'the reverify’s R6: the attack lens’s T12 through a seam, localProjectRoots().then(…) in a blur listener', (t) => withFile(t, FILES.index, (s) => {
+    const imported = onceReplace(s, "import { getGmuxCore } from './sessions';\n", "import { getGmuxCore } from './sessions';\nimport { localProjectRoots } from './fs/project-roots';\n");
+    return imported === null ? null : afterFocusListener("  app.on('browser-window-blur', () => {\n    void localProjectRoots().then((roots) => roots.length);\n  });")(imported);
+  })],
+  ['S16', ['S16'], 'the reverify’s R9: a new caller of the coreReady seam with no catch', (t) => withFile(t, FILES.capabilities, (s) => onceReplace(s, '  const coreReady = async (): Promise<void> => {', "  app.on('browser-window-blur', () => {\n    void coreReady().then(() => undefined);\n  });\n  const coreReady = async (): Promise<void> => {"))],
+  ['S16', ['S16'], 'a catch handler that hands the refusal back as Promise.reject', (t) => withFile(t, DOOR_MODULE, append('export function selfTestRejectAgain(): void {\n  void getGmuxCore().catch((err: unknown) => Promise.reject(err));\n}'))],
+  ['S16', ['S16'], 'a catch handler named rather than written there, which this rule cannot read', (t) => withFile(t, DOOR_MODULE, append('export function selfTestNamedHandler(ignore: (err: unknown) => void): void {\n  void getGmuxCore().catch(ignore);\n}'))],
+  ['S16', ['S16'], 'a new caller of a seam in its receiver, with no catch (the power deps’ capture)', (t) => withFile(t, 'src/main/power/index.ts', (s, sf) => {
+    const fn = functionsNamed(sf, 'installPowerHandlers')[0];
+    const work = fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isVariableStatement(n) && n.getText().startsWith('const suspendWork'));
+    return work === undefined ? null : `${s.slice(0, work.getEnd())}\n  void deps.captureAll();${s.slice(work.getEnd())}`;
+  })],
+  ['S16', ['S16'], 'a new caller of a seam in its receiver through ?., with no catch', (t) => withFile(t, 'src/main/power/index.ts', (s, sf) => {
+    const fn = functionsNamed(sf, 'installPowerHandlers')[0];
+    const work = fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isVariableStatement(n) && n.getText().startsWith('const suspendWork'));
+    return work === undefined ? null : `${s.slice(0, work.getEnd())}\n  void deps?.takeManifestGeneration();${s.slice(work.getEnd())}`;
+  })],
+  ['S16', ['S16'], 'a seam imported under another name and called with no catch', (t) => withFile(t, DOOR_MODULE, append("import { localProjectRoots as listRoots } from '../fs/project-roots';\nexport function selfTestRenamedSeam(): void {\n  void listRoots().then((roots) => roots.length);\n}"))],
+  ['S16', ['S16'], 'a receiver’s container destructured, its member called with no catch', (t) => withFile(t, 'src/main/power/index.ts', (s, sf) => {
+    const fn = functionsNamed(sf, 'installPowerHandlers')[0];
+    const work = fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isVariableStatement(n) && n.getText().startsWith('const suspendWork'));
+    return work === undefined ? null : `${s.slice(0, work.getEnd())}\n  const { captureAll } = deps;\n  void captureAll();${s.slice(work.getEnd())}`;
+  })],
+  ['S16', ['S16'], 'a receiver’s container handed on whole (the door’s facts)', (t) => withFile(t, 'src/main/pocket/facts.ts', (s, sf) => {
+    const body = bodyOf(functionsNamed(sf, 'createPocketFacts')[0] ?? sf);
+    const first = body !== null && ts.isBlock(body) ? body.statements[0] : undefined;
+    return first === undefined ? null : insertBefore(s, first, 'const everything = deps;\n  void everything;\n  ');
+  })],
+  ['S16', ['S16'], 'a catch handler that calls a nested function throwing where it is written', (t) => withFile(t, DOOR_MODULE, append("export function selfTestThrownInside(): void {\n  void getGmuxCore().catch(() => {\n    (() => {\n      throw new Error('again');\n    })();\n  });\n}"))],
+  ['S16', ['S16'], 'a caught chain whose finally throws', (t) => withFile(t, DOOR_MODULE, append("export function selfTestFinallyThrows(): void {\n  void getGmuxCore()\n    .catch(() => undefined)\n    .finally(() => {\n      throw new Error('again');\n    });\n}"))],
+  ['S16', ['S16'], 'an ask awaited in a try whose finally throws', (t) => withFile(t, DOOR_MODULE, append("export async function selfTestTryFinallyThrows(): Promise<void> {\n  try {\n    (await getGmuxCore()).scheduleRefresh();\n  } catch {\n    /* answered, until the finally */\n  } finally {\n    throw new Error('again');\n  }\n}"))],
+  ['S16', ['S16'], 'a seam called through its module by a string key, with no catch', (t) => withFile(t, DOOR_MODULE, append("import * as rootsByKey from '../fs/project-roots';\nexport function selfTestSeamByKey(): void {\n  void rootsByKey['localProjectRoots']().then((roots) => roots.length);\n}"))],
+  ['S16', ['S16'], 'a receiver’s member called by a string key, with no catch', (t) => withFile(t, 'src/main/power/index.ts', (s, sf) => {
+    const fn = functionsNamed(sf, 'installPowerHandlers')[0];
+    const work = fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isVariableStatement(n) && n.getText().startsWith('const suspendWork'));
+    return work === undefined ? null : `${s.slice(0, work.getEnd())}\n  void deps['captureAll']();${s.slice(work.getEnd())}`;
+  })],
+  ['S16', ['S16'], 'a seam handed on as a value to a place its row does not list', (t) => withFile(t, FILES.capabilities, (s) => onceReplace(s, '  const coreReady = async (): Promise<void> => {', '  const readyAgain = coreReady;\n  void readyAgain;\n  const coreReady = async (): Promise<void> => {'))],
+  ['S16', ['S16'], 'a caller a row lists that hands the refusal on no more', (t) => withFile(t, FILES.capabilities, (s) => onceReplace(s, '    ready: coreReady,\n', '    ready: async () => undefined,\n'))],
+  ['S16', ['S16'], 'a reach that finds its function nowhere: the receiver’s parameter renamed', (t) => withFile(t, 'src/main/context/ipc.ts', (s, sf) => {
+    const fn = functionsNamed(sf, 'registerContextIpc')[0];
+    return fn === undefined ? null : s.slice(0, fn.getStart()) + s.slice(fn.getStart(), fn.getEnd()).replace(/\bgetStore\b/g, 'getReader') + s.slice(fn.getEnd());
+  })],
+  ['S16', ['S16'], 'a reach that finds its function nowhere: the receiver calls it by another name', (t) => withFile(t, 'src/main/power/index.ts', (s) => onceReplace(s, 'await deps.captureAll()', 'await deps.captureEverything()'))],
+  ['S16', ['S16'], 'a reach whose function is not there: the receiver renamed', (t) => withFile(t, 'src/main/overview/ipc.ts', (s) => onceReplace(s, 'export function registerOverviewIpc(', 'export function registerOverviewChannels('))],
+  ['S16', ['S16'], 'a caller two hands from its seam, with no catch (the launch snapshot’s getter)', (t) => withFile(t, 'src/main/context/session-ipc.ts', (s, sf) => {
+    const body = bodyOf(functionsNamed(sf, 'registerContextSnapshotIpc')[0] ?? sf);
+    const first = body !== null && ts.isBlock(body) ? body.statements[0] : undefined;
+    return first === undefined ? null : insertBefore(s, first, 'void getStore();\n  ');
+  })],
+  ['S16', ['S16'], 'a container’s member called with no catch (the door’s overview getter)', (t) => withFile(t, 'src/main/pocket/facts.ts', (s, sf) => {
+    const body = bodyOf(functionsNamed(sf, 'createPocketFacts')[0] ?? sf);
+    const first = body !== null && ts.isBlock(body) ? body.statements[0] : undefined;
+    return first === undefined ? null : insertBefore(s, first, 'void deps.overview.manifest();\n  ');
   })]
 ];
 
-/** Changed in nine of the files the rules read, in nothing they hold: every rule must read as it did. */
+/** Changed in eleven of the files the rules read, in nothing they hold: every rule must read as it did. */
 export const CONTROL = [
   'a helper and a comment beside every clause',
   (t) => {
@@ -4059,6 +5612,40 @@ export const CONTROL = [
     copy = copy === null ? null : withFile(copy, FILES.logIndex, append("export const SELF_TEST_CONTROL_LOG = \"app.on('will-quit', () => clearLogRunSentinel())\";"));
     copy = copy === null ? null : withFile(copy, FILES.logSentinel, append("export function selfTestControlSentinel(): string {\n  return 'writeRunSentinel(dir, current) and clearRunSentinel(dir) are named in a string only';\n}"));
     copy = copy === null ? null : withFile(copy, FILES.storageLanding, append("export const SELF_TEST_CONTROL_WAIT = 'QUIET_MS = 0, and process.exit(0), in a string only';"));
+    // Phase 359: S16's flag read and the class asked about outside getGmuxCore, a
+    // type-only alias, a boot named in a string, and a quit said at error in a
+    // catch that is not the startup's first ask.
+    copy = copy === null ? null : withFile(copy, FILES.core, append("export function selfTestControlQuitting(core: unknown): boolean {\n  // `corePromise = GmuxCore.boot()` and `GmuxCore['boot']()` are named in a comment only\n  return appLifecycleState() === 'quitting' && core instanceof GmuxCore;\n}"));
+    copy = copy === null ? null : withFile(copy, FILES.capabilities, append("import type { GmuxCore as SelfTestCoreType } from './sessions';\nexport type SelfTestControlCore = SelfTestCoreType;\nexport const SELF_TEST_CONTROL_BOOT = 'void GmuxCore.boot() is named in a string only';"));
+    copy = copy === null ? null : withFile(copy, FILES.index, append("export function selfTestControlStartup(): void {\n  void getGmuxCore().catch((err: unknown) => {\n    if (isGmuxError(err, 'SHUTTING_DOWN')) bootLog.error('a quit said at error, in a function nothing calls');\n  });\n}"));
+    // Phase 359's fix round, (f): every shape a door may answer the refusal in,
+    // each of which must stay green.
+    copy =
+      copy === null
+        ? null
+        : withFile(
+            copy,
+            DOOR_MODULE,
+            append(
+              "export function selfTestControlDoors(on: (event: string, listener: () => unknown) => void, handle: (ipc: unknown, channel: string, fn: () => Promise<unknown>) => void, ipc: unknown): void {\n  on('browser-window-focus', () => {\n    void getGmuxCore().then((core) => core.setPollFocused(true)).catch(() => undefined);\n  });\n  on('browser-window-blur', () => {\n    void getGmuxCore().then((core) => core.setPollFocused(false), () => undefined).finally(() => undefined);\n  });\n  on('resume', async () => {\n    try {\n      (await getGmuxCore()).scheduleRefresh();\n    } catch {\n      /* the refusal, answered here */\n    }\n  });\n  void Promise.resolve().then(async () => (await getGmuxCore()).scheduleRefresh()).catch(() => undefined);\n  handle(ipc, 'projects:list', async () => (await getGmuxCore()).listProjects());\n}"
+            )
+          );
+    // His ruled round: a seam's name tested, typed and read off its module,
+    // which uses nothing; new callers of it that answer its refusal; an ask
+    // raced inside a try whose catch answers it (the reverify's R10, accepted);
+    // and handlers that answer: a `function` expression, one whose nested
+    // function throws on its own, and one inside a try whose own catch throws,
+    // around which an outer try answers.
+    copy =
+      copy === null
+        ? null
+        : withFile(
+            copy,
+            DOOR_MODULE,
+            append(
+              "import { localProjectRoots } from '../fs/project-roots';\nimport * as selfTestRoots from '../fs/project-roots';\nexport type SelfTestRootsReader = typeof localProjectRoots;\nexport function selfTestControlRuled(on: (event: string, listener: () => unknown) => void): void {\n  if (localProjectRoots === undefined || !localProjectRoots || typeof localProjectRoots !== 'function') return;\n  void (localProjectRoots ? 1 : 0);\n  void localProjectRoots().catch(() => []);\n  void selfTestRoots.localProjectRoots().catch(() => []);\n  on('p359-race', async () => {\n    try {\n      await Promise.race([getGmuxCore(), new Promise<never>(() => undefined)]);\n    } catch {\n      /* answered */\n    }\n  });\n  void Promise.allSettled([getGmuxCore()]);\n  void getGmuxCore().catch(function answered() {\n    return undefined;\n  });\n  void getGmuxCore().catch(() => {\n    const later = (): never => {\n      throw new Error('its own');\n    };\n    void later;\n  });\n  void getGmuxCore().catch(() => (): never => {\n    throw new Error('handed back, never called');\n  });\n  on('p359-nested', async () => {\n    try {\n      try {\n        (await getGmuxCore()).scheduleRefresh();\n      } catch (err) {\n        throw err;\n      }\n    } catch {\n      /* the outer try answers it */\n    }\n  });\n}"
+            )
+          );
     return copy;
   }
 ];
@@ -4087,7 +5674,8 @@ const RULE_INPUTS = Object.freeze({
   S12: (t) => [FILES.index, FILES.updater, FILES.capabilities, FILES.storageLanding, ...pathsNaming(t, 'src/main/', 'will-quit'), ...pathsNaming(t, 'src/main/', 'flushStorageData')],
   S13: () => [FILES.digest],
   S14: (t) => [FILES.menu, FILES.index, FILES.settingsWindow, ...quitTimerFiles(t)],
-  S15: (t) => [FILES.logIndex, FILES.logSentinel, FILES.index, FILES.capabilities, ...pathsNaming(t, 'src/', 'clearLogRunSentinel'), ...pathsNaming(t, 'src/', 'clearRunSentinel'), ...pathsNaming(t, 'src/', 'markRunSentinelAtQuit')]
+  S15: (t) => [FILES.logIndex, FILES.logSentinel, FILES.index, FILES.capabilities, ...pathsNaming(t, 'src/', 'clearLogRunSentinel'), ...pathsNaming(t, 'src/', 'clearRunSentinel'), ...pathsNaming(t, 'src/', 'markRunSentinelAtQuit')],
+  S16: (t) => [FILES.index, ...bootScanFiles(t), ...askScanFiles(t), ...ASK_HARNESS_MODES, ...seamReachFiles(t)]
 });
 const ruleCache = new Map();
 function judge(tree) {

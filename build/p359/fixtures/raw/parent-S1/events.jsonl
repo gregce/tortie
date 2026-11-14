@@ -1,0 +1,12 @@
+{"t":1794207091448,"pid":77151,"ev":"loaded","mode":"quit-at-ready"}
+{"t":1794207091564,"pid":77151,"ev":"hooked"}
+{"t":1794207091599,"pid":77151,"ev":"tmux-spawn","argv":["-V"],"child":77402,"quitting":false}
+{"t":1794207091599,"pid":77151,"ev":"quit-at-ready","windows":0}
+{"t":1794207091599,"pid":77151,"ev":"before-quit","pass":1,"windows":0}
+{"t":1794207091609,"pid":77151,"ev":"before-quit","pass":2,"windows":0}
+{"t":1794207091609,"pid":77151,"ev":"will-quit","windows":0}
+{"t":1794207091609,"pid":77151,"ev":"quit"}
+{"t":1794207091609,"pid":77151,"ev":"process-exit","code":0}
+{"t":1794207091619,"pid":77151,"ev":"ensure-server","quitting":true,"stack":["deep (/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/S1/witness.cjs:15:95)","Object.p359WriteFileSync [as writeFileSync] (/private/var/tmp/tortie-wt/scratch/p359/spec/tmp/gmux-p359s-parent-61665/p359s/S1/witness.cjs:69:179)","File.writeLine (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/node_modules/electron-log/src/node/transports/file/File.js:132:10)","transport (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/node_modules/electron-log/src/node/transports/file/index.js:78:10)","Logger.processMessage (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/node_modules/electron-log/src/core/Logger.js:182:11)","Logger.logData (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/node_modules/electron-log/src/core/Logger.js:136:12)","<computed> (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/node_modules/electron-log/src/core/Logger.js:86:37)","write$2 (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/out/main/index.js:1295:17)","Object.info (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/out/main/index.js:1303:28)","/private/var/tmp/tortie-wt/scratch/p359/spec/parent/out/main/index.js:15592:13","ensureServer (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/out/main/index.js:15649:5)","GmuxCore.boot (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/out/main/index.js:67998:11)","getGmuxCore (/private/var/tmp/tortie-wt/scratch/p359/spec/parent/out/main/index.js:70036:28)","/private/var/tmp/tortie-wt/scratch/p359/spec/parent/out/main/index.js:118683:3"]}
+{"t":1794207091658,"pid":77151,"ev":"window-created","id":1,"quitting":true}
+{"t":1794207091705,"pid":77151,"ev":"window-closed","id":1}

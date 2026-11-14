@@ -1,0 +1,51 @@
+{
+ "source": "CONSTRUCTED from proto-D2 with toasts.json changed alone: the rebuilt sentence drawn with NO “Show the file” action. the spec step's run D2 at the prototype (D1 and D4 on the parent), batch h1 (build/p359/SPEC.md §2.1, §2.3; scratch/p359/spec/fixtures-raw/proto-D2): events.jsonl and relaunch-events.jsonl byte for byte as recorded; app.log as recorded less the lines that name his home (the login PATH capture) and the boot.env records; gmux-after-relaunch.txt is the recorded listing, taken at the arm’s end (after the relaunch), so no backup index is here: the one recorded was taken after the relaunch too and holds the relaunch’s own generation; the rest below is the spec step's recorded reading, from report-h1.json",
+ "constructed": {
+  "shim": "the shim's own line (node_modules/electron/cli.js) made from the recorded exit {\"code\":1,\"signal\":\"SIGKILL\"}; the spec step kept the parsed exit, not the output",
+  "gmux-after-quit.txt": "the recorded gmuxAfterQuit (the spec step’s listing filtered to manifest, quarantine and damaged names)",
+  "toasts.json": "the recorded relaunch.toasts"
+ },
+ "shim": {
+  "text": "/private/var/tmp/tortie-wt/scratch/p359/spec/proto/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron exited with signal SIGKILL\n",
+  "code": 1
+ },
+ "world": {
+  "agents": {
+   "ok": true,
+   "said": "no agent resolved"
+  },
+  "created": 3,
+  "damage": {
+   "ok": true,
+   "pageno": 5,
+   "leaves": 1,
+   "before": 13,
+   "after": 0,
+   "poked": 0
+  },
+  "listAfterDamage": {
+   "ok": true,
+   "n": 3,
+   "names": [
+    "p359s-a",
+    "p359s-b",
+    "p359s-c"
+   ]
+  },
+  "liveStart": null,
+  "loadAtPress": [
+   5.19140625,
+   5.14892578125,
+   5.6171875
+  ]
+ },
+ "relaunch": {
+  "ran": true,
+  "list": {
+   "ok": true,
+   "ids": null,
+   "names": [],
+   "statuses": []
+  }
+ }
+}

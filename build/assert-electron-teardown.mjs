@@ -622,8 +622,22 @@ const HELPER = 'electron-run.mjs';
  * 'app'`, no window, the Dock icon hidden, Crashpad's dumps in the run's own
  * profile, read and then deleted) over each build's own five watch sites; its
  * real-app arms hide every probed registry row but a stand-in `codex`, and
- * every stand-in pid is ended in its `finally`. Phase 359 raises it 186 to 187
- * in its own tree too, so whichever lands second makes it 188.
+ * every stand-in pid is ended in its `finally`. Phase 359 raises it in its
+ * own tree too, and lands it one above the floor it finds.
+ *
+ * PHASE 359 RAISED IT BY ONE (186 TO 187 at its parent, 187 TO 188 once
+ * rebased on Phase 365, and 188 TO 189 when it landed after Phase 364, which
+ * took 188 first), for build/p359/probe-p359.mjs
+ * (`probe:p359`), a second session core that boots while Tortie quits, door by
+ * door at the parent and at HEAD: Electrons through the helper ONE AT A TIME,
+ * the parent's (`P359_PARENT_CHECKOUT`, required) first in every pair, each arm
+ * on its own scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null and the
+ * socket gmux-p359…, an arm whose first launch a relaunch reads again passing
+ * `tmuxSocket: null` to it and the relaunch naming that socket, every probed
+ * registry row hidden before every launch, a scratch witness preload loaded
+ * into main by NODE_OPTIONS (never a file under src/), and every stand-in top
+ * (`/bin/sleep 90`) ended by pid and every FIFO removed in its `finally`. It
+ * never calls app.relaunch().
  *
  * PHASE 364 RAISED IT FROM 187 TO 188, by one for build/p364/probe-p364.mjs
  * (`probe:p364`), the diagnostic Tortie beside the normal app: Electrons
@@ -642,7 +656,7 @@ const HELPER = 'electron-run.mjs';
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 188;
+const HELPER_USER_FLOOR = 189;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

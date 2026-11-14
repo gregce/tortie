@@ -1,0 +1,4 @@
+{"ts":"2026-11-09T07:40:00.180Z","level":"info","scope":"tmux","pid":51000,"proctype":"main","msg":"no macOS login session number in this process. A session Tortie starts will join whichever one macOS gives its pane."}
+{"ts":"2026-11-09T07:40:00.300Z","level":"info","scope":"tmux","pid":51000,"proctype":"main","msg":"no macOS login session number in this process. A session Tortie starts will join whichever one macOS gives its pane."}
+{"ts":"2026-11-09T07:40:01.640Z","level":"info","scope":"tmux","pid":51000,"proctype":"main","msg":"no macOS login session number in this process. A session Tortie starts will join whichever one macOS gives its pane."}
+{"ts":"2026-11-09T07:40:01.760Z","level":"info","scope":"tmux","pid":51000,"proctype":"main","msg":"no macOS login session number in this process. A session Tortie starts will join whichever one macOS gives its pane."}
