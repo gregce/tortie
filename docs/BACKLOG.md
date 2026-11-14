@@ -45237,7 +45237,7 @@ It starts after Phase 365 lands, so a watcher fault cannot be mistaken for the n
 - No other dependency upgrade beyond what the new Electron requires.
 - No release by itself.
 
-## Phase 367 — "diagnose it and understand if it will fix the other agents" — research 145: issue 44's overlapping redraw, wrapped copy and stripped links, on every agent Tortie runs (operator, 2026-11-14; GitHub issue 44)
+## Phase 367 — "diagnose it and understand if it will fix the other agents" — research 145: issue 44's overlapping redraw, wrapped copy and stripped links, on every agent Tortie runs (operator, 2026-11-14; GitHub issue 44) ✅ LANDED `deeb91ed`, 2026-11-14, as `docs/research/145-issue-44-redraw-copy-and-links.md`
 
 **Subject.** `docs(research): what issue 44's redraw, copy and links come from, on every agent`
 
@@ -45293,6 +45293,166 @@ It starts after Phase 365 lands, so a watcher fault cannot be mistaken for the n
 - No Electron 46 or later, and no other dependency unless 45 requires it and he agrees.
 - No product change but what a breaking change requires; no cleanup of what 43 needed.
 - Nothing signed, notarized, released, tagged or uploaded; the release lane's signed check is the first signed proof, on his word.
+
+## Phase 368 — "the fix to issue 44" — a long agent reply draws cleanly, a copy holds what was drawn, and an agent's links open (operator, 2026-11-14; issue 44 and research 145)
+
+**Subject.** `fix(terminal): draw agent replies cleanly, copy what is drawn and open agent links`
+
+**First body line.** `Phase 368: issue 44, clean redraws, faithful copies and links that open`
+
+**Semver.** Minor: a link an agent prints becomes something a person can click. Three CHANGELOG items go under Unreleased (the redraw, the copy and the links). The follow-up docs commit gives each its commit link.
+
+**Tier 3.**
+- It changes how every session is created and attached, which is tmux and the session lifecycle (`CLAUDE.md:270`).
+- It claims to serve every agent Tortie runs, so its evidence is a per-agent matrix over real data (`:271`).
+- The operator relayed a person's report, so the parent measurement is mandatory (`:272`).
+- It hands addresses an agent printed to the person's browser (`:273`).
+
+**Charter.**
+- GitHub issue 44: its body, and the reporter's comment of 2026-11-10 (read at `d08f181`).
+- Research 145 (`docs/research/145-issue-44-redraw-copy-and-links.md`), §1, §6, §7 and §10.
+- His word of 2026-11-14: "you can run real harnesses / claude code and codex to test the fix to issue 44".
+- Bound by:
+  - research 134 and 133: Claude and Codex stay inline (Phase 331);
+  - research 142 §2.3 and §2.4: tmux's wrap mark goes stale after a redraw, and `-J` is only as good as the mark;
+  - research 115 §4: `isWrapped` is wrong after repaints;
+  - Phase 337's measured width table.
+
+It starts after Phases 360 and 325.1 land or are set aside, because it changes the same create and attach files (`src/main/tmux/sessions.ts`, `src/main/sessions/create-local.ts`, `src/main/attach/attach-host.ts`).
+
+### What the tree says (read 2026-11-14 at `8645875e`)
+
+- **Every attach spawns at 80 by 24.**
+  - `src/main/sessions/core.ts:3974-3979` attaches with no size.
+  - `src/main/attach/attach-host.ts:107-108` and `:263-266` default the client to 80 by 24, though its request already takes `cols` and `rows` (`:199-201`).
+  - `sessions:attach` carries a session id only (`src/shared/ipc/base.ts:48`, `src/preload/sessions.ts:21`, `src/main/ipc.ts:135`).
+  - The renderer fits, attaches, then pushes the fitted size (`src/renderer/terminal/TerminalPane.tsx:589-597`).
+- **Every session is created at 80 by 24.** `src/main/tmux/sessions.ts:186` passes no `-x` or `-y`, and tmux's `default-size` is 80x24. It is called from `src/main/sessions/create-local.ts:709` and `src/main/restore/restore.ts:1113`.
+- **Every layout change goes to tmux at once.** `TerminalPane.tsx:523-525`, then `:468-472`.
+- **The terminal's widths are xterm's Unicode 6.**
+  - The renderer builds three terminals (`TerminalPane.tsx:254`, `src/renderer/terminal/capture/history-copy.ts:107`, `capture/index.ts:722`), and none registers a width provider.
+  - tmux 3.7b's measured table and joining rules live in `src/main/screen/cell-widths.ts` and `cells.ts`. `src/main/screen/__tests__/cells.test.ts` holds them to `build/fixtures/screen/`.
+- **The scrollback freezes the pane at entry.** `src/main/tmux/scroll.ts:459-465` (`enterCopyModeArgs`) and `:368` (`refreeze`).
+- **Copy.**
+  - `capture/index.ts:184-209` (the menu's snapshot) and `:260-297` (`getSelection`).
+  - `capture/serialize.ts:318`.
+  - The history path: `capture/history-selection.ts:73-79`, `capture/history-copy.ts:127-146` and `:182-215`, held by `src/renderer/terminal/scroll/drag-select.ts:380`.
+- **Links.**
+  - The attach argv: `src/main/attach/attach-plan.ts:156-186`.
+  - No `linkHandler` (`TerminalPane.tsx:254-275`); the web-links handler is at `:371-374`.
+  - Main's gate: `src/main/security/trusted-window.ts:60-65` and `:135-137`.
+  - The Markdown preview's rule: `src/renderer/editor/markdown/markdown-impl.tsx:244-258`.
+
+### The mechanism
+
+**The redraw.**
+
+1. **Attach at the fitted size.**
+   - `sessions:attach` carries the pane's fitted columns and rows, and the core passes them to `AttachHost.attach`.
+   - A pane whose container has no size yet waits for its first fit (bounded) or takes the last size its window had. It never spawns at 80 by 24 when a size is known.
+   - The contract baseline is regenerated (`docs/audits/contract-baseline.txt`), and the commit body names the moved line.
+2. **Create at the size it will be shown.**
+   - `createSession` gains `-x` and `-y`, from the size of the terminal area the session's tab will draw in.
+   - This applies on create and on restore, and the same on another machine's create.
+   - The spec chooses where main learns the size: the create request, or the last fitted size it heard. A create with no size known keeps today's behaviour.
+3. **No size Tortie does not need.**
+   - The spec first counts, at the parent, the sizes each surface sends to tmux: every panel, sheet, notice, overlay, split, zoom, full screen, project switch and tab switch.
+   - Every transient Tortie makes on its own is removed where it starts.
+   - A person's own window drag is left as today, unless a settled size measures no worse beside the parent.
+4. **tmux's widths in Tortie's terminal.**
+   - The measured table and its joining rules move to `src/shared/`, as one table for main and renderer. `cells.test.ts` and `conformance:pocket`'s pins move with them.
+   - One provider is registered and made active on all three terminals, through xterm's own provider interface. No Unicode addon and no new dependency.
+   - A server of another version draws no code point worse than today. The spec measures 3.6a's table the way Phase 337 measured 3.7b's, and chooses the table by the server's version.
+5. **Scrollback between frames.** When the scrollback's entry finds `#{synchronized_output_flag}` set (3.7b), the view is re-frozen once the frame closes. A person scrolling during a reply then never holds a half-drawn frame.
+
+**The copy.**
+
+6. **Copy holds what is drawn.** Every copied row is read within the terminal's columns and ends at its last non-blank cell. This applies to Copy, the menu's snapshot and Copy as HTML, and the history path's lines end the same way.
+7. **A scrolled-back copy joins what tmux joins.**
+   - A selection made while the pane is scrolled back is held as history positions, as a drag that scrolls already is, so Copy composes it from the server.
+   - The alternate screen keeps xterm's path.
+   - The spec measures, over research 142's cases and the agents' screens, whether the history path should honour a wrap mark only where the marked row has ink in its last column. It adopts that only if no case gets worse.
+8. **Nothing joins rows an agent broke itself.** Research 145 §4.5 refused every rule measured.
+
+**The links.**
+
+9. **Links reach the terminal.**
+   - The local attach argv gains `-T hyperlinks` (`attach-plan.ts:160-169`).
+   - The far attach gains it only for far versions the spec measures accepting it (3.4 and later). Below that it stays as today, so a far tmux older than 3.2 that a person accepted is never handed a flag it refuses.
+   - No server option and no change to `server-options.ts`, unless his answer to question 3 chooses the indexed element.
+10. **A click opens what it says.** The pane's terminal gains a `linkHandler`:
+    - http and https only; `allowNonHttpProtocols` is never set;
+    - `activate` takes the web-links route, `window.open(uri, '_blank', 'noopener,noreferrer')`, so main's gate decides;
+    - a hover line shows the address a click opens, with its host in ASCII;
+    - an address with a user part, or over 2,048 bytes, is not offered;
+    - where today's web-links reading finds an address on the clicked cell, a click opens that address. The exception is a link whose target is that same address continued on its next row, which is a URL the agent cut. This follows his answer to question 4.
+11. **Never `FORCE_HYPERLINK`** in a pane's environment.
+12. **A gate pins it.** The spec names the gate and writes its row in CLAUDE.md's table. Each rule below has an ablation that turns it red:
+    - the attach and the create carry a size;
+    - one width provider on all three terminals, from the shared table;
+    - Copy bounded by the width;
+    - the handler's refusals and its one route;
+    - `-T hyperlinks` on the local argv, and never `allowNonHttpProtocols`.
+
+**Native menus.** No change: the hover is not a menu, and Copy keeps its rows. The brief says so.
+
+### The proof, run rather than read
+
+- **Method 1, the parent (mandatory).** One app run per build, the parent first. Each goes through `build/electron-run.mjs` inside `build/harness-socket.mjs`, on a scratch profile, HOME and socket, with the probed agents hidden. A stand-in replays real agents' recorded bytes, as research 145 §2.3 did. The arms:
+  - (a) An attach with the renderer's size push held back 15 ms and 30 ms, by a harness-only knob or under load. The parent's pane sees 80 by 24; HEAD's never does.
+  - (b) A new and a restored session: the pane's first size, and a resumed Claude's scrollback.
+  - (c) Item 3's census, and research 145's 8 ms and 60 ms transients over Claude's recorded reply. The parent's grid holds `Includeaamsmall…`; HEAD sends no size.
+  - (d) Claude's and Codex's emoji replies: the terminal's rows against tmux's grid, cell by cell. Then the same through a scratch 3.6a server, where the parent shows letters in the gaps and HEAD shows none.
+  - (e) Copy:
+    - a Claude pane narrowed from 140 to 96 columns, then copied;
+    - a Codex URL and a shell line copied while scrolled back;
+    - the reporter's command at a steady width, unchanged at both builds by design.
+  - (f) Links:
+    - the parent registers none;
+    - HEAD registers Claude's and Codex's links, and the hover shows the address;
+    - `window.open` is stubbed so nothing leaves the page;
+    - research 145's hostile targets are refused.
+- **Method 2, real agents (his word of 2026-11-14).**
+  - Real Claude Code and Codex run in scratch tmux (the vendored 3.7b and Homebrew's 3.6a), never `-L gmux`, at the parent and at HEAD.
+  - Each gives a long Markdown reply with emoji, code blocks, long commands and links, with tab returns, a transient and a drag mid-reply.
+  - The verifier's own ledger check reads the scrollback for duplicated, lost, cut and letter-in-gap rows, and the recordings are replayed into the app for Method 1.
+  - Claude runs with no tools; Codex runs read-only with its update check off. Turns are counted and reported.
+- **Method 3, the attack.**
+  - The attach under load, and a resize storm.
+  - The loopback scratch machine (`build/scratch-machine.mjs`) on 3.6a and 3.7b, for the far flag and the widths, and a far tmux below 3.4.
+  - A full-screen agent's pane for item 7, and the wide character at the edge.
+  - Hostile link targets: a right-to-left override, a look-alike host, a user part, 65,536 bytes, and `javascript:`.
+- **Every other agent by its recordings.** The committed screens (`build/fixtures/**`) are drawn into panes for items 4, 6 and 7. Research 145 §7's table is filled in per row, measured or read, never assumed.
+- **No regression.**
+  - `probe:p167` and `probe:p292`.
+  - `conformance:pathdoors` and `measure:p3471`, because the path links read the same cells.
+  - `conformance:pocket` and `measure:p337 -- --check`, because the table moves.
+  - `gate:contract`, plus `conformance:machines` for the far attach argv and `conformance:resume:capture` for the create argv.
+  - Phase 209's and 295's history-copy probes, and the full battery.
+
+### What is NOT in this phase
+
+- No change to how any agent is launched. Claude and Codex stay inline (Phase 331), with no full screen and no `FORCE_HYPERLINK`.
+- No join of rows an agent broke itself, and no Copy as One Line.
+- No OSC 52 handler.
+- No `file:`, `vscode:` or relative link, and no path door for a link's target.
+- No change to tmux's resize timer, no `window-size manual`, and no tmux patch.
+- No Unicode addon or other new dependency.
+- Nothing on the phone, which already draws tmux's widths and draws links as text.
+- Nothing only Anthropic or OpenAI can fix: Claude's scrollback damage with no size change, its early return on an unchanged size, and Codex's partial link targets. These are reported upstream on his word.
+
+### His questions (research 145 §11), the build proceeding on the defaults until he answers
+
+1. Reply to the reporter now with research 145 §11's draft: asked of him; nothing is posted without his word.
+2. One phase in three parts, or three phases: one (default).
+3. Links by the attach's client flag `-T hyperlinks`, or the server option's indexed element: the client flag (default).
+4. A link whose words are an address and whose target is another: open the words, as today (default); the target with the address on hover; or ask first naming the host.
+5. Claude's addresses as plain text by `FORCE_HYPERLINK=0`: no (default).
+6. An agent's own copy to this Mac's clipboard (OSC 52): not in 368 (default); a Tier 3 phase of its own if he wants it.
+7. A "Copy as One Line" item: no (default).
+8. Claude full screen instead of inline: no, Phase 331 stands (default).
+9. Report upstream to Anthropic and OpenAI: on his word.
+10. A person's own window drag reaching tmux as one size when it stops: only if measured no worse than today (default).
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -46668,3 +46828,4 @@ cycle rather than only the evening it was written.
 - 2026-11-14, **PHASE 364 LANDED, `3b17beaf` — a diagnostic Tortie that catches the session list's damage in the act** (no CHANGELOG item and no version: the normal app is the parent's byte for byte but its stamp, out/ in 509 files and the unsigned package in 846, app.asar's 2,444 entries differing in out/main/index.js's stamp alone; Tier 3). The fix round fixed both lenses' five majors and two minors once (the walk's cost past 48 memory regions, which had let the integrator's checker take 21 s a digest, now a 1,024-region cache and a floor of max(25 ms, 20 x the last walk) from its end; bulk lines by address, never by the damaged header; the allocator's 0xcd fill, which is what a foreign free leaves in the RUNNING app, so research 143 §5's reading table gained two rows; a probe whose instruments a packaged app never loaded, now through `--inspect-brk=0`) and the independent reverify approved, with its own bare-Electron benchmark at eight connections. Still worse, the diagnostic build only: a walk holds main 2.9 to 5.4 ms where a call takes 0.1, the list draws a median 122 ms later inside the normal build's own 413 ms spread, and memory under churn is unproven at 20 minutes (three 5-minute runs: 1.216, 0.968 and 1.002 of normal). Landing battery: every step exit 0 but npm test (8 failed at a load average of 12 to 25: seven FSEvents tests and guarded.test.ts's pid-file race; alone those files fail 2 at HEAD and 3 at the parent, all repo-watcher.native), smoke:quit and smoke:quitdoors PASS. **Waiting on him:** the diagnostic app exists only when he presses Run workflow on `release.yml` with `diagnostic` ticked (it signs and notarizes with his Developer ID and uploads a DMG to the run, never a release); §4.7 is read with him first, and before he installs, `bs3.json` and the session-list schema pair are read (20/13 against 0.114.1 at landing, the same). His five §14 questions stay on their defaults (updater off, the line carries 64 page bytes, a walk at most every 25 ms and at every close, the job in `release.yml`, no notice in the window). Phase 369 (Electron 45) starts now.
 - 2026-11-14, **369 STARTED — Electron moves to 45**, its section above, Tier 3, one workflow (`w5qz5plxb`, in `/private/var/tmp/tortie-wt/wt-p369` at `3b17beaf`, after 364, with the parent at `wt-p369-parent` on Electron 43.8.7): spec (the newest 45.x read from the registry, every breaking change from 44.0.0 on against what Tortie uses, the parent measured, the diagnostic build's checker among it), the move as one builder (the only install this phase makes, by his ruling: `electron` and its lockfile in the worktree, every cache, header and download in scratch; another package 45 needs, a new native module, a fuse or entitlement change or a macOS minimum above 12.0 stops the phase and comes to him), the diagnostic build rebuilt at 45, integrator, probe review, two lenses (every runtime surface beside the parent at his recorded scale and the update path, a 43.8.7 package's sessions restored by the 45 package; the attack, with crash dumps read by a reader of the lens's own and every 43.x workaround re-measured), fix once, an independent reverify. Not run, by his standing rule: `conformance:resume:capture`, the full `conformance:resume` (real agents) and safeStorage live (his keychain). Landing's battery uses a scratch package home, so no download reaches his caches. The battery script now finds its lock beside itself in `/private/var/tmp/tortie-ops`, after macOS removed `/private/tmp/tortie-ops/lock.sh` today.
 - 2026-11-14, **360's RULED ROUND ("360 a") ANSWERED NEEDS_WORK AT ITS REVERIFY; TO HIM** (`wf5crsopk`). What holds: the ruling's case on this Mac, a create during which the session list stops in a busy window, now answers the parent's stopped sentence and stays on the session in use, connected (parent 10 of 10, HEAD 10 of 10 over the probe's L1 and L2 and the reverify's own timings; the fix round's build, the positive control, moved 3 of 4), decided from main's latch when the create ends (`createSession`, D24); the rest of 360 holds (a held write lock: 1 session where the parent makes 2; another machine not listed back or printing first: 1 where the parent makes 2; Split Session the same at both builds). The major: D24 also covers a create on ANOTHER MACHINE, where the parent's answer differs: if the list stops after that machine answered, the parent closes the sheet on the running session and HEAD says "Restart Tortie, then try again." for it (from a tab on this Mac 3 of 3, window otherwise identical; from the machine's own tab a trade: the parent landed on the new session drawn Machine unreachable 3 of 4, HEAD stayed connected 4 of 4). Asked of him: (a) the latch asked only for a create on this Mac, the other machine answering as today, with two probe arms for it graded against the parent, an independent reverify, then land; or (b) land as is with that case worse.
+- 2026-11-14, **PHASE 367 LANDED, `deeb91ed` — research 145, issue 44 measured** (`wlumex4ab`; four investigators each attacked by an adversary who ran, a judge, one document; real Claude Code 2.1.325 and 2.1.319 and Codex 0.167.1 under his sign-in in scratch tmux only, 53 real turns, no tool run; five Electron runs replaying their bytes, no agent in the app). The redraw is Claude Code's inline cell-diff renderer drawing onto rows that moved under it, the reporter's `Tomorrow:athe-Riverbend` reproduced; Tortie moves them by sizes it does not need (every attach spawns at 80 by 24 and fits after, every session is created at 80 by 24, every layout change goes through) and by emoji widths (xterm counts 9,498 characters narrower than tmux; the signature in 118 of 177 readings on a tmux before 3.7); old frames Claude leaves in scrollback with no size change are Anthropic's. The copy: Claude and Codex break their own lines, every join rule measured turns a real command wrong, their `/copy` is exact; Tortie owns three smaller copy defects. The links: both agents send OSC 8 and Tortie's client strips it; `-T hyperlinks` plus a click handler. Every fix is Tortie's and serves every agent (§7's table). **Phase 368 queued**, its section above (one phase in three parts, Tier 3, real Claude Code and Codex in its proof by his word), to start after 360 and 325.1 land or are set aside, because it changes the same create and attach files. His ten questions in §11 and the section, on their defaults until he answers; the reply to the reporter is drafted there and posted only on his word.
