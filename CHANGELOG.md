@@ -17,7 +17,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - Quitting Tortie no longer crashes when its session list went bad without showing an error, and Tortie now notices that trouble through its backup check too ([`5895b12b`](https://github.com/gregce/tortie/commit/5895b12b))
 - Quitting Tortie with many busy sessions now finishes saving each session's history before it closes, instead of stopping after three seconds, and if Tortie ever crashes while it quits, the next launch says so ([`d84bed31`](https://github.com/gregce/tortie/commit/d84bed31))
 - Watching folders for changes now runs in its own process, so a fault there no longer crashes Tortie ([`ae8599ad`](https://github.com/gregce/tortie/commit/ae8599ad))
-- If Tortie's session list is damaged when you quit, the next launch now says it was rebuilt from a backup, instead of Tortie rebuilding it silently on its way out
+- If Tortie's session list is damaged when you quit, the next launch now says it was rebuilt from a backup, instead of Tortie rebuilding it silently on its way out ([`f5d9e8d7`](https://github.com/gregce/tortie/commit/f5d9e8d7))
 
 ## 0.114.1 (2026-11-05)
 
