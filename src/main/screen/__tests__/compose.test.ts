@@ -54,8 +54,8 @@ import { screenRevisionOf } from '../watch';
 /** How many rows the composer has cut into cells: a page builds runs for the rows it was asked for, and no others. */
 const clustered = vi.hoisted(() => ({ rows: 0 }));
 
-vi.mock('../cells', async (original) => {
-  const real = await original<typeof import('../cells')>();
+vi.mock('@shared/cells', async (original) => {
+  const real = await original<typeof import('@shared/cells')>();
   return {
     ...real,
     clusterCells: (...args: Parameters<typeof real.clusterCells>) => {

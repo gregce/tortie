@@ -1,0 +1,48 @@
+/* The hover line of an agent's link (Phase 368, build/p368/SPEC.md D16).
+
+   One line of plain text at the pane's bottom left saying the address a click
+   opens, the way a browser's status line does. It lives inside xterm's own
+   element (`.xterm`, position: relative) with xterm's `xterm-hover` class, so
+   xterm's linkifier never reads it as part of the screen.
+
+   It is a reveal, never a target: no pointer events, so every cell under it
+   stays clickable and selectable, and nothing in it can be selected or
+   focused. No transition, deliberately: DESIGN.md §5, never fade over a live
+   terminal. Every colour, face, size, space and radius is a token; the
+   z-index is the one number, below. */
+
+.gmux-terminal-link-hover {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  /* The pane's width, less the scrollbar lane on the right and the gap on
+     each side; a longer address ends in an ellipsis. */
+  max-width: calc(100% - var(--scroll-lane) - var(--space-2) * 2);
+  box-sizing: border-box;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  user-select: none;
+  /* The WebGL renderer's link layer is a z-index 2 canvas inside
+     .xterm-screen, and neither .xterm nor the pane is a stacking context, so
+     the line takes the same 2 and paints over it by coming later in the tree;
+     the pane's own overlays (terminal.css, also 2) come later still and paint
+     over the line. */
+  z-index: 2;
+}
+
+/* The hovered link sits on the rows the line would cover: the top left. */
+.gmux-terminal-link-hover[data-at='top'] {
+  top: var(--space-2);
+  bottom: auto;
+}

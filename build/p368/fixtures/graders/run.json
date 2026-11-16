@@ -1,0 +1,161 @@
+{
+ "arm": "RUN",
+ "about": "RUN's reading shape: his history files' size and modification time before and after, the crash reports added (names only), this run's socket, the helper's census around each launch, and the process table. Each break turns exactly its own clause.",
+ "run": {
+  "history": {
+   "before": {
+    ".zsh_history": [
+     746321,
+     1794670684
+    ],
+    ".bash_history": [
+     23166,
+     1790702242
+    ]
+   },
+   "after": {
+    ".zsh_history": [
+     746321,
+     1794670684
+    ],
+    ".bash_history": [
+     23166,
+     1790702242
+    ]
+   }
+  },
+  "reports": {
+   "added": []
+  },
+  "sockets": {
+   "files": [
+    "gmux-p368-wt-p368-12345"
+   ],
+   "live": []
+  },
+  "launches": [
+   {
+    "build": "parent",
+    "kind": "main",
+    "census": "passed"
+   },
+   {
+    "build": "parent",
+    "kind": "t36",
+    "census": "passed"
+   },
+   {
+    "build": "head",
+    "kind": "main",
+    "census": "passed"
+   },
+   {
+    "build": "head",
+    "kind": "t36",
+    "census": "passed"
+   }
+  ],
+  "leftovers": []
+ },
+ "breaks": [
+  {
+   "why": "his shell history moved during the run",
+   "clause": "RUN.history",
+   "set": [
+    [
+     "run.history.after",
+     {
+      ".zsh_history": [
+       746589,
+       1794849069
+      ],
+      ".bash_history": [
+       23166,
+       1790702242
+      ]
+     }
+    ]
+   ]
+  },
+  {
+   "why": "the run added an Electron crash report",
+   "clause": "RUN.reports",
+   "set": [
+    [
+     "run.reports.added",
+     [
+      "Electron-2026-11-16-121314.ips"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "probe review: the hook's perl stamp crashed during the run, which is this run's report",
+   "clause": "RUN.reports",
+   "set": [
+    [
+     "run.reports.added",
+     [
+      "perl5.34-2026-11-16-141500.ips"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "the run's server still answers",
+   "clause": "RUN.sockets",
+   "set": [
+    [
+     "run.sockets.live",
+     [
+      "gmux-p368-wt-p368-12345"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "the helper's census failed around a launch",
+   "clause": "RUN.census",
+   "set": [
+    [
+     "run.launches.2.census",
+     "failed: a session appeared on his server"
+    ]
+   ]
+  },
+  {
+   "why": "the census around a launch could not be read",
+   "clause": "RUN.census",
+   "expect": null,
+   "set": [
+    [
+     "run.launches.1.census",
+     "not read, the launch's body ended first"
+    ]
+   ]
+  },
+  {
+   "why": "a process still names a profile of this run",
+   "clause": "RUN.leftovers",
+   "set": [
+    [
+     "run.leftovers",
+     [
+      "40123 Electron --user-data-dir=/x/p368/head-main/p"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: the helper's census could not run tmux at all (no tmux on the probe's PATH), which read nothing of his server and is no finding",
+   "clause": "RUN.census",
+   "expect": null,
+   "set": [
+    [
+     "run.launches.0.census",
+     "failed: [electron-run] p368-parent-main: -L gmux could not be read before this launch (tmux could not be run (ENOENT)), so nothing can be said about what it did there"
+    ]
+   ]
+  }
+ ]
+}

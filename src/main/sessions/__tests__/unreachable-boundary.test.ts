@@ -342,8 +342,9 @@ describe('the remote branch in front of the local restore', () => {
    */
   it('asks the restore gate before anything local runs', () => {
     expect(gate).toContain('refuseRemoteRestore(sessionId)');
+    // PHASE 368: the call carries the size the session is made at (D3).
     expect(gate.indexOf('refuseRemoteRestore')).toBeLessThan(
-      gate.indexOf('restoreRemoteSession(sessionId)')
+      gate.indexOf('restoreRemoteSession(sessionId, size)')
     );
   });
 
@@ -376,7 +377,7 @@ describe('the remote branch in front of the local restore', () => {
    * which binary is here, and none of them can answer for a different computer.
    */
   it('routes a row on another machine away from the local path', () => {
-    expect(gate).toContain('restoreRemoteSession(sessionId)');
+    expect(gate).toContain('restoreRemoteSession(sessionId, size)');
     // The whole branch sits above the first line of the local path, which is
     // where the slice ends, so reaching it at all means the local machinery ran
     // for a row on another machine.

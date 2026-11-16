@@ -1,0 +1,723 @@
+{
+ "arm": "f",
+ "about": "Arm f's reading shape, one click of every kind. The parent half is research 145 §5's today (no link reaches the terminal; a click on Claude's words opens nothing; Codex's drawn address opens through the web-links reading, as does the first row of a URL Claude cut); the HEAD half is SPEC D14 and D16 applied by hand: words that are an address open the words, a cut URL opens the whole target from either row, a target under plain words opens with its hover, a refused target opens nothing and shows no hover; an opened address may be written as new URL writes it, which is what the hover shows (the mid-integration HEAD build opened the look-alike host as https://xn--pple-43d.com/). Each break turns exactly its own clause. The fix round adds the D14 inputs the grader derives a cut from (whether the words' address reaches its row's last cell, the rows after it, the rows above it) and two rows: a project file's name linked to a web page, which opens the file at both builds, and a cut-looking link whose target is not what its rows draw beside an honest cut.",
+ "parent": {
+  "patched": {
+   "openExternal": true,
+   "openPath": true,
+   "clipboard": true,
+   "writeRich": true
+  },
+  "claude": {
+   "registered": [],
+   "sent": [
+    "https://example.com/really-elsewhere",
+    "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+    "https://en.wikipedia.org/wiki/Foo_(bar)",
+    "mailto:someone@example.com"
+   ],
+   "clicks": [
+    {
+     "words": "https://example.org/looks-safe",
+     "sent": "https://example.com/really-elsewhere",
+     "target": null,
+     "web": "https://example.org/looks-safe",
+     "next": "",
+     "hover": null,
+     "opened": [
+      "https://example.org/looks-safe"
+     ]
+    },
+    {
+     "words": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "sent": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "target": null,
+     "web": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii",
+     "next": "      iiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "hover": null,
+     "opened": [
+      "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii"
+     ],
+     "webAtEdge": true,
+     "cols": 120
+    },
+    {
+     "words": "https://example.net/aaaaaaaaaa (its next row)",
+     "continuation": true,
+     "sent": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "target": null,
+     "web": null,
+     "next": "",
+     "hover": null,
+     "opened": []
+    },
+    {
+     "words": "wiki page",
+     "sent": "https://en.wikipedia.org/wiki/Foo_(bar)",
+     "target": null,
+     "web": null,
+     "next": "",
+     "hover": null,
+     "opened": []
+    },
+    {
+     "words": "mail me",
+     "sent": "mailto:someone@example.com",
+     "target": null,
+     "web": null,
+     "next": "",
+     "hover": null,
+     "opened": []
+    }
+   ]
+  },
+  "codex": {
+   "registered": [],
+   "sent": [
+    "http://example.com/insecure",
+    "https://example.com/row1"
+   ],
+   "clicks": [
+    {
+     "words": "plain http",
+     "sent": "http://example.com/insecure",
+     "target": null,
+     "web": null,
+     "next": "",
+     "hover": null,
+     "opened": []
+    },
+    {
+     "words": "https://example.com/row1",
+     "drawnAddress": true,
+     "sent": null,
+     "target": null,
+     "web": "https://example.com/row1",
+     "next": "",
+     "hover": null,
+     "opened": [
+      "https://example.com/row1"
+     ]
+    }
+   ]
+  },
+  "hostile": [
+   {
+    "key": "userinfo",
+    "target": null,
+    "hover": null,
+    "opened": []
+   },
+   {
+    "key": "homograph",
+    "target": null,
+    "hover": null,
+    "opened": []
+   },
+   {
+    "key": "javascript",
+    "target": null,
+    "hover": null,
+    "opened": []
+   },
+   {
+    "key": "localhost",
+    "target": null,
+    "hover": null,
+    "opened": []
+   }
+  ],
+  "rows": {
+   "pathword": {
+    "target": null,
+    "web": null,
+    "opened": [],
+    "openedAnyTime": [],
+    "tabsBefore": "",
+    "tabsAfter": "README.md",
+    "hover": null
+   },
+   "cut": {
+    "cutspoof": {
+     "first": {
+      "target": null,
+      "web": "https://good.ex",
+      "opened": [
+       "https://good.ex/"
+      ]
+     },
+     "second": {
+      "target": null,
+      "web": null,
+      "opened": []
+     }
+    },
+    "cuthonest": {
+     "first": {
+      "target": null,
+      "web": "https://example.com/cut/honest/",
+      "opened": [
+       "https://example.com/cut/honest/"
+      ]
+     },
+     "second": {
+      "target": null,
+      "web": null,
+      "opened": []
+     }
+    }
+   }
+  }
+ },
+ "head": {
+  "patched": {
+   "openExternal": true,
+   "openPath": true,
+   "clipboard": true,
+   "writeRich": true
+  },
+  "claude": {
+   "registered": [
+    "https://example.com/really-elsewhere",
+    "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+    "https://en.wikipedia.org/wiki/Foo_(bar)",
+    "mailto:someone@example.com"
+   ],
+   "sent": [
+    "https://example.com/really-elsewhere",
+    "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+    "https://en.wikipedia.org/wiki/Foo_(bar)",
+    "mailto:someone@example.com"
+   ],
+   "clicks": [
+    {
+     "words": "https://example.org/looks-safe",
+     "sent": "https://example.com/really-elsewhere",
+     "target": "https://example.com/really-elsewhere",
+     "web": "https://example.org/looks-safe",
+     "next": "",
+     "hover": "https://example.org/looks-safe",
+     "opened": [
+      "https://example.org/looks-safe"
+     ]
+    },
+    {
+     "words": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "sent": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "target": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "web": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii",
+     "next": "      iiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "hover": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "opened": [
+      "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end"
+     ],
+     "webAtEdge": true,
+     "cols": 120
+    },
+    {
+     "words": "https://example.net/aaaaaaaaaa (its next row)",
+     "continuation": true,
+     "sent": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "target": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "web": null,
+     "next": "",
+     "hover": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+     "opened": [
+      "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end"
+     ]
+    },
+    {
+     "words": "wiki page",
+     "sent": "https://en.wikipedia.org/wiki/Foo_(bar)",
+     "target": "https://en.wikipedia.org/wiki/Foo_(bar)",
+     "web": null,
+     "next": "",
+     "hover": "https://en.wikipedia.org/wiki/Foo_(bar)",
+     "opened": [
+      "https://en.wikipedia.org/wiki/Foo_(bar)"
+     ]
+    },
+    {
+     "words": "mail me",
+     "sent": "mailto:someone@example.com",
+     "target": null,
+     "web": null,
+     "next": "",
+     "hover": null,
+     "opened": []
+    }
+   ]
+  },
+  "codex": {
+   "registered": [
+    "http://example.com/insecure",
+    "https://example.com/row1"
+   ],
+   "sent": [
+    "http://example.com/insecure",
+    "https://example.com/row1"
+   ],
+   "clicks": [
+    {
+     "words": "plain http",
+     "sent": "http://example.com/insecure",
+     "target": "http://example.com/insecure",
+     "web": null,
+     "next": "",
+     "hover": "http://example.com/insecure",
+     "opened": [
+      "http://example.com/insecure"
+     ]
+    },
+    {
+     "words": "https://example.com/row1",
+     "drawnAddress": true,
+     "sent": null,
+     "target": null,
+     "web": "https://example.com/row1",
+     "next": "",
+     "hover": null,
+     "opened": [
+      "https://example.com/row1"
+     ]
+    }
+   ]
+  },
+  "hostile": [
+   {
+    "key": "userinfo",
+    "target": "https://www.google.com@evil.example/",
+    "hover": null,
+    "opened": [],
+    "sent": "https://www.google.com@evil.example/",
+    "sentLen": 36
+   },
+   {
+    "key": "homograph",
+    "target": "https://аpple.com/",
+    "hover": "https://xn--pple-43d.com/",
+    "opened": [
+     "https://xn--pple-43d.com/"
+    ],
+    "sent": "https://аpple.com/",
+    "sentLen": 18
+   },
+   {
+    "key": "javascript",
+    "target": null,
+    "hover": null,
+    "opened": [],
+    "sent": "javascript:alert(1)",
+    "sentLen": 19
+   },
+   {
+    "key": "localhost",
+    "target": "http://localhost:3000/",
+    "hover": "http://localhost:3000/",
+    "opened": [
+     "http://localhost:3000/"
+    ],
+    "sent": "http://localhost:3000/",
+    "sentLen": 22
+   }
+  ],
+  "rows": {
+   "pathword": {
+    "target": "https://example.com/readme-elsewhere",
+    "web": null,
+    "opened": [],
+    "openedAnyTime": [],
+    "tabsBefore": "",
+    "tabsAfter": "README.md",
+    "hover": null
+   },
+   "cut": {
+    "cutspoof": {
+     "first": {
+      "target": "https://good.example.co.evil.io/x",
+      "web": "https://good.ex",
+      "webAtEdge": true,
+      "cols": 120,
+      "rowsFrom": [
+       "cutspoof:                                                                                                https://good.ex",
+       "ample.com/login"
+      ],
+      "before": [],
+      "opened": [
+       "https://good.ex/"
+      ],
+      "hover": "https://good.ex/"
+     },
+     "second": {
+      "target": "https://good.example.co.evil.io/x",
+      "web": null,
+      "webAtEdge": null,
+      "cols": 120,
+      "rowsFrom": [
+       "ample.com/login"
+      ],
+      "before": [
+       {
+        "row": "cutspoof:                                                                                                https://good.ex",
+        "webs": [
+         {
+          "address": "https://good.ex",
+          "atEdge": true,
+          "endsOnRow": true
+         }
+        ]
+       }
+      ],
+      "opened": [],
+      "hover": null
+     }
+    },
+    "cuthonest": {
+     "first": {
+      "target": "https://example.com/cut/honest/rest-of-path/end",
+      "web": "https://example.com/cut/honest/",
+      "webAtEdge": true,
+      "cols": 120,
+      "rowsFrom": [
+       "cuthonest:                                                                               https://example.com/cut/honest/",
+       "rest-of-path/end"
+      ],
+      "before": [],
+      "opened": [
+       "https://example.com/cut/honest/rest-of-path/end"
+      ],
+      "hover": "https://example.com/cut/honest/rest-of-path/end"
+     },
+     "second": {
+      "target": "https://example.com/cut/honest/rest-of-path/end",
+      "web": null,
+      "webAtEdge": null,
+      "cols": 120,
+      "rowsFrom": [
+       "rest-of-path/end"
+      ],
+      "before": [
+       {
+        "row": "cuthonest:                                                                               https://example.com/cut/honest/",
+        "webs": [
+         {
+          "address": "https://example.com/cut/honest/",
+          "atEdge": true,
+          "endsOnRow": true
+         }
+        ]
+       }
+      ],
+      "opened": [
+       "https://example.com/cut/honest/rest-of-path/end"
+      ],
+      "hover": "https://example.com/cut/honest/rest-of-path/end"
+     }
+    }
+   }
+  }
+ },
+ "breaks": [
+  {
+   "why": "the parent's main had no copy recorder",
+   "clause": "f.parent.recorders",
+   "set": [
+    [
+     "parent.patched.writeRich",
+     false
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's main had no open recorder",
+   "clause": "f.head.recorders",
+   "set": [
+    [
+     "head.patched.openExternal",
+     false
+    ]
+   ]
+  },
+  {
+   "why": "the parent's terminal already held links",
+   "clause": "f.parent-none-registered",
+   "expect": null,
+   "set": [
+    [
+     "parent.claude.registered",
+     [
+      "https://example.com/really-elsewhere"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "a parent click on Claude's words opened something",
+   "clause": "f.parent-claude-words-nothing",
+   "set": [
+    [
+     "parent.claude.clicks.3.opened",
+     [
+      "https://en.wikipedia.org/wiki/Foo_(bar)"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "a parent click on Codex's drawn address opened nothing",
+   "clause": "f.parent-codex-address-opens",
+   "set": [
+    [
+     "parent.codex.clicks.1.opened",
+     []
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's terminal held none of Claude's links",
+   "clause": "f.head-registered.claude",
+   "set": [
+    [
+     "head.claude.registered",
+     []
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's terminal held none of Codex's links",
+   "clause": "f.head-registered.codex",
+   "set": [
+    [
+     "head.codex.registered",
+     []
+    ]
+   ]
+  },
+  {
+   "why": "HEAD opened the target behind words that are another address (question 4's default is the words)",
+   "clause": "f.head-click.claude",
+   "set": [
+    [
+     "head.claude.clicks.0.opened",
+     [
+      "https://example.com/really-elsewhere"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD opened the first row of a URL Claude cut",
+   "clause": "f.head-click.claude",
+   "set": [
+    [
+     "head.claude.clicks.1.opened",
+     [
+      "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's hover named another host",
+   "clause": "f.head-hover.claude",
+   "set": [
+    [
+     "head.claude.clicks.3.hover",
+     "https://evil.example/"
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's hover stayed on a refused target",
+   "clause": "f.head-hover.claude",
+   "set": [
+    [
+     "head.claude.clicks.4.hover",
+     "mailto:someone@example.com"
+    ]
+   ]
+  },
+  {
+   "why": "a HEAD click on Codex's link words opened nothing",
+   "clause": "f.head-click.codex",
+   "set": [
+    [
+     "head.codex.clicks.0.opened",
+     []
+    ]
+   ]
+  },
+  {
+   "why": "HEAD showed no hover over Codex's link words",
+   "clause": "f.head-hover.codex",
+   "set": [
+    [
+     "head.codex.clicks.0.hover",
+     null
+    ]
+   ]
+  },
+  {
+   "why": "HEAD opened an address with a user part",
+   "clause": "f.head-hostile",
+   "set": [
+    [
+     "head.hostile.0.opened",
+     [
+      "https://www.google.com@evil.example/"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD opened a look-alike host as the Latin name it imitates",
+   "clause": "f.head-hostile",
+   "set": [
+    [
+     "head.hostile.1.opened",
+     [
+      "https://apple.com/"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's hover over a look-alike host was not in ASCII",
+   "clause": "f.head-hostile",
+   "set": [
+    [
+     "head.hostile.1.hover",
+     "https://аpple.com/"
+    ]
+   ]
+  },
+  {
+   "why": "probe review: the click on the user-part target found no link on its cell, which opens nothing exactly as a refusal does",
+   "clause": "f.head-hostile",
+   "expect": null,
+   "set": [
+    [
+     "head.hostile.0.target",
+     null
+    ]
+   ]
+  },
+  {
+   "why": "probe review: the javascript: target words were never drawn, so its click was never made; a target xterm does not offer would otherwise read as refused",
+   "clause": "f.head-hostile",
+   "expect": null,
+   "set": [
+    [
+     "head.hostile.2",
+     {
+      "key": "javascript",
+      "sent": "javascript:alert(1)",
+      "sentLen": 19,
+      "notDrawn": true,
+      "opened": []
+     }
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD handed main the web page behind a project file's name, where the parent opened the file",
+   "clause": "f.head-pathword",
+   "set": [
+    [
+     "head.rows.pathword.opened",
+     [
+      "https://example.com/readme-elsewhere"
+     ]
+    ],
+    [
+     "head.rows.pathword.tabsAfter",
+     ""
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: the file opened, and a browser address was handed to main as well, after the click window",
+   "clause": "f.head-pathword",
+   "set": [
+    [
+     "head.rows.pathword.openedAnyTime",
+     [
+      "https://example.com/readme-elsewhere"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: the parent's click did not open the file, so HEAD has nothing to be compared with",
+   "clause": "f.head-pathword",
+   "expect": null,
+   "set": [
+    [
+     "parent.rows.pathword.tabsAfter",
+     ""
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD opened the cut-looking link's other host from its first row (eight matching characters)",
+   "clause": "f.head-cut",
+   "set": [
+    [
+     "head.rows.cut.cutspoof.first.opened",
+     [
+      "https://good.example.co.evil.io/x"
+     ]
+    ],
+    [
+     "head.rows.cut.cutspoof.first.hover",
+     "https://good.example.co.evil.io/x"
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD opened the cut-looking link's other host from its second row",
+   "clause": "f.head-cut",
+   "set": [
+    [
+     "head.rows.cut.cutspoof.second.opened",
+     [
+      "https://good.example.co.evil.io/x"
+     ]
+    ],
+    [
+     "head.rows.cut.cutspoof.second.hover",
+     "https://good.example.co.evil.io/x"
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD opened only the first row's words of an honest cut",
+   "clause": "f.head-cut",
+   "set": [
+    [
+     "head.rows.cut.cuthonest.first.opened",
+     [
+      "https://example.com/cut/honest/"
+     ]
+    ],
+    [
+     "head.rows.cut.cuthonest.first.hover",
+     "https://example.com/cut/honest/"
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD's cut rows were not drawn, which is a reading that did not arrive",
+   "clause": "f.head-cut",
+   "expect": null,
+   "set": [
+    [
+     "head.rows.cut.cuthonest",
+     {
+      "err": "not drawn"
+     }
+    ]
+   ]
+  }
+ ]
+}

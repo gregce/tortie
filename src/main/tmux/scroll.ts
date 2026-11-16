@@ -721,6 +721,383 @@ async function cursorToTopRow(
   );
 }
 
+// ---------------------------------------------------------------------------
+// PHASE 368: SCROLLBACK BETWEEN FRAMES (issue 44; build/p368/SPEC.md §4.3,
+// item 5). THIS MAC'S RUNNER ALONE.
+//
+// Copy mode reads a clone of the pane made when the pane enters it (the
+// account above `scrollPaneTo`). An agent that draws in synchronized frames
+// (`ESC[?2026h`, the frame, `ESC[?2026l`) leaves the pane's grid half-drawn
+// while a frame is open: tmux 3.7b holds the frame back from every client that
+// draws until it closes, but the grid itself is written as the bytes arrive.
+// So a person who scrolled back at that moment froze the half-drawn frame and
+// read it for as long as they stayed scrolled back. Research 145 §3.6 measured
+// three such entries, each holding one half-drawn row, a rule where the prompt
+// sits and a step cut short.
+//
+// WHAT TMUX DOES TO THE FLAG WHEN THE PANE ENTERS COPY MODE, MEASURED
+// 2026-11-16 on tmux 3.7b with Tortie's config, a stand-in holding one frame
+// open 600 ms, `#{synchronized_output_flag}` read every few ms by its own
+// process (build/p368/SPEC.md §As built names the record):
+//
+//     a client attached, no entry       the flag reads 1 until +596 ms, 0 at +599; the frame closed at +602
+//     a client attached, entry at +160  the flag reads 0 at +160, the first read after the entry; closed at +601
+//     the same again, entry at +157     0 at +157; closed at +601
+//     no client attached, entry at +164 the flag reads 1 until +593, 0 at +598; closed at +603
+//
+// Entering a mode marks the pane for a redraw (`window_pane_set_mode`), and
+// tmux ENDS THE FRAME of any pane it redraws for a client that draws
+// (`screen_redraw_draw_pane`, screen-redraw.c:1325). The pane a person scrolls
+// in Tortie always has one, the attach host's client. So once the entry has
+// landed the flag no longer says whether the program finished its frame, and a
+// settle that re-froze at the first read of 0 would re-freeze about 50 ms
+// after the entry, while the frame the entry met was still being drawn.
+//
+// WHAT IS KNOWN: tmux shows any frame at most one second after the program's
+// last `ESC[?2026h`, by its own timer (`screen_write_start_sync` re-arms it,
+// screen-write.c:978-989), and a frame the entry met had opened before the
+// read that saw it. A frame the program opens after the entry raises the flag
+// again and is reported faithfully, because a gesture in copy mode draws its
+// own rows and ends no frame (only a redraw of the whole pane does). So the
+// settle's LAST re-freeze is at the first read of 0 that comes at least
+// TMUX_SYNC_TIMEOUT_MS after it started, never while the flag reads 1, and
+// never after FRAME_SETTLE_MS.
+//
+// AND AN EARLY ONE, at the first read of 0, because of what real agents draw.
+// MEASURED over research 145's 17 recordings of real Claude Code and Codex
+// output that hold frames (`r145/redraw/runs` and `r145/redraw-adv/runs`),
+// each recording's reads joined into one stream first: a frame is open 0.05 to
+// 0.86 percent of the time, the 99th percentile frame lasts 2 to 57 ms, and the
+// longest lasted 200 ms (Claude Code) and 51 ms (Codex). An entry at a moment
+// inside a frame finds that frame closed 50 ms later every time in 13 of the
+// recordings and 60 to 99.8 percent of the time in the other four, and 1,000
+// ms later every time in all 17. The early re-freeze is for the first, the
+// last for the rest. Research 145 §3.6's 451 ms and 651 ms frames are not
+// frames: in each, a frame's closing `ESC[?2026l` was split across two of
+// tmux's reads (`ESC[?2` and `026l`), which a search of each read alone does
+// not find, so the frame was read as open until the next one closed.
+//
+// Each re-freeze is followed by the cursor step, as the way down's is, and by
+// a redraw of the session's clients (`redrawClients`), because a re-freeze in
+// place changes copy mode's copy and not what a client draws.
+//
+// MEASURED END TO END on 2026-11-16, 3.7b, a client attached, the stand-in's
+// 600 ms frame entered 100 to 400 ms in, through the production runner's
+// shape: the parent froze the half-drawn frame and drew it in 4 of 4 trials;
+// this froze and drew the closed frame in 4 of 4; re-freezing at the first
+// read of 0 instead (D10 as first written) still froze it half-drawn in 4 of
+// 4, and did not with no client attached. On Homebrew's 3.6a both builds froze
+// it half-drawn, because 3.6a holds no frame back and answers the flag empty.
+// And over real Claude Code 2.1.325 replies replayed at their recorded times
+// (research 145's c1 at 120 by 30 and c8 at 100 by 12), one of their own
+// frames held open 600 ms in its middle: the parent froze it half-drawn in 4
+// of 4 trials, this froze and drew a complete frame in 4 of 4, the first read
+// of 0 alone froze it half-drawn in 2 of 2, and without the redraw the client
+// kept the half-drawn rows after the reply's last frame and caught up at the
+// next frame mid-reply.
+//
+// It changes nothing a gesture waits for: the entry, the scroll and the read
+// the renderer gets are today's, one read before the entry and one after it
+// are added, and the settle runs behind them, not awaited. A runner that is
+// not this Mac's (`isThisMacsRunner`) asks none of it and sends today's bytes;
+// another machine's connection could not carry it anyway, because
+// `refresh-from-pane` is not in its closed table (scroll-shapes.ts).
+// ---------------------------------------------------------------------------
+
+/** `#{synchronized_output_flag}`, the field's one spelling. tmux 3.7 added it; 3.6a answers it empty. */
+const SYNC_FLAG_FIELD = '#{synchronized_output_flag}';
+
+/**
+ * The read an ENTRY makes on this Mac (Phase 368, D10): whether the pane is in
+ * copy mode, and whether its program holds a synchronized frame open,
+ * tab-separated. Its own constant, so {@link STATE_FORMAT},
+ * {@link REMOTE_STATE_FORMAT} and {@link REFREEZE_READ_FORMAT} keep their bytes
+ * (`conformance:machines` condition 103 holds the first two). It holds no `#(`.
+ */
+export const FRAME_READ_FORMAT = ['#{pane_in_mode}', SYNC_FLAG_FIELD].join('\t');
+
+/**
+ * The settle's read: {@link REFREEZE_READ_FORMAT}'s nine fields and the flag
+ * tenth, so the decision and the guard it applies are read at one instant.
+ */
+export const FRAME_SETTLE_READ_FORMAT = [REFREEZE_READ_FORMAT, SYNC_FLAG_FIELD].join('\t');
+
+/** How often the settle reads the pane (D10). */
+export const FRAME_POLL_MS = 50;
+
+/**
+ * The longest tmux holds a frame back before it shows the pane anyway, its own
+ * sync timer, one second (screen-write.c:978-989 in 3.7b). The settle
+ * re-freezes no sooner than this after it starts (see the account above).
+ */
+export const TMUX_SYNC_TIMEOUT_MS = 1_000;
+
+/** The settle's whole life (D10): it reads for at most this long, then ends with nothing sent. */
+export const FRAME_SETTLE_MS = 1_100;
+
+/** {@link FRAME_READ_FORMAT}'s answer. */
+interface FrameRead {
+  inMode: boolean;
+  /** The flag read 1: the program holds a frame open. tmux 3.6a answers empty, which is false. */
+  frameOpen: boolean;
+}
+
+/**
+ * {@link FRAME_READ_FORMAT}'s reader: one line of exactly two fields, the first
+ * `0` or `1`, the second `0`, `1` or empty, or null. A read it cannot read
+ * decides nothing, so the gesture runs as today.
+ */
+function parseFrameRead(out: string): FrameRead | null {
+  const lines = out.split('\n').filter((l) => l.length > 0);
+  if (lines.length !== 1) return null;
+  const fields = (lines[0] ?? '').split('\t');
+  if (fields.length !== 2) return null;
+  const [mode, flag] = fields;
+  if (mode !== '0' && mode !== '1') return null;
+  if (flag !== '0' && flag !== '1' && flag !== '') return null;
+  return { inMode: mode === '1', frameOpen: flag === '1' };
+}
+
+/**
+ * Read whether the pane is in copy mode and whether a frame is open, on this
+ * Mac's runner alone. Null for any other runner, and for a read that failed or
+ * could not be read, so neither decides anything.
+ */
+async function readFrame(
+  run: TmuxScrollRunner,
+  target: string
+): Promise<FrameRead | null> {
+  if (!isThisMacsRunner(run)) return null;
+  try {
+    return parseFrameRead(
+      await run(['display-message', '-p', '-t', target, '-F', FRAME_READ_FORMAT])
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** {@link FRAME_SETTLE_READ_FORMAT}'s answer: the re-freeze's read, and the flag. */
+interface SettleRead extends RefreezeRead {
+  /** The tenth field: true for `1`, false for `0` or empty, null for anything else. */
+  frameOpen: boolean | null;
+}
+
+/** {@link FRAME_SETTLE_READ_FORMAT}'s reader: `parseRefreezeRead`'s reading, and the tenth field. */
+function parseSettleRead(out: string): SettleRead {
+  const line = out.split('\n').find((l) => l.length > 0);
+  const flag = line?.split('\t')[STATE_FIELDS.length + 1];
+  return {
+    ...parseRefreezeRead(out),
+    frameOpen: flag === '1' ? true : flag === '0' || flag === '' ? false : null
+  };
+}
+
+/** Read the pane for the settle, on this Mac's runner alone; null for any other runner or a failed read. */
+async function readSettle(
+  run: TmuxScrollRunner,
+  target: string
+): Promise<SettleRead | null> {
+  if (!isThisMacsRunner(run)) return null;
+  try {
+    return parseSettleRead(
+      await run(['display-message', '-p', '-t', target, '-F', FRAME_SETTLE_READ_FORMAT])
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether the settle may re-freeze a view it found with no frame open
+ * (Phase 368, D10): Phase 294's guard, each clause one line so a test can take
+ * any one away. The pane is in copy mode; tmux names the frozen frame's depth,
+ * because `refresh-from-pane` keeps the reader's line by its index only where
+ * it does (3.7b); the program is not on its alternate screen, which a re-freeze
+ * would put under the transcript; and the history is below tmux's trim band,
+ * across which the index names another line (`refreezeWanted` carries both
+ * measurements). Phase 294's other two clauses do not apply: a frame redraws
+ * rows in place, so nothing need have printed since the entry, and the settle
+ * moves no reader toward live.
+ */
+export function frameRefreezeAllowed(
+  state: PaneScrollState,
+  historyLimit: number | null
+): boolean {
+  return (
+    state.inMode &&
+    state.frameHistory !== null &&
+    !state.innerAlt &&
+    historyLimit !== null && historyLimit > 0 && !isDiscarding(state.history, historyLimit)
+  );
+}
+
+/** One settle in flight: its two re-freezes, and when it ends. */
+interface FrameFlight {
+  done: Promise<void>;
+  /** The first read of 0 still re-freezes: the frame most likely closed within a poll. */
+  early: boolean;
+  /** `performance.now()` from which a read of 0 makes the LAST re-freeze, and the flight ends. */
+  notBefore: number;
+  /** `performance.now()` after which it starts no read. */
+  endsAt: number;
+}
+
+/**
+ * The settles in flight, ONE PER TARGET for each runner (D10). Keyed by the
+ * runner too, so a runner's flights are its own; production has one runner on
+ * this Mac, the session core's.
+ */
+const frameFlights = new WeakMap<TmuxScrollRunner, Map<string, FrameFlight>>();
+
+/**
+ * Re-freeze a view entered while a frame was open, once that frame is drawn
+ * (Phase 368, D10; the account above). Not awaited by the gesture that starts
+ * it, and it never rejects.
+ *
+ * ONE FLIGHT PER TARGET. A second start for the same target while one is in
+ * flight JOINS it: it moves the flight's last re-freeze and its end to what the
+ * second start would have had and gives it its early re-freeze again, so a pane
+ * that left copy mode and entered again inside another frame is settled for
+ * that frame too.
+ *
+ * Every FRAME_POLL_MS it reads {@link FRAME_SETTLE_READ_FORMAT}. A read that
+ * fails or cannot be read, or finds the pane out of copy mode, ends it with
+ * nothing sent. A read with the flag 1 waits. Two reads with the flag 0
+ * re-freeze, each by `refreeze`, then `cursorToTopRow` as the way down does,
+ * then `redrawClients`, and only when {@link frameRefreezeAllowed}, a refusal
+ * ending it: the FIRST, because the frames real agents draw close within a
+ * poll (the account above), and the first at or after `notBefore`, the LAST,
+ * because only tmux's own second is certain. No read starts after `endsAt`.
+ */
+function settleOpenFrame(run: TmuxScrollRunner, target: string): Promise<void> {
+  if (!isThisMacsRunner(run)) return Promise.resolve();
+  let flights = frameFlights.get(run);
+  if (flights === undefined) {
+    flights = new Map();
+    frameFlights.set(run, flights);
+  }
+  const at = performance.now();
+  const joined = flights.get(target);
+  if (joined !== undefined) {
+    joined.early = true;
+    joined.notBefore = Math.max(joined.notBefore, at + TMUX_SYNC_TIMEOUT_MS);
+    joined.endsAt = Math.max(joined.endsAt, at + FRAME_SETTLE_MS);
+    return joined.done;
+  }
+  const flight: FrameFlight = {
+    done: Promise.resolve(),
+    early: true,
+    notBefore: at + TMUX_SYNC_TIMEOUT_MS,
+    endsAt: at + FRAME_SETTLE_MS
+  };
+  const own = flights;
+  own.set(target, flight);
+  flight.done = settleFlight(run, target, flight)
+    .catch(() => undefined)
+    .finally(() => {
+      if (own.get(target) === flight) own.delete(target);
+    });
+  return flight.done;
+}
+
+/** The body of one {@link settleOpenFrame} flight. */
+async function settleFlight(
+  run: TmuxScrollRunner,
+  target: string,
+  flight: FrameFlight
+): Promise<void> {
+  for (;;) {
+    await new Promise<void>((resolve) => setTimeout(resolve, FRAME_POLL_MS));
+    if (performance.now() > flight.endsAt) return;
+    const read = await readSettle(run, target);
+    if (read === null || read.frameOpen === null || !read.state.inMode) return;
+    // NEVER WHILE A FRAME IS OPEN.
+    if (read.frameOpen) continue;
+    // The frame the entry met may still be drawing: the entry ended tmux's
+    // hold on it, so the flag no longer says (the account above). Before the
+    // second, only the early re-freeze is made.
+    const last = performance.now() >= flight.notBefore;
+    if (!last && !flight.early) continue;
+    if (!frameRefreezeAllowed(read.state, read.historyLimit)) return;
+    flight.early = false;
+    await refreeze(run, target);
+    await cursorToTopRow(run, target);
+    await redrawClients(run, target);
+    if (last) return;
+  }
+}
+
+/**
+ * Have every client attached to the session draw the pane again, after the
+ * settle's re-freeze (Phase 368). This Mac's runner alone; every failure is
+ * swallowed, because a pane that went meanwhile has nothing left to draw.
+ *
+ * WHY. `refresh-from-pane` rewrites copy mode's own screen with no client
+ * watching (`window_copy_size_changed`, which starts its write with no pane)
+ * and then asks for a redraw, and tmux draws only the cells that differ from
+ * that screen (`screen_write_cell`, "If no change, do not draw"), which by then
+ * is none of them. So the frozen copy is right and every client still shows
+ * the half-drawn rows. MEASURED 2026-11-16 on 3.7b with a client attached, the
+ * stand-in's 600 ms frame entered 100 to 400 ms in, the shipping `scrollPaneBy`
+ * through the production runner's shape (build/p368/SPEC.md §As built): with
+ * the re-freeze alone the frozen copy held the closed frame in 4 of 4 trials
+ * and the client drew it in 0 of 4; with this redraw after it, 4 of 4 and 4 of
+ * 4, and the program was told of no size in any trial. A program's next frame
+ * would draw it as well, because a frame's close redraws the whole pane, but a
+ * reply that has finished has no next frame.
+ *
+ * `refresh-client` with no flag only marks the client for a full redraw: it
+ * sends no size and moves no reader.
+ */
+async function redrawClients(run: TmuxScrollRunner, target: string): Promise<void> {
+  if (!isThisMacsRunner(run)) return;
+  let names: string[];
+  try {
+    names = (await run(['list-clients', '-t', target, '-F', '#{client_name}']))
+      .split('\n')
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    await run(['refresh-client', '-t', name]).catch(() => undefined);
+  }
+}
+
+/**
+ * After an ENTRY and its cursor step (Phase 368, D10): when the read made
+ * before the entry found the pane not in copy mode, read once more, and start
+ * the settle when either read found a frame open. A read made before the entry
+ * that found the pane already in copy mode, failed, or belongs to another
+ * runner (null) means this gesture was not an entry, or decides nothing, and
+ * nothing is read or started.
+ */
+async function settleAfterEntry(
+  run: TmuxScrollRunner,
+  target: string,
+  before: FrameRead | null
+): Promise<void> {
+  if (before === null || before.inMode) return;
+  const after = await readFrame(run, target);
+  if (before.frameOpen || after?.frameOpen === true) {
+    void settleOpenFrame(run, target);
+  }
+}
+
+/**
+ * Test seam: resolve once every settle in flight on `run` has ended. The
+ * product never waits for one.
+ */
+export async function frameSettlesForTests(run: TmuxScrollRunner): Promise<void> {
+  const flights = frameFlights.get(run);
+  if (flights === undefined) return;
+  while (flights.size > 0) {
+    await Promise.all([...flights.values()].map((flight) => flight.done));
+  }
+}
+
 /**
  * Put the copy-mode view at an ABSOLUTE offset above the bottom of the frame
  * copy mode froze at entry, which is the live bottom only for a pane that
@@ -823,9 +1200,13 @@ async function scrollFrom(
     ]);
     return parseFor(run, lastAnswer(answers));
   }
+  // PHASE 368 (D10). A seek from live is an entry: this Mac's runner reads
+  // the frame flag before it and once more after it (`settleAfterEntry`).
+  const before = now.inMode ? null : await readFrame(run, target);
   await run(enterCopyModeArgs(run, target));
   await seekPaneTo(run, target, clamped, now.position);
   await cursorToTopRow(run, target);
+  await settleAfterEntry(run, target, before);
   return readPaneScroll(run, target);
 }
 
@@ -881,9 +1262,15 @@ export async function scrollPaneBy(
     return parseFor(run, lastAnswer(answers));
   }
   if (n > 0) {
+    // PHASE 368 (D10). On this Mac's runner the way up reads the frame flag
+    // first, because only that read can say whether this notch is the entry,
+    // and after the entry and the cursor step it reads the flag once more.
+    // Every other runner reads nothing here and sends today's bytes.
+    const before = await readFrame(run, target);
     await run(enterCopyModeArgs(run, target));
     await run(['send-keys', '-t', target, '-X', '-N', String(n), 'scroll-up']);
     await cursorToTopRow(run, target);
+    await settleAfterEntry(run, target, before);
   } else {
     // PHASE 294 (D294-4): toward live, THIS MAC'S RUNNER reads first, and when
     // the notch would reach the bottom of a frame the live history has grown
@@ -1026,6 +1413,17 @@ export async function scrollPaneBy(
  * live. A history at its limit keeps today's jump, and so does a tmux that does
  * not name the frame's depth (3.6a), where the same command slides the reader
  * by what printed.
+ *
+ * ONE MORE RE-FREEZE, AND IT IS STILL THE READER'S GESTURE (Phase 368). An
+ * entry that finds the program inside a synchronized frame has frozen half of
+ * that frame, and `settleOpenFrame` re-freezes it in place, on a timer, at its
+ * first quiet read and again a second later, and has the session's clients
+ * draw it again each time. It is started only by the entry, the reader's own
+ * wheel notch, ⇧PageUp or drag; it ends within FRAME_SETTLE_MS and runs under
+ * the same guard; and it keeps the reader's line by its index exactly as the
+ * way down does, so the reader stays on the line they were reading. Nothing
+ * else starts it: a poll, a resize, a return to the session and a gesture that
+ * found the pane already scrolled back do not.
  */
 export async function scrollPaneTo(
   run: TmuxScrollRunner,

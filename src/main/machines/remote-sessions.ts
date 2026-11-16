@@ -154,6 +154,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { sanitizeTerminalSize, type TerminalSize } from '@shared/terminal-size';
 import type {
   AgentKind,
   LaunchableAgentKind,
@@ -868,6 +869,12 @@ export interface RemoteCreateInput {
   readonly cwd?: string;
   readonly agent: LaunchableAgentKind;
   readonly extraArgs?: readonly string[];
+  /**
+   * PHASE 368 (build/p368/SPEC.md D2, D3). The size of the terminal the
+   * session will be shown in, decided by the local create. Absent keeps that
+   * machine's tmux default of 80 by 24.
+   */
+  readonly size?: TerminalSize;
 }
 
 /**
@@ -903,6 +910,14 @@ export function remoteCreateArgs(input: {
    * either way.
    */
   readonly folderAsRecorded?: true;
+  /**
+   * PHASE 368 (build/p368/SPEC.md D3). The size the session is made at, as
+   * `-x` and `-y` after its name. Every far tmux Tortie has measured, 3.2a to
+   * 3.7c, takes both on a detached `new-session`. Absent, or not a whole size
+   * inside the attach host's bounds, pushes nothing, and this function returns
+   * byte for byte what it returned at the parent commit.
+   */
+  readonly size?: TerminalSize;
 }): string[] {
   const args = [
     'new-session',
@@ -913,6 +928,12 @@ export function remoteCreateArgs(input: {
     '-s',
     input.tmuxName
   ];
+  // PHASE 368 (D3). Made at the size its pane will draw at, so the first
+  // attach, spawned at that size, is no size change for the program in it.
+  const size = sanitizeTerminalSize(input.size);
+  if (size !== null) {
+    args.push('-x', String(size.cols), '-y', String(size.rows));
+  }
   // PHASE 84. Evaluated on the far side, and sent only when the person named a
   // folder. The local existsSync check every local create makes is deliberately
   // skipped, per research 51 section 4.3: the folder is not on this Mac, so this
@@ -1896,7 +1917,9 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     ...(cwd.length > 0 ? { cwd } : {}),
     sessionId,
     argv: launchArgv,
-    ...(passthrough.length > 0 ? { envNames: passthrough } : {})
+    ...(passthrough.length > 0 ? { envNames: passthrough } : {}),
+    // PHASE 368 (D3). The size the local create decided, as a local create is.
+    ...(input.size !== undefined ? { size: input.size } : {})
   });
 
   // BEFORE the line is sent, and not after. The failure this exists for is a

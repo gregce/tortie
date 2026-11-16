@@ -3,17 +3,22 @@
  *
  * TWO PROMISES ARE UNDER TEST HERE, and they are different in kind.
  *
- * The first is that the LOCAL attach did not move by one byte. Fifty-odd
- * releases of local sessions attach through this argv, and the only reason it
- * changed file at all is that a second shape arrived beside it. So the golden
- * below is WRITTEN OUT from `attach-host.ts` at `b660df9` rather than imported
- * from the module under test, because importing the implementation and comparing
- * it against itself would pass whatever the implementation did.
+ * The first is that the LOCAL attach moved by exactly one flag. Fifty-odd
+ * releases of local sessions attached through the argv `attach-host.ts`
+ * composed at `b660df9`, and Phase 368 adds `-T hyperlinks` after `-u` so the
+ * links a program prints reach the terminal (build/p368/SPEC.md D18, research
+ * 145 section 5.3). So the golden below is WRITTEN OUT, `b660df9`'s argv with
+ * those two elements, rather than imported from the module under test, because
+ * importing the implementation and comparing it against itself would pass
+ * whatever the implementation did; and one test holds that the two elements
+ * are the ONLY difference from `b660df9`.
  *
  * The second is that the REMOTE attach carries everything research 51 section
  * 4.1 says it must: a forced terminal, every option of the carriage, the
  * configuration refusal, the UTF-8 flag, an absolute program, the socket read
- * from the machine rather than written here, and an exact name match.
+ * from the machine rather than written here, and an exact name match. Since
+ * Phase 368 it carries `-T hyperlinks` too, but ONLY when its caller says
+ * `hyperlinks: true`, and with `false` it is byte for byte the far call it was.
  *
  * And one rule about the module itself. Phase 69 found that reading a constant
  * from a module that loads `node-pty` put a native terminal binding into the
@@ -63,18 +68,18 @@ const REMOTE: RemoteMachineContext = {
   }
 };
 
-function remotePlan(tmuxName = 'proj--one') {
-  return attachPlan({ kind: 'remote', ctx: REMOTE, tmuxName });
+function remotePlan(tmuxName = 'proj--one', hyperlinks = false) {
+  return attachPlan({ kind: 'remote', ctx: REMOTE, tmuxName, hyperlinks });
 }
 
 /** The single argument ssh carries to the other machine's login shell. */
-function remoteCommand(tmuxName = 'proj--one'): string {
-  const argv = remotePlan(tmuxName).argv;
+function remoteCommand(tmuxName = 'proj--one', hyperlinks = false): string {
+  const argv = remotePlan(tmuxName, hyperlinks).argv;
   return argv[argv.length - 1] ?? '';
 }
 
 // ---------------------------------------------------------------------------
-// The local golden, taken from b660df9
+// The local golden: b660df9's argv, and Phase 368's one flag after `-u`
 // ---------------------------------------------------------------------------
 
 interface Vector {
@@ -84,7 +89,8 @@ interface Vector {
 }
 
 /**
- * What `attach-host.ts` composed at `b660df9`, for eight shapes of caller.
+ * What `attach-host.ts` composed at `b660df9`, for eight shapes of caller, with
+ * Phase 368's `-T hyperlinks` written in after `-u`.
  *
  * The last one is the shape the one production caller actually sends: an
  * immutable `$`-id, which `=$3` addresses exactly and which no rename can move.
@@ -101,6 +107,8 @@ const VECTORS: readonly Vector[] = [
     },
     golden: [
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux',
       '-f',
@@ -121,6 +129,8 @@ const VECTORS: readonly Vector[] = [
     },
     golden: [
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux',
       '-f',
@@ -141,6 +151,8 @@ const VECTORS: readonly Vector[] = [
     },
     golden: [
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux',
       '-f',
@@ -165,6 +177,8 @@ const VECTORS: readonly Vector[] = [
     },
     golden: [
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux',
       '-f',
@@ -185,6 +199,8 @@ const VECTORS: readonly Vector[] = [
     },
     golden: [
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux-smoke-t3',
       '-f',
@@ -206,6 +222,8 @@ const VECTORS: readonly Vector[] = [
     },
     golden: [
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux',
       '-f',
@@ -226,6 +244,8 @@ const VECTORS: readonly Vector[] = [
     },
     golden: [
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux',
       '-f',
@@ -246,6 +266,8 @@ const VECTORS: readonly Vector[] = [
     },
     golden: [
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux',
       '-f',
@@ -257,14 +279,41 @@ const VECTORS: readonly Vector[] = [
   }
 ];
 
-describe('the local attach did not move by one byte', () => {
+describe('the local attach moved by exactly one flag, `-T hyperlinks` (Phase 368)', () => {
   for (const vector of VECTORS) {
-    it(`composes ${vector.what} exactly as b660df9 did`, () => {
+    it(`composes ${vector.what} as b660df9 did, with -T hyperlinks after -u`, () => {
       const plan = attachPlan(vector.target);
       expect(plan.file).toBe(vector.target.bin);
       expect(plan.argv).toEqual(vector.golden);
     });
   }
+
+  it('differs from b660df9 by the two elements after -u and nothing else', () => {
+    // b660df9's argv for the first vector, written out once more on its own.
+    const b660df9 = [
+      '-u',
+      '-L',
+      'gmux',
+      '-f',
+      '/repo/resources/gmux-tmux.conf',
+      'attach-session',
+      '-t',
+      '=proj--one'
+    ];
+    const argv = [...attachPlan(VECTORS[0]!.target).argv];
+    expect(argv.slice(1, 3)).toEqual(['-T', 'hyperlinks']);
+    expect([argv[0], ...argv.slice(3)]).toEqual(b660df9);
+  });
+
+  it('asks for the hyperlinks feature alone, so no unknown name can end the parse', () => {
+    // MEASURED (build/p368/SPEC.md section 2.5): `-T nosuch,hyperlinks` lost
+    // the feature on 3.6a and 3.7b, because an unknown name ends the parse.
+    for (const vector of VECTORS) {
+      const argv = attachPlan(vector.target).argv;
+      expect(argv.filter((a) => a === '-T')).toHaveLength(1);
+      expect(argv[argv.indexOf('-T') + 1]).toBe('hyperlinks');
+    }
+  });
 
   it('runs the tmux it was handed and never a bare name', () => {
     for (const vector of VECTORS) {
@@ -350,7 +399,8 @@ describe('the remote attach carries the ATTACH row of research 51 section 4.1', 
     const command = attachPlan({
       kind: 'remote',
       ctx: other,
-      tmuxName: 'proj--one'
+      tmuxName: 'proj--one',
+      hyperlinks: false
     }).argv;
     expect(command[command.length - 1]).toContain('-L gmux-p70-other');
   });
@@ -367,10 +417,61 @@ describe('the remote attach carries the ATTACH row of research 51 section 4.1', 
     const argv = attachPlan({
       kind: 'remote',
       ctx: bare,
-      tmuxName: 'proj--one'
+      tmuxName: 'proj--one',
+      hyperlinks: false
     }).argv;
     expect(argv).not.toContain('-p');
     expect(argv).not.toContain('-l');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 368: the far call with and without -T hyperlinks
+// ---------------------------------------------------------------------------
+
+describe('the remote attach asks for links only when its caller says true (Phase 368, D18)', () => {
+  // Written out, not composed: what the far machine's login shell is handed.
+  const TODAY = "/usr/bin/tmux -L gmux-p70-unit -f /dev/null -u attach-session -t '=proj--one'";
+  const WITH_LINKS =
+    "/usr/bin/tmux -L gmux-p70-unit -f /dev/null -u -T hyperlinks attach-session -t '=proj--one'";
+
+  it('with hyperlinks false composes the far call it composed before the phase, byte for byte', () => {
+    expect(remoteCommand('proj--one', false)).toBe(TODAY);
+  });
+
+  it('with hyperlinks true adds -T hyperlinks after -u and nothing else', () => {
+    expect(remoteCommand('proj--one', true)).toBe(WITH_LINKS);
+    expect(WITH_LINKS.replace(' -T hyperlinks', '')).toBe(TODAY);
+  });
+
+  it('treats anything but an explicit true as false, so an untyped caller keeps today', () => {
+    // The build/ drivers call the composer through tsx, where no type is
+    // checked; a missing field must read as today's argv.
+    const untyped = { kind: 'remote', ctx: REMOTE, tmuxName: 'proj--one' } as unknown as Parameters<
+      typeof attachPlan
+    >[0];
+    const argv = attachPlan(untyped).argv;
+    expect(argv[argv.length - 1]).toBe(TODAY);
+    const truthy = { ...untyped, hyperlinks: 'yes' } as unknown as Parameters<typeof attachPlan>[0];
+    const truthyArgv = attachPlan(truthy).argv;
+    expect(truthyArgv[truthyArgv.length - 1]).toBe(TODAY);
+  });
+
+  it('keeps every other part of the ssh argv the same either way', () => {
+    const without = remotePlan('proj--one', false).argv;
+    const withLinks = remotePlan('proj--one', true).argv;
+    expect(withLinks.slice(0, -1)).toEqual(without.slice(0, -1));
+    expect(remotePlan('proj--one', true).file).toBe(REMOTE.sshBin);
+  });
+
+  it('still quotes the target, with the flag before attach-session', () => {
+    for (const name of ['proj--one', '$3', 'my session', '=already']) {
+      const command = remoteCommand(name, true);
+      expect(command.endsWith(`'=${name}'`)).toBe(true);
+      const parts = command.split(' ');
+      expect(parts.indexOf('-T')).toBeGreaterThan(parts.indexOf('-u'));
+      expect(parts.indexOf('-T')).toBeLessThan(parts.indexOf('attach-session'));
+    }
   });
 });
 

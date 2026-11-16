@@ -59,6 +59,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
+import { cellWidthsForServer, type CellWidthTable } from '@shared/cell-widths';
 import type { GmuxErrorRemedy } from '@shared/types';
 
 import { gmuxError } from '../errors';
@@ -866,16 +867,48 @@ let memoisedPass: VersionGate | null = null;
 /** True once the "the bundled tmux is not the version we expected" line was said. */
 let saidClientMismatch = false;
 
+/**
+ * The version THIS MAC's server answered, the last time `ensureServer` read it
+ * (Phase 368, build/p368/SPEC.md §4.2, D7). Null before the first read, and
+ * when the read answered nothing.
+ *
+ * BOTH OF `ensureServer`'s READS RECORD IT. The gate reads a WARM server and
+ * records what it read when it lets the boot through; a server this process
+ * creates gets no gate (src/main/tmux/supervisor.ts), so the cold path's own
+ * `#{version}` read in {@link logCreatedServerVersion} records it there. A
+ * gate alone would leave the first launch after every reboot, which is the
+ * launch that creates the server, drawing a session at the terminal's own
+ * widths rather than its server's.
+ */
+let localServerVersion: string | null = null;
+
 /** Clear everything this module remembers. Called by `resetTmuxContext()`. */
 export function resetTmuxVersionState(): void {
   memoisedPass = null;
   saidClientMismatch = false;
   clientVersions.clear();
+  localServerVersion = null;
 }
 
 /** What the gate decided last, for a harness or a bug report. Null before boot. */
 export function lastVersionGate(): VersionGate | null {
   return memoisedPass;
+}
+
+/** The version this Mac's server answered when `ensureServer` last read it, or null (Phase 368, D7). */
+export function lastLocalServerVersion(): string | null {
+  return localServerVersion;
+}
+
+/**
+ * The width table of the server that draws this Mac's sessions (Phase 368,
+ * D7): the vendored 3.7b's, Homebrew's 3.6a's, or null for a server of any
+ * other version or one not read yet, whose sessions keep the terminal's own
+ * widths. A session on another machine never asks: its server's build was
+ * never measured.
+ */
+export function localCellWidths(): CellWidthTable | null {
+  return cellWidthsForServer(localServerVersion);
 }
 
 /**
@@ -941,6 +974,9 @@ export async function assertServerVersionUsable(
         `Tortie runs ${gate.client}. This pair is tested for this release.`
     );
   }
+  // PHASE 368 (D7): the server the boot is about to attach to draws every
+  // session on this Mac, so its version picks the terminal's width table.
+  localServerVersion = server;
   memoisedPass = gate;
   return gate;
 }
@@ -971,6 +1007,9 @@ export async function logCreatedServerVersion(input: {
   source: TmuxBinarySource;
 }): Promise<void> {
   const version = await readServerVersion(input.exec);
+  // PHASE 368 (D7): the server this process just created gets no gate, so
+  // this read is the one that names its width table.
+  localServerVersion = version;
   if (version === null) {
     tmuxLog.warn(
       'The tmux server was created and it did not report its version.'

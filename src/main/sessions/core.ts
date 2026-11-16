@@ -170,6 +170,11 @@ import * as tmux from '../tmux';
 // Phase 69: the five options this boot re-asserts, selected by field from the one
 // list the remote boot reads too, so the two cannot drift.
 import { localReassertOptions } from '../tmux/server-options';
+// PHASE 368 (build/p368/SPEC.md D1, D7). The size a pane fitted, read through
+// its one validator, and the width table of this Mac's own server, which a row
+// on this Mac carries so the pane draws every code point as that server does.
+import { sanitizeTerminalSize, type TerminalSize } from '@shared/terminal-size';
+import { localCellWidths } from '../tmux/version';
 // PHASE 70. Sessions that live on another machine. This class ROUTES to them and
 // owns none of their state: every remote row lives in src/main/machines, in that
 // machine's own tmux server, and never in the manifest. The verbs below branch on
@@ -903,6 +908,19 @@ export class GmuxCore {
   private readonly foreignTmuxIds = new Set<string>();
   /** Last cols×rows pushed per session — see resizeSession (Phase 12.11). */
   private readonly lastGeometry = new Map<string, string>();
+  /**
+   * PHASE 368 (build/p368/SPEC.md D2). The last size a pane was fitted at, in
+   * any window and for any session: every `resizeSession` sets it, and so does
+   * every attach that carried a size. It is what an attach, a create or a
+   * restore that names no size of its own is made at, because a create with no
+   * size used to be made at tmux's 80 by 24 and then fitted a moment later, a
+   * size change the session's program saw while it drew.
+   *
+   * NULL UNTIL A PANE HAS FITTED, and then a create keeps today's 80 by 24.
+   * Read as `?? null` everywhere, because the seam tests borrow these methods
+   * onto a plain object on which no field initializer ran.
+   */
+  private lastFittedSize: TerminalSize | null = null;
 
   /** Phase 13: per-agent activity detection (src/main/activity). */
   readonly activity: SessionActivityMonitor;
@@ -1398,7 +1416,10 @@ export class GmuxCore {
       startIdCapture: (id, agent, ctx, extraArgs, options) => {
         startIdCapture(this.harvestDeps, id, agent, ctx, extraArgs, options);
       },
-      cachedAgentVersion: (agent) => cachedAgentVersion(agent)
+      cachedAgentVersion: (agent) => cachedAgentVersion(agent),
+      // PHASE 368 (D2). A create that names no size is made at the last size
+      // a pane was fitted at, read when the create runs rather than now.
+      lastFittedSize: () => this.lastFittedSize ?? null
     };
     this.quitDeps = {
       manifest,
@@ -2026,7 +2047,10 @@ export class GmuxCore {
       this.restoresInFlight.add(sessionId);
       try {
         refuseRemoteRestore(sessionId);
-        const outcome = await restoreRemoteSession(sessionId);
+        // PHASE 368 (D2, D3). Made on that machine at the size it will be
+        // shown, as a local restore is below.
+        const size = this.sizeForCreate(options.size);
+        const outcome = await restoreRemoteSession(sessionId, size);
         this.reportRemoteResume(outcome);
         this.broadcastSessions();
         return outcome.session;
@@ -2082,6 +2106,12 @@ export class GmuxCore {
       // effect. `attemptId` is what closes it again on every path out.
       attemptId = this.manifest.beginRestoreAttempt(sessionId);
       const attempt = attemptId;
+      // PHASE 368 (build/p368/SPEC.md D2, D3). The size the restored session
+      // is made at: the request's, then the last size a pane was fitted at,
+      // then none, which keeps tmux's 80 by 24. A restored agent paints its
+      // first frame at the size it is shown, so a resumed reply is not drawn
+      // at 80 columns and then again at the pane's.
+      const size = this.sizeForCreate(options.size);
       const outcome = await restoreSessionInTmux(rec, {
         // The instant new-session returns, and before anything is typed into
         // the pane. This is the window where a crash used to leave Tortie
@@ -2091,7 +2121,8 @@ export class GmuxCore {
         },
         // PHASE 119. Passed through unchanged. Omitted, which is every caller
         // before this phase, the restore composes exactly what it always did.
-        ...(options.withoutCapture === true ? { withoutCapture: true } : {})
+        ...(options.withoutCapture === true ? { withoutCapture: true } : {}),
+        ...(size !== null ? { size } : {})
       });
       const result = restoreRecordOf(outcome);
       if (outcome.kind === 'failed') {
@@ -3329,11 +3360,21 @@ export class GmuxCore {
       // work a person can see on the other machine.
       const out: Session[] = [];
       const covered = new Set<string>();
+      // PHASE 368 (build/p368/SPEC.md D7). The width table of THIS Mac's
+      // server, read once per list. A row on this Mac carries it, so its pane
+      // counts every emoji in the cells that server draws it in. A row on
+      // another machine carries none and keeps today's widths, because no
+      // other machine's tmux build has been measured.
+      const widths = localCellWidths();
       for (const rec of this.manifest.listSessions()) {
         if (rec.status === 'discarded') continue;
         covered.add(rec.id);
         if (rec.machineId === undefined || rec.machineId === LOCAL_MACHINE) {
-          out.push(toSession(rec));
+          out.push(
+            widths === null
+              ? toSession(rec)
+              : { ...toSession(rec), cellWidths: widths }
+          );
           continue;
         }
         // PHASE 72, SECOND FIX ROUND. `toSession` stamps the instant of the copy
@@ -3913,16 +3954,63 @@ export class GmuxCore {
    *
    * Phase 116: admitted, because an attach spawns an attach host process.
    * Detach stays unguarded on purpose: the teardown itself detaches.
+   *
+   * PHASE 368 (build/p368/SPEC.md D1). `size` is the pane's fitted size, as
+   * the renderer sent it and therefore unchecked: every branch below spawns
+   * its client at `attachSizeFor(size)`, never at tmux's 80 by 24 when a size
+   * is known.
    */
-  attachSession(sessionId: string, sender: WebContents): Promise<void> {
+  attachSession(
+    sessionId: string,
+    sender: WebContents,
+    size?: unknown
+  ): Promise<void> {
     return this.ledger.admit('attachSession', () =>
-      this.attachSessionAdmitted(sessionId, sender)
+      this.attachSessionAdmitted(sessionId, sender, size)
     );
+  }
+
+  /**
+   * PHASE 368 (build/p368/SPEC.md D1, D2). The size an attach client is
+   * spawned at: the pane's own when it sent a valid one, then the last size a
+   * pane was fitted at, then none, which leaves the attach host's 80 by 24.
+   * A valid size the pane sent is also the last fitted size from here on.
+   *
+   * WHY IT MATTERS. The renderer used to attach, and only then push the size it
+   * had fitted. When that push came a few milliseconds late the program in the
+   * session was told 80 by 24 and the real size about 250 ms later, and a long
+   * reply drawn in between was left duplicated or overprinted in the history
+   * (research 145 section 3.2, measured: 1 of 4 returns lost the race with the
+   * push held 15 ms, 4 of 4 at 30 ms). Spawned at the fitted size, the client
+   * changes nothing.
+   *
+   * Synchronous, so it adds no await to the branches that must have none
+   * between their last check and the spawn.
+   */
+  private attachSizeFor(size: unknown): TerminalSize | null {
+    const given = sanitizeTerminalSize(size);
+    if (given !== null) {
+      this.lastFittedSize = given;
+      return given;
+    }
+    return this.lastFittedSize ?? null;
+  }
+
+  /**
+   * PHASE 368 (build/p368/SPEC.md D2). The size a create or a restore is made
+   * at: the request's own, then the last size a pane was fitted at, then null,
+   * which sends no `-x` or `-y` and keeps tmux's 80 by 24. Unlike an attach, a
+   * create's size is a guess about a pane that does not exist yet, so it never
+   * becomes the last fitted size.
+   */
+  private sizeForCreate(size: unknown): TerminalSize | null {
+    return sanitizeTerminalSize(size) ?? this.lastFittedSize ?? null;
   }
 
   private async attachSessionAdmitted(
     sessionId: string,
-    sender: WebContents
+    sender: WebContents,
+    size?: unknown
   ): Promise<void> {
     // PHASE 326. This attach's ticket, taken before anything else and before
     // any await, so a detach or a newer attach for the same session makes a
@@ -3936,13 +4024,13 @@ export class GmuxCore {
     // stranger's session into this tab.
     const remote = remoteSessionRow(sessionId);
     if (remote !== null) {
-      this.attachListedRemote(sessionId, remote, sender);
+      this.attachListedRemote(sessionId, remote, sender, size);
       return;
     }
     // PHASE 326. A session on another machine is never looked for on this Mac's server.
     const far = remoteRecordOf(sessionId);
     if (far !== null && isRemoteRecord(far)) {
-      await this.attachFarUnbound(sessionId, far, sender, ticket);
+      await this.attachFarUnbound(sessionId, far, sender, ticket, size);
       return;
     }
     const rec = this.mustGetSession(sessionId);
@@ -3974,11 +4062,15 @@ export class GmuxCore {
     }
     // AttachHost prefixes '='; '=$n' strips to the immutable $-id (verified
     // against tmux 3.6a) — rename-proof addressing.
+    // PHASE 368 (D1). Spawned at the pane's size, so tmux is never told 80 by
+    // 24 for a pane that is not.
+    const fitted = this.attachSizeFor(size);
     this.attachHost.attach({
       sessionId,
       tmuxName: target,
       sender,
-      cwd: rec.cwd
+      cwd: rec.cwd,
+      ...(fitted !== null ? { cols: fitted.cols, rows: fitted.rows } : {})
     });
   }
 
@@ -3990,7 +4082,8 @@ export class GmuxCore {
   private attachListedRemote(
     sessionId: string,
     remote: RemoteSessionRow,
-    sender: WebContents
+    sender: WebContents,
+    size?: unknown
   ): void {
     if (remote.status === 'exited') {
       throw gmuxError(
@@ -4007,11 +4100,15 @@ export class GmuxCore {
     // first line, before anything spawns. Synchronous, with nothing awaited
     // between it and the spawn below.
     assertFarPairUsable(remote.machineId);
+    // PHASE 368 (D1). The far client is spawned at the pane's size too; ssh
+    // hands that size to the far side's own terminal.
+    const fitted = this.attachSizeFor(size);
     this.attachHost.attach({
       sessionId,
       tmuxName: remote.tmuxId,
       sender,
-      machine
+      machine,
+      ...(fitted !== null ? { cols: fitted.cols, rows: fitted.rows } : {})
     });
   }
 
@@ -4035,7 +4132,8 @@ export class GmuxCore {
     sessionId: string,
     far: ManifestSessionRecord,
     sender: WebContents,
-    ticket: number
+    ticket: number,
+    size?: unknown
   ): Promise<void> {
     const machineId = far.machineId ?? '';
     const verdict = await awaitFarBinding(this.farAttachDeps, {
@@ -4050,7 +4148,7 @@ export class GmuxCore {
       throw farBindingRefusal(verdict, { machineId, tmuxName: far.tmuxName });
     }
     if (!this.attachStillWanted(sessionId, ticket, sender)) return;
-    this.attachListedRemote(sessionId, verdict.row, sender);
+    this.attachListedRemote(sessionId, verdict.row, sender, size);
   }
 
   /**
@@ -4094,6 +4192,10 @@ export class GmuxCore {
     const geometry = `${String(input.cols)}x${String(input.rows)}`;
     const changed = this.lastGeometry.get(input.sessionId) !== geometry;
     this.lastGeometry.set(input.sessionId, geometry);
+    // PHASE 368 (D2). Every fit a pane pushes is the size the next attach,
+    // create or restore that names none of its own is made at.
+    const fitted = sanitizeTerminalSize(input);
+    if (fitted !== null) this.lastFittedSize = fitted;
     this.attachHost.resize(input.sessionId, input.cols, input.rows);
     if (changed) this.activity.noteGeometryChange(input.sessionId);
   }

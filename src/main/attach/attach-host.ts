@@ -3,7 +3,10 @@
  *
  * One node-pty per attached session, running:
  *
- *   tmux -L gmux -f resources/gmux-tmux.conf attach-session -t =<tmuxName>
+ *   tmux -u -T hyperlinks -L gmux -f <gmux-tmux.conf> attach-session -t =<tmuxName>
+ *
+ * (`-T hyperlinks` since Phase 368, so the links a program prints reach the
+ * terminal; the composition and its reasons are in ./attach-plan.ts.)
  *
  * (exact-match `=` addressing per FINAL-REPORT §2.4 Step 0; the PRIVATE
  * socket only — never the user's default tmux server.)
@@ -77,6 +80,7 @@ import type {
   SpawnPlan
 } from '../machines/context';
 import { attachPlan } from './attach-plan';
+import { farAttachHyperlinks } from './hyperlinks-gate';
 import { getLog } from '../log';
 import { DIAGNOSTIC_BUILD } from '../diagnostic-build/flag';
 import { diagnosticEvent } from '../diagnostic-build/events';
@@ -445,7 +449,11 @@ export class AttachHost {
       return attachPlan({
         kind: 'remote',
         ctx: req.machine,
-        tmuxName: req.tmuxName
+        tmuxName: req.tmuxName,
+        // PHASE 368 (D18). Links reach this client only when the machine's
+        // server and program are both 3.4 or later; read synchronously from
+        // memory, so nothing is awaited before the spawn.
+        hyperlinks: farAttachHyperlinks(req.machine.machineId)
       });
     }
     // Phase 41: one composer for both "there is no tmux" sentences, in

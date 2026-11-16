@@ -102,7 +102,8 @@
  * 18. A golden file has no manifest row, a manifest row names a file that is not
  *     there, or a class listed as having no golden has one or gives no reason.
  * 19. The local attach argv differs by one byte from the golden taken from
- *     `b660df9`, across eight name and server vectors.
+ *     `b660df9` with Phase 368's `-T hyperlinks`, across eight name and server
+ *     vectors.
  * 20. A remote attach argv does not carry `-t` first, does not carry every
  *     required option, does not carry `-f /dev/null`, does not carry `-u`, names
  *     a bare program rather than the absolute one, carries a literal `gmux`
@@ -1626,7 +1627,7 @@ if (manifest === null || typeof manifest !== 'object') {
 }
 
 // ---------------------------------------------------------------------------
-// 19. The local attach argv, byte for byte against b660df9
+// 19. The local attach argv, byte for byte against b660df9 plus -T hyperlinks
 // ---------------------------------------------------------------------------
 //
 // 61 sessions on the author's machine attach through this one composer, so one
@@ -1646,7 +1647,7 @@ for (const row of attachLocalRows) {
   if (row.equal) continue;
   fail(
     `the local attach argv for ${JSON.stringify(row.name)} differs from what ` +
-      `b660df9 composed.\n      want ${String(row.wantFile)} ${JSON.stringify(
+      `b660df9 composed with Phase 368's -T hyperlinks.\n      want ${String(row.wantFile)} ${JSON.stringify(
         row.want
       )}\n      got  ${String(row.file)} ${JSON.stringify(row.got)}`
   );
@@ -6600,7 +6601,7 @@ process.stdout.write(
 // Phase 70's tables
 // ---------------------------------------------------------------------------
 
-process.stdout.write('\nattach name                matches b660df9\n');
+process.stdout.write('\nattach name                matches b660df9 + -T hyperlinks\n');
 process.stdout.write('-'.repeat(50) + '\n');
 for (const row of attachLocalRows) {
   process.stdout.write(`${pad(row.name, 26)} ${row.equal ? 'yes' : 'NO'}\n`);

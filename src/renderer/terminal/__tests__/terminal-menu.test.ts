@@ -84,9 +84,32 @@ const REMOTE_SESSION: Session = {
   }
 };
 
+/**
+ * Phase 368: a copy is read from the buffer as drawn (../capture/drawn-text.ts),
+ * so the fake carries rows that draw the text over RANGE, one line a row from
+ * the range's first cell, and any row left over an empty continuation.
+ */
+function drawnBuffer(text: () => string | null): unknown {
+  const getLine = (y: number) => {
+    const current = text();
+    const i = y - RANGE.start.y;
+    if (current === null || i < 0 || y > RANGE.end.y) return undefined;
+    const lines = current.split('\n');
+    const row = (i === 0 ? ' '.repeat(RANGE.start.x) : '') + (lines[i] ?? '');
+    return {
+      length: 80,
+      isWrapped: i >= lines.length,
+      translateToString: (_trim: boolean, from = 0, to = row.length) => row.slice(from, to)
+    };
+  };
+  return { active: { getLine } };
+}
+
 /** A terminal that reports exactly the selection it was built with. */
 function fakeTerminal(text: string | null): Terminal {
   return {
+    cols: 80,
+    buffer: drawnBuffer(() => text),
     hasSelection: () => text !== null,
     getSelection: () => text ?? '',
     getSelectionPosition: () => (text === null ? undefined : RANGE)

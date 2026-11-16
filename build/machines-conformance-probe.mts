@@ -807,7 +807,9 @@ const ATTACH_LOCAL_VECTORS: readonly {
 
 /**
  * The golden local attach argv, being what `attach-host.ts` composed inline at
- * `b660df9`.
+ * `b660df9`, with the one flag Phase 368 added on purpose: `-T hyperlinks`
+ * after `-u`, so the links a program prints reach the terminal
+ * (build/p368/SPEC.md §4.5, item 9).
  *
  * It is written out here rather than imported, ON PURPOSE, for the same reason
  * the local tmux golden above is: importing the current implementation and
@@ -823,6 +825,8 @@ const attachLocalRows = ATTACH_LOCAL_VECTORS.map((vector) => {
   });
   const want = [
     '-u',
+    '-T',
+    'hyperlinks',
     '-L',
     vector.socket,
     '-f',
@@ -846,7 +850,10 @@ const attachLocalRows = ATTACH_LOCAL_VECTORS.map((vector) => {
 const attachRemotePlan = attachPlan({
   kind: 'remote',
   ctx: REMOTE_CTX,
-  tmuxName: '$4'
+  tmuxName: '$4',
+  // Phase 368 (D18): a machine whose tmux pair nobody read keeps the far call
+  // it had, which is what condition 20 reads.
+  hyperlinks: false
 });
 
 /** The remote create argv, composed against a shape rather than a machine. */

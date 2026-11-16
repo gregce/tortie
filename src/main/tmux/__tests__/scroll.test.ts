@@ -16,6 +16,7 @@ import * as scrollModule from '../scroll';
 import { isDiscarding } from '../../scrollback/watch';
 import {
   exitPaneScroll,
+  FRAME_READ_FORMAT,
   readPaneScroll,
   REFREEZE_READ_FORMAT,
   refreezeWanted,
@@ -765,8 +766,13 @@ describe('the way down on this Mac (Phase 294, D294-4)', () => {
       const { run, calls } = thisMacs(lagging);
       await op(run);
       assert.ok(!calls.some((c) => c.includes('refresh-from-pane')), JSON.stringify(calls));
-      // ...and reads with the eight fields it always has.
-      assert.ok(calls.filter((c) => c[0] === 'display-message').every((c) => c[c.length - 1] === STATE_FORMAT));
+      // ...and reads with the eight fields it always has, or (Phase 368) the
+      // entry's one frame read on this Mac's way up.
+      assert.ok(
+        calls
+          .filter((c) => c[0] === 'display-message')
+          .every((c) => c[c.length - 1] === STATE_FORMAT || c[c.length - 1] === FRAME_READ_FORMAT)
+      );
     }
   });
 

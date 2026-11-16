@@ -26,6 +26,7 @@ import { existsSync, statSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import { EVT_CAPTURE_NOTICE } from '@shared/ipc';
 import { LOGIN_SIGN_IN_ARGV, loginProviderForAgent } from '@shared/logins';
+import { sanitizeTerminalSize, type TerminalSize } from '@shared/terminal-size';
 import type {
   CreateSessionInput,
   LaunchableAgentId,
@@ -146,7 +147,8 @@ export function isDirectory(path: string): boolean {
  * These 8 members are the complete measured set: the body makes 16 `this`
  * references in 520 lines and they resolve to exactly these names. The three
  * maps are the core's own objects, handed over by reference rather than
- * copied, so the core and this path read and write the same entries.
+ * copied, so the core and this path read and write the same entries. Phase
+ * 368 added a ninth, `lastFittedSize`, a read of one core field.
  */
 export interface CreateLocalDeps {
   readonly manifest: ManifestStore;
@@ -170,6 +172,12 @@ export interface CreateLocalDeps {
   ): void;
   /** The installed version of `agent`, or null. See ./id-harvest.ts. */
   cachedAgentVersion(agent: LaunchableAgentKind): string | null;
+  /**
+   * PHASE 368 (build/p368/SPEC.md D2). The last size a pane was fitted at, or
+   * null when none has been. A create that names no size of its own is made at
+   * it, which is what a restart, the phone and every harness create get.
+   */
+  lastFittedSize(): TerminalSize | null;
 }
 
 export async function createLocalSession(
@@ -204,6 +212,13 @@ export async function createLocalSession(
   // guard the fifth misses, which is how the split leaf Restart defect
   // happened and how Phase 84 fixed it.
   const captureRefused = captureRefusedOnMachine(input.agent, machineId);
+  // PHASE 368 (build/p368/SPEC.md D2, D3). The size of the terminal this
+  // session will be shown in, decided once for both branches below: the
+  // request's own, then the last size a pane was fitted at, then null, which
+  // sends no `-x` or `-y` and keeps tmux's 80 by 24. A session made at 80 by
+  // 24 and shown wider was one size change for its program before it drew a
+  // thing, whatever the attach did.
+  const size = sanitizeTerminalSize(input.size) ?? deps.lastFittedSize();
   // PHASE 70. A create on another machine leaves this method here, before any
   // local check runs. Every check below asks about this Mac: whether a folder
   // exists here, which binary is here, what this Mac's login shell PATH holds.
@@ -242,7 +257,8 @@ export async function createLocalSession(
       projectPath: farProjectPath,
       ...(folders.cwd !== undefined ? { cwd: folders.cwd } : {}),
       agent: input.agent,
-      ...(input.extraArgs !== undefined ? { extraArgs: input.extraArgs } : {})
+      ...(input.extraArgs !== undefined ? { extraArgs: input.extraArgs } : {}),
+      ...(size !== null ? { size } : {})
     }).catch((err: unknown) => {
       // PHASE 306, FIX ROUND. A create that threw can still have started the
       // session over there, with its answer lost, and the open below is then
@@ -714,7 +730,9 @@ export async function createLocalSession(
       // through `spec.env`, because `spec.env` is written into the manifest
       // row verbatim and replayed at restore. The row carries the NAME and
       // this directory is composed again at every launch.
-      env: paneEnvFor(spec.env, resolvedEnv, id, process.env, loginEnv)
+      env: paneEnvFor(spec.env, resolvedEnv, id, process.env, loginEnv),
+      // PHASE 368 (D3). Made at the size it will be shown, decided above.
+      ...(size !== null ? { size } : {})
     });
   } catch (err) {
     // Spawn never happened — a lingering row would resurrect a session

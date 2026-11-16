@@ -1,0 +1,532 @@
+{
+ "arm": "d",
+ "about": "Arm d. The parent half is recorded by probe:p368 at 2026-11-16, the parent checkout 8497c34c launched as HEAD (P368_HEAD_ONLY=1, P368_HEAD_CHECKOUT): the terminal's rows against capture-pane -p at 30 quiet marks per replay, on the vendored 3.7b and on Homebrew's 3.6a. The HEAD half is SPEC §8's HEAD column. Each break turns exactly its own clause.",
+ "parent": {
+  "3.7b": {
+   "claude": {
+    "emoji": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 8,
+     "gaps": 0,
+     "samples": [
+      {
+       "mark": 1,
+       "y": 10,
+       "term": "  and every numbered step with an emoji such as ⚠️ ✅ 🏞️ 🚗 🌲 ⛺ ☕ 🔋 🧭 1️⃣ ➡️ or ❄️. Under each section put 8 to 12   · /effort",
+       "tmux": "  and every numbered step with an emoji such as ⚠️ ✅ 🏞️ 🚗 🌲 ⛺ ☕ 🔋 🧭 1️⃣ ➡️ or ❄️. Under each section put 8 to 12",
+       "gap": false
+      },
+      {
+       "mark": 2,
+       "y": 10,
+       "term": "  and every numbered step with an emoji such as ⚠️ ✅ 🏞️ 🚗 🌲 ⛺ ☕ 🔋 🧭 1️⃣ ➡️ or ❄️. Under each section put 8 to 12   · /effort",
+       "tmux": "  and every numbered step with an emoji such as ⚠️ ✅ 🏞️ 🚗 🌲 ⛺ ☕ 🔋 🧭 1️⃣ ➡️ or ❄️. Under each section put 8 to 12",
+       "gap": false
+      }
+     ],
+     "fixture": "claude-emoji",
+     "activeVersion": "threw"
+    },
+    "plain": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "fixture": "claude-plain",
+     "activeVersion": "threw"
+    }
+   },
+   "codex": {
+    "emoji": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 6,
+     "gaps": 0,
+     "samples": [
+      {
+       "mark": 2,
+       "y": 9,
+       "term": "  two-digit step number, EMOJI cycles through these twelve in order: ⚠️ ✅ 🏞️ 1️⃣ ➡️ ❄️ ✈️ ❤️ ⚙️ 🫠  before",
+       "tmux": "  two-digit step number, EMOJI cycles through these twelve in order: ⚠️ ✅ 🏞️ 1️⃣ ➡️ ❄️ ✈️ ❤️ ⚙️ 🫠",
+       "gap": false
+      },
+      {
+       "mark": 3,
+       "y": 9,
+       "term": "  two-digit step number, EMOJI cycles through these twelve in order: ⚠️ ✅ 🏞️ 1️⃣ ➡️ ❄️ ✈️ ❤️ ⚙️ 🫠  before",
+       "tmux": "  two-digit step number, EMOJI cycles through these twelve in order: ⚠️ ✅ 🏞️ 1️⃣ ➡️ ❄️ ✈️ ❤️ ⚙️ 🫠",
+       "gap": false
+      }
+     ],
+     "fixture": "codex-emoji",
+     "activeVersion": "threw"
+    },
+    "plain": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "fixture": "codex-links",
+     "activeVersion": "threw"
+    }
+   }
+  },
+  "3.6a": {
+   "claude": {
+    "emoji": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 56,
+     "gaps": 8,
+     "samples": [
+      {
+       "mark": 1,
+       "y": 10,
+       "term": "  and every numbered step with an emoji such as ⚠️  ✅ 🏞️   🚗 🌲 ⛺ ☕ 🔋 🧭 1️     1️⃣ ➡️   or ❄️ . Under each section put 8 to 12",
+       "tmux": "  and every numbered step with an emoji such as ⚠️ ✅ 🏞️ 🚗 🌲 ⛺ ☕ 🔋 🧭 1️⃣ ➡️ or ❄️. Under each section put 8 to 12",
+       "gap": true
+      },
+      {
+       "mark": 2,
+       "y": 10,
+       "term": "  and every numbered step with an emoji such as ⚠️  ✅ 🏞️   🚗 🌲 ⛺ ☕ 🔋 🧭 1️     1️⃣ ➡️   or ❄️ . Under each section put 8 to 12",
+       "tmux": "  and every numbered step with an emoji such as ⚠️ ✅ 🏞️ 🚗 🌲 ⛺ ☕ 🔋 🧭 1️⃣ ➡️ or ❄️. Under each section put 8 to 12",
+       "gap": true
+      }
+     ],
+     "fixture": "claude-emoji",
+     "activeVersion": "threw"
+    },
+    "plain": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "fixture": "claude-plain",
+     "activeVersion": "threw"
+    }
+   },
+   "codex": {
+    "emoji": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 102,
+     "gaps": 0,
+     "samples": [
+      {
+       "mark": 2,
+       "y": 9,
+       "term": "  two-digit step number, EMOJI cycles through these twelve in order: ⚠️  ✅ 🏞️   1️⃣ ➡️   ❄️  ✈️  ❤️  ⚙️  🫠",
+       "tmux": "  two-digit step number, EMOJI cycles through these twelve in order: ⚠️ ✅ 🏞️ 1️⃣ ➡️ ❄️ ✈️ ❤️ ⚙️ 🫠",
+       "gap": false
+      },
+      {
+       "mark": 2,
+       "y": 10,
+       "term": " 👍🏽 🇺🇸 , COLOR cycles red, green, blue, amber, ANIMAL cycles otter, heron, badger, falcon, and DAY",
+       "tmux": "  👍🏽 🇺🇸, COLOR cycles red, green, blue, amber, ANIMAL cycles otter, heron, badger, falcon, and DAY",
+       "gap": false
+      }
+     ],
+     "fixture": "codex-emoji",
+     "activeVersion": "threw"
+    },
+    "plain": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "fixture": "codex-links",
+     "activeVersion": "threw"
+    }
+   }
+  }
+ },
+ "head": {
+  "3.7b": {
+   "claude": {
+    "emoji": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "cellWidths": "3.7b",
+     "activeVersion": "tmux-3.7b"
+    },
+    "plain": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "cellWidths": "3.7b",
+     "activeVersion": "tmux-3.7b"
+    }
+   },
+   "codex": {
+    "emoji": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "cellWidths": "3.7b",
+     "activeVersion": "tmux-3.7b"
+    },
+    "plain": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "cellWidths": "3.7b",
+     "activeVersion": "tmux-3.7b"
+    }
+   }
+  },
+  "3.6a": {
+   "claude": {
+    "emoji": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "cellWidths": "3.6a",
+     "activeVersion": "tmux-3.6a"
+    },
+    "plain": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "cellWidths": "3.6a",
+     "activeVersion": "tmux-3.6a"
+    }
+   },
+   "codex": {
+    "emoji": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "cellWidths": "3.6a",
+     "activeVersion": "tmux-3.6a"
+    },
+    "plain": {
+     "marks": 30,
+     "asked": 30,
+     "differing": 0,
+     "gaps": 0,
+     "samples": [],
+     "cellWidths": "3.6a",
+     "activeVersion": "tmux-3.6a"
+    }
+   }
+  }
+ },
+ "breaks": [
+  {
+   "why": "the parent's 3.7b terminal matched tmux over Claude's emoji reply",
+   "clause": "d.3.7b.claude.parent-differs",
+   "expect": null,
+   "set": [
+    [
+     [
+      "parent",
+      "3.7b",
+      "claude",
+      "emoji",
+      "differing"
+     ],
+     0
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's 3.7b terminal differs from tmux over Claude's emoji reply",
+   "clause": "d.3.7b.claude.head-at-floor",
+   "set": [
+    [
+     [
+      "head",
+      "3.7b",
+      "claude",
+      "emoji",
+      "differing"
+     ],
+     3
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's 3.7b Codex emoji replay stopped short",
+   "clause": "d.3.7b.codex.head-at-floor",
+   "expect": null,
+   "set": [
+    [
+     [
+      "head",
+      "3.7b",
+      "codex",
+      "emoji",
+      "marks"
+     ],
+     5
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's 3.7b terminal differs from tmux over Codex's emoji reply",
+   "clause": "d.3.7b.codex.head-at-floor",
+   "set": [
+    [
+     [
+      "head",
+      "3.7b",
+      "codex",
+      "emoji",
+      "differing"
+     ],
+     2
+    ]
+   ]
+  },
+  {
+   "why": "the parent's 3.6a terminal matched tmux over Claude's emoji reply",
+   "clause": "d.3.6a.claude.parent-differs",
+   "expect": null,
+   "set": [
+    [
+     [
+      "parent",
+      "3.6a",
+      "claude",
+      "emoji",
+      "differing"
+     ],
+     0
+    ]
+   ]
+  },
+  {
+   "why": "the parent's 3.6a terminal held no letter in a gap",
+   "clause": "d.3.6a.claude.parent-letters",
+   "expect": null,
+   "set": [
+    [
+     [
+      "parent",
+      "3.6a",
+      "claude",
+      "emoji",
+      "gaps"
+     ],
+     0
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's 3.6a terminal differs from tmux over Claude's emoji reply",
+   "clause": "d.3.6a.claude.head-at-floor",
+   "set": [
+    [
+     [
+      "head",
+      "3.6a",
+      "claude",
+      "emoji",
+      "differing"
+     ],
+     4
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's 3.6a terminal held a letter in a gap",
+   "clause": "d.3.6a.claude.head-no-letters",
+   "set": [
+    [
+     [
+      "head",
+      "3.6a",
+      "claude",
+      "emoji",
+      "gaps"
+     ],
+     1
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's 3.6a terminal differs from tmux over Codex's emoji reply",
+   "clause": "d.3.6a.codex.head-at-floor",
+   "set": [
+    [
+     [
+      "head",
+      "3.6a",
+      "codex",
+      "emoji",
+      "differing"
+     ],
+     1
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's 3.6a Codex terminal held a letter in a gap",
+   "clause": "d.3.6a.codex.head-no-letters",
+   "set": [
+    [
+     [
+      "head",
+      "3.6a",
+      "codex",
+      "emoji",
+      "gaps"
+     ],
+     2
+    ]
+   ]
+  },
+  {
+   "why": "probe review: HEAD's 3.7b Claude session row named no width table (Unicode 6), its rows still at the floor",
+   "clause": "d.3.7b.claude.head-table",
+   "set": [
+    [
+     [
+      "head",
+      "3.7b",
+      "claude",
+      "emoji",
+      "cellWidths"
+     ],
+     null
+    ]
+   ]
+  },
+  {
+   "why": "probe review: HEAD's 3.7b Codex session row named Homebrew's 3.6a table",
+   "clause": "d.3.7b.codex.head-table",
+   "set": [
+    [
+     [
+      "head",
+      "3.7b",
+      "codex",
+      "plain",
+      "cellWidths"
+     ],
+     "3.6a"
+    ]
+   ]
+  },
+  {
+   "why": "probe review: HEAD's 3.6a Claude session row named the vendored 3.7b table, which no recording's text can show (SPEC §2.4's 4,515 code points)",
+   "clause": "d.3.6a.claude.head-table",
+   "set": [
+    [
+     [
+      "head",
+      "3.6a",
+      "claude",
+      "emoji",
+      "cellWidths"
+     ],
+     "3.7b"
+    ]
+   ]
+  },
+  {
+   "why": "probe review: HEAD's 3.6a Codex session row named no width table",
+   "clause": "d.3.6a.codex.head-table",
+   "set": [
+    [
+     [
+      "head",
+      "3.6a",
+      "codex",
+      "emoji",
+      "cellWidths"
+     ],
+     null
+    ]
+   ]
+  },
+  {
+   "why": "probe review: HEAD's 3.7b Codex session row could not be read for its table",
+   "clause": "d.3.7b.codex.head-table",
+   "expect": null,
+   "set": [
+    [
+     [
+      "head",
+      "3.7b",
+      "codex",
+      "emoji",
+      "cellWidths"
+     ],
+     "unread"
+    ]
+   ]
+  },
+  {
+   "why": "probe review: HEAD named the 3.7b table on its Claude rows but the pane kept xterm’s Unicode 6 (no provider active), the shift the text comparison cannot see",
+   "clause": "d.3.7b.claude.head-table",
+   "set": [
+    [
+     [
+      "head",
+      "3.7b",
+      "claude",
+      "plain",
+      "activeVersion"
+     ],
+     "6"
+    ]
+   ]
+  },
+  {
+   "why": "probe review: HEAD’s 3.6a Codex pane drew with the vendored 3.7b provider",
+   "clause": "d.3.6a.codex.head-table",
+   "set": [
+    [
+     [
+      "head",
+      "3.6a",
+      "codex",
+      "emoji",
+      "activeVersion"
+     ],
+     "tmux-3.7b"
+    ]
+   ]
+  },
+  {
+   "why": "probe review: the pane of HEAD’s 3.6a Claude replay was not found to read its provider",
+   "clause": "d.3.6a.claude.head-table",
+   "expect": null,
+   "set": [
+    [
+     [
+      "head",
+      "3.6a",
+      "claude",
+      "plain",
+      "activeVersion"
+     ],
+     null
+    ]
+   ]
+  }
+ ]
+}

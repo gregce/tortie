@@ -14,6 +14,15 @@
  * Everything lands on the clipboard, and the toast offers Save… — the bytes
  * are already in main, so saving never re-shoots a terminal that has since
  * scrolled.
+ *
+ * PHASE 368 (issue 44). A copy holds what is DRAWN. Every copy verb here takes
+ * its text from ./drawn-text.ts, which reads a row only up to the pane's width
+ * and ends a line at its last drawn cell, and no verb reads xterm's own
+ * selection text, which carried cells past the right edge after the pane
+ * narrowed and the spaces tmux drew at a line's end. The Edit menu's Copy,
+ * which xterm used to answer itself with that text, is routed to the same
+ * verb as command C (`routePaneCopy`). The two off-screen terminals draw with
+ * the session server's widths, as the pane does.
  */
 
 import { Terminal } from '@xterm/xterm';
@@ -22,6 +31,8 @@ import type { InstalledGmuxApi } from '@shared/ipc';
 import type { Session } from '@shared/types';
 import { errorText, useApp } from '../../state/store';
 import { getTerminal } from '../drop/registry';
+import { registerTmuxWidths } from '../tmux-widths';
+import { drawnSelectionText } from './drawn-text';
 import {
   resolveTerminalFontFamily,
   resolveTerminalTheme,
@@ -193,7 +204,7 @@ export function snapshotSelection(
   if (history !== null) {
     const position = term.getSelectionPosition();
     return {
-      text: term.getSelection(),
+      text: position === undefined ? '' : drawnSelectionText(term, position),
       ...(position !== undefined ? { position } : {}),
       history
     };
@@ -201,7 +212,8 @@ export function snapshotSelection(
   if (!term.hasSelection()) return null;
   const position = term.getSelectionPosition();
   if (position === undefined) return null;
-  const text = term.getSelection();
+  // Phase 368. The text of the same range the position names, read as drawn.
+  const text = drawnSelectionText(term, position);
   // An empty string is what `copySelection` has always refused to write, so a
   // snapshot of one would enable a menu item that then did nothing.
   if (text.length === 0) return null;
@@ -289,11 +301,44 @@ export async function copySelection(
   } else {
     const term = getTerminal(sessionId);
     if (term === null || !term.hasSelection()) return false;
-    text = term.getSelection();
+    text = drawnSelectionText(term);
   }
   if (text.length === 0) return false;
   await bridge.writeRich({ text, html: '' });
   return true;
+}
+
+/**
+ * PHASE 368 (D12). The Edit menu's Copy, sent to the same verb as command C.
+ *
+ * The menu's Copy row is the system's own copy action (`role: 'copy'` in
+ * src/main/menu.ts), which fires a DOM `copy` event on the focused terminal,
+ * and xterm answers that event itself, on its `.xterm` element, with its own
+ * selection text: the unbounded text Phase 368 replaced in every verb above.
+ * Command C never reaches it, because the key handler prevents the default
+ * (../keys/index.ts). So the menu, chosen with the mouse, copied something
+ * different from the key for the same selection.
+ *
+ * A capture-phase listener on the pane's mount, which is an ancestor of
+ * xterm's element, runs before xterm's. When there is something to copy, a
+ * selection on screen or a range held in the history, it cancels the
+ * system's copy, stops the event before it reaches xterm, and hands the copy
+ * to `copySelection`, exactly as command C does. With nothing selected the
+ * event passes untouched, as it did. Returns the listener's removal.
+ */
+export function routePaneCopy(
+  container: HTMLElement,
+  sessionId: string,
+  term: Pick<Terminal, 'hasSelection'>
+): () => void {
+  const route = (event: Event): void => {
+    if (!term.hasSelection() && historySelection(sessionId) === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void copySelection(sessionId);
+  };
+  container.addEventListener('copy', route, true);
+  return () => container.removeEventListener('copy', route, true);
 }
 
 /**
@@ -338,7 +383,7 @@ export async function copySelectionAsHtml(
       fontSizePx: TERMINAL_FONT_SIZE
     });
     await bridge.writeRich({
-      text: snapshot?.text ?? term.getSelection(),
+      text: snapshot?.text ?? drawnSelectionText(term),
       html: toClipboardHtml(body)
     });
     toast('success', 'Copied with colors.');
@@ -733,6 +778,12 @@ async function rasterizeRows(
       theme,
       allowProposedApi: true
     });
+    // Phase 368. The rows were drawn by the session's server, so they are
+    // drawn here with its widths, before anything is written: with xterm's
+    // own table every emoji is one cell where the server drew two, and the
+    // rest of its row lands a cell to the left. A session with no table (one
+    // on another machine) keeps xterm's, as the pane does.
+    registerTmuxWidths(offscreen, session.cellWidths ?? null);
     // Off screen, NOT display:none — the latter also breaks xterm's font
     // measurement (research 17 §1.3).
     host = document.createElement('div');

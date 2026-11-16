@@ -29,6 +29,7 @@ import type {
   Session,
   SessionStatus
 } from '../types';
+import type { TerminalSize } from '../terminal-size';
 
 // ---------------------------------------------------------------------------
 // Invoke channels (renderer → main, request/response via ipcRenderer.invoke)
@@ -44,8 +45,15 @@ export interface InvokeChannelMap {
   'sessions:list': { req: []; res: Session[] };
   'sessions:rename': { req: [input: RenameSessionInput]; res: Session };
   'sessions:kill': { req: [sessionId: string]; res: void };
-  /** Start streaming term:data:<id> for this session (visible pane). */
-  'sessions:attach': { req: [sessionId: string]; res: void };
+  /**
+   * Start streaming term:data:<id> for this session (visible pane).
+   *
+   * EDITED IN PLACE BY PHASE 368 (issue 44): the pane's fitted size rides the
+   * attach, so main spawns the client at the size it draws at rather than at
+   * tmux's 80 by 24. Optional and validated in main; absent, or anything that
+   * is not a size, lets main use the last size it fitted, then none.
+   */
+  'sessions:attach': { req: [sessionId: string, size?: TerminalSize]; res: void };
   /** Stop streaming; the tmux-side session keeps running. */
   'sessions:detach': { req: [sessionId: string]; res: void };
   'sessions:resize': { req: [input: ResizeInput]; res: void };
@@ -140,7 +148,8 @@ export interface GmuxApi {
     list(): Promise<Session[]>;
     rename(input: RenameSessionInput): Promise<Session>;
     kill(sessionId: string): Promise<void>;
-    attach(sessionId: string): Promise<void>;
+    /** Phase 368: `size` is the pane's fitted size, when it has one. */
+    attach(sessionId: string, size?: TerminalSize): Promise<void>;
     detach(sessionId: string): Promise<void>;
     resize(input: ResizeInput): Promise<void>;
     onChanged(cb: (sessions: Session[]) => void): Unsubscribe;

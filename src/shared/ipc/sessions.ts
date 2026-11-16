@@ -21,6 +21,7 @@ import type { DurabilityNotice } from '../notice';
 // ---------------------------------------------------------------------------
 
 import type { Session as RestoreSession } from '../types';
+import type { TerminalSize } from '../terminal-size';
 
 /**
  * Bring a session back with SpecStory turned off (Phase 119).
@@ -68,6 +69,12 @@ export interface CaptureChoice {
    * itself: the choice is main's, read at the create.
    */
   underChosenLogin?: boolean;
+  /**
+   * APPENDED (Phase 368): the size of the terminal this session will be shown
+   * in; absent lets main use the last size it fitted, and none keeps tmux's
+   * 80 by 24.
+   */
+  size?: TerminalSize;
 }
 
 /** New invoke channels appended by the restore stream. */

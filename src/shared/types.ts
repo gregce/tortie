@@ -29,10 +29,16 @@
  * only `./image-types` and `./preview-types`, neither of which names this
  * file, so `PathDoorAnswer` creates no cycle either. It is a TYPE import and
  * pulls no code anywhere.
+ *
+ * PHASE 368 added the third and fourth, of the same shape: `./terminal-size`
+ * and `./cell-widths` import nothing at all, so `TerminalSize` and
+ * `CellWidthTable` create no cycle. Both are TYPE imports and pull no code.
  */
 
+import type { CellWidthTable } from './cell-widths';
 import type { MachineColor } from './machines';
 import type { PathDoorAnswer } from './path-doors';
+import type { TerminalSize } from './terminal-size';
 
 /** Which agent (if any) a session runs. Plain shells are first-class. */
 export type AgentKind = 'claude' | 'codex' | 'shell';
@@ -379,6 +385,15 @@ export interface Session {
    * session gets and sends nothing to any live process.
    */
   login?: string;
+  /**
+   * APPENDED (Phase 368): the width table of the server that draws this
+   * session, set for this Mac's server alone; absent keeps xterm's Unicode 6.
+   *
+   * Derived, never stored: main stamps it on the projection from the version
+   * of this Mac's server it last read, so a session on another machine, whose
+   * tmux build Tortie has not measured, carries none (build/p368/SPEC.md D7).
+   */
+  cellWidths?: CellWidthTable;
 }
 
 /**
@@ -613,6 +628,12 @@ export interface CreateSessionInput {
    * button that starts something, which is the shape refusal 8 asks for.
    */
   signIn?: boolean;
+  /**
+   * APPENDED (Phase 368): the size of the terminal this session will be shown
+   * in; absent lets main use the last size it fitted, and none keeps tmux's
+   * 80 by 24.
+   */
+  size?: TerminalSize;
 }
 
 export interface RenameSessionInput {

@@ -301,6 +301,12 @@ export function escapeAttr(value: string): string {
  * One buffer row → one `<div>` of styled spans. Trailing cells that carry no
  * attributes at all are dropped: they contribute nothing but bytes, and the
  * wrapper's background already covers that space.
+ *
+ * PHASE 368 (issue 44). A row ends at the pane's right edge as well as at its
+ * own length. A pane's terminal sits in xterm's alternate buffer, whose rows
+ * keep their old length when the pane narrows, so a row nothing rewrote still
+ * holds cells past the edge that nobody can see, and Copy as HTML carried
+ * them. ./drawn-text.ts has the account and bounds the plain text the same way.
  */
 function serializeRow(
   term: Terminal,
@@ -315,7 +321,7 @@ function serializeRow(
 
   const cell = term.buffer.active.getNullCell();
   const from = Math.max(0, colStart);
-  const to = Math.min(line.length, colEnd);
+  const to = Math.min(line.length, colEnd, term.cols);
   let lastPainted = -1;
   for (let x = to - 1; x >= from; x--) {
     const c = line.getCell(x, cell);

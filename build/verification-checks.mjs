@@ -362,6 +362,16 @@ export const CHECKS = [
   // never called by anything it runs, because electron is not in the probe's
   // module graph at all.
   pure('conformance:pathdoors'),
+  // Phase 368 (issue 44). build/conformance-terminal.mjs reads the tree with
+  // the TypeScript parser, comments blanked, and holds nine rules: the attach
+  // and the create carry a size, one width provider from the shared tables on
+  // all three terminals, Copy bounded by the terminal's columns, the link
+  // handler's one route and its refusals, never `allowNonHttpProtocols` or
+  // `FORCE_HYPERLINK`, `-T hyperlinks` on the local attach and on another
+  // machine only from 3.4, and the frame re-freeze this Mac's alone; each rule
+  // asked again over in-memory copies with it broken. It spawns nothing and
+  // reads nothing under the person's home.
+  pure('conformance:terminal'),
   // Phase 273. The containment gate every fs mutation asks:
   // build/conformance-containment.mjs drives the SHIPPING src/main/fs/paths.ts
   // under node over a fixture the probe builds and removes in a finally — the
@@ -1813,6 +1823,25 @@ export const CHECKS = [
   // `--grader-self-test` grades build/p365/fixtures/ and starts nothing;
   // `--preflight` starts nothing.
   electron('probe:p365'),
+  // PHASE 368 (build/p368/SPEC.md §8, issue 44): a long agent reply drawn
+  // cleanly, a copy that holds what was drawn, and an agent's links. Electrons
+  // through build/electron-run.mjs ONE AT A TIME, the parent first
+  // (P368_PARENT_CHECKOUT), each launch on its own scratch profile, HOME and
+  // login PATH with HISTFILE=/dev/null and the socket gmux-p368…, a second
+  // launch per build on Homebrew's 3.6a. Main is driven through its inspector,
+  // with shell.openExternal, openPath, showItemInFolder, the clipboard writers
+  // and the clipboard:writeRich handler replaced by recorders before anything
+  // is clicked or copied, so no browser opens and no pasteboard is touched.
+  // Every probed registry row but the claude and codex stand-ins is hidden
+  // through build/hidden-agents.mjs and `agents:list` read back; the stand-in
+  // (build/p368/stand-in.mjs) replays research 145's redacted recordings of
+  // real Claude Code and Codex (build/fixtures/p368/), so no agent runs and no
+  // token is spent. `--grader-self-test` grades build/p368/fixtures/graders/
+  // and starts nothing.
+  electron(
+    'probe:p368',
+    `${NEEDS.electron}; a built parent checkout (P368_PARENT_CHECKOUT) and Homebrew's tmux 3.6a for arm d's second launch (P368_TMUX_36A); an arm whose input is absent reads UNREADABLE`
+  ),
   // PHASE 364 (build/p364/SPEC.md §8): the diagnostic Tortie he will run as his
   // everyday app, beside the normal app it must leave unchanged. Electrons
   // through build/electron-run.mjs ONE AT A TIME and never at once, each launch

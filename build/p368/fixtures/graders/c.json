@@ -1,0 +1,1538 @@
+{
+ "arm": "c",
+ "about": "Arm c, one row of every kind. The parent half is recorded by probe:p368 at 2026-11-16, the parent checkout launched as HEAD (an A/A run of two such censuses read 53 of 53 rows equal); note the split, where the parent re-attaches the original pane at 80x24 before fitting it. The HEAD half is derived from it by SPEC §8's HEAD column: no 80x24 step anywhere, the first mount one size after its start, the new split half started at the tab's size; everything else equal. Each break turns exactly its own clause.",
+ "parent": {
+  "order": [
+   "font-first-mount",
+   "new-session",
+   "tab-away-0",
+   "tab-back-0",
+   "project-back-0",
+   "sidebar-off",
+   "sidebar-on",
+   "zoom-in",
+   "focus-mode-on",
+   "viewport-8ms",
+   "layout-bar-60ms",
+   "window-drag",
+   "split",
+   "restored"
+  ],
+  "rows": {
+   "font-first-mount": {
+    "pane": [
+     "80x24",
+     "124x39"
+    ],
+    "server": [
+     {
+      "k": "A",
+      "t": 0,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 0,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 0,
+      "size": "124x39"
+     }
+    ],
+    "err": null,
+    "workAreaFont": "jetbrains-mono"
+   },
+   "new-session": {
+    "pane": [
+     "80x24",
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "A",
+      "t": 125,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 125,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null,
+    "start": "80x24",
+    "later": [
+     "124x34"
+    ]
+   },
+   "tab-away-0": {
+    "pane": [],
+    "server": [
+     {
+      "k": "D",
+      "t": 0,
+      "size": "80x"
+     }
+    ],
+    "fitted": null,
+    "err": null
+   },
+   "tab-back-0": {
+    "pane": [],
+    "server": [
+     {
+      "k": "A",
+      "t": 38,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 46,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "project-back-0": {
+    "pane": [],
+    "server": [
+     {
+      "k": "A",
+      "t": 14,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 14,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "sidebar-off": {
+    "pane": [
+     "162x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "162x34"
+     }
+    ],
+    "fitted": "162x34",
+    "err": null
+   },
+   "sidebar-on": {
+    "pane": [
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "zoom-in": {
+    "pane": [
+     "109x30"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "109x30"
+     }
+    ],
+    "fitted": "109x30",
+    "err": null
+   },
+   "focus-mode-on": {
+    "pane": [
+     "169x36"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "169x36"
+     }
+    ],
+    "fitted": "169x36",
+    "err": null
+   },
+   "viewport-8ms": {
+    "pane": [
+     "124x30",
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "124x30"
+     },
+     {
+      "k": "R",
+      "t": 52,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "layout-bar-60ms": {
+    "pane": [
+     "124x30",
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "124x30"
+     },
+     {
+      "k": "R",
+      "t": 61,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "window-drag": {
+    "pane": [
+     "122x34",
+     "104x30",
+     "85x27",
+     "106x31",
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "122x34"
+     },
+     {
+      "k": "R",
+      "t": 108,
+      "size": "119x33"
+     },
+     {
+      "k": "R",
+      "t": 108,
+      "size": "119x33"
+     },
+     {
+      "k": "R",
+      "t": 134,
+      "size": "117x33"
+     },
+     {
+      "k": "R",
+      "t": 148,
+      "size": "114x32"
+     },
+     {
+      "k": "R",
+      "t": 161,
+      "size": "112x32"
+     },
+     {
+      "k": "R",
+      "t": 176,
+      "size": "111x32"
+     },
+     {
+      "k": "R",
+      "t": 191,
+      "size": "109x31"
+     },
+     {
+      "k": "R",
+      "t": 203,
+      "size": "108x31"
+     },
+     {
+      "k": "R",
+      "t": 220,
+      "size": "106x31"
+     },
+     {
+      "k": "R",
+      "t": 243,
+      "size": "104x30"
+     },
+     {
+      "k": "R",
+      "t": 257,
+      "size": "103x30"
+     },
+     {
+      "k": "R",
+      "t": 273,
+      "size": "101x30"
+     },
+     {
+      "k": "R",
+      "t": 287,
+      "size": "100x30"
+     },
+     {
+      "k": "R",
+      "t": 308,
+      "size": "98x29"
+     },
+     {
+      "k": "R",
+      "t": 320,
+      "size": "96x29"
+     },
+     {
+      "k": "R",
+      "t": 335,
+      "size": "95x29"
+     },
+     {
+      "k": "R",
+      "t": 405,
+      "size": "93x28"
+     },
+     {
+      "k": "R",
+      "t": 419,
+      "size": "92x28"
+     },
+     {
+      "k": "R",
+      "t": 439,
+      "size": "90x28"
+     },
+     {
+      "k": "R",
+      "t": 442,
+      "size": "88x28"
+     },
+     {
+      "k": "R",
+      "t": 450,
+      "size": "87x27"
+     },
+     {
+      "k": "R",
+      "t": 463,
+      "size": "85x27"
+     },
+     {
+      "k": "R",
+      "t": 526,
+      "size": "84x27"
+     },
+     {
+      "k": "R",
+      "t": 662,
+      "size": "85x27"
+     },
+     {
+      "k": "R",
+      "t": 694,
+      "size": "87x27"
+     },
+     {
+      "k": "R",
+      "t": 717,
+      "size": "90x28"
+     },
+     {
+      "k": "R",
+      "t": 726,
+      "size": "88x28"
+     },
+     {
+      "k": "R",
+      "t": 734,
+      "size": "92x28"
+     },
+     {
+      "k": "R",
+      "t": 743,
+      "size": "96x29"
+     },
+     {
+      "k": "R",
+      "t": 743,
+      "size": "93x28"
+     },
+     {
+      "k": "R",
+      "t": 770,
+      "size": "98x29"
+     },
+     {
+      "k": "R",
+      "t": 775,
+      "size": "96x29"
+     },
+     {
+      "k": "R",
+      "t": 791,
+      "size": "101x30"
+     },
+     {
+      "k": "R",
+      "t": 791,
+      "size": "100x30"
+     },
+     {
+      "k": "R",
+      "t": 797,
+      "size": "103x30"
+     },
+     {
+      "k": "R",
+      "t": 810,
+      "size": "104x30"
+     },
+     {
+      "k": "R",
+      "t": 818,
+      "size": "106x31"
+     },
+     {
+      "k": "R",
+      "t": 821,
+      "size": "108x31"
+     },
+     {
+      "k": "R",
+      "t": 825,
+      "size": "109x31"
+     },
+     {
+      "k": "R",
+      "t": 830,
+      "size": "111x32"
+     },
+     {
+      "k": "R",
+      "t": 853,
+      "size": "112x32"
+     },
+     {
+      "k": "R",
+      "t": 861,
+      "size": "114x32"
+     },
+     {
+      "k": "R",
+      "t": 876,
+      "size": "116x32"
+     },
+     {
+      "k": "R",
+      "t": 900,
+      "size": "117x33"
+     },
+     {
+      "k": "R",
+      "t": 928,
+      "size": "119x33"
+     },
+     {
+      "k": "R",
+      "t": 940,
+      "size": "120x33"
+     },
+     {
+      "k": "R",
+      "t": 949,
+      "size": "122x34"
+     },
+     {
+      "k": "R",
+      "t": 955,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "split": {
+    "pane": [
+     "80x24",
+     "60x33"
+    ],
+    "server": [
+     {
+      "k": "D",
+      "t": 0,
+      "size": "80x"
+     },
+     {
+      "k": "R",
+      "t": 64,
+      "size": "80x24"
+     },
+     {
+      "k": "A",
+      "t": 66,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 79,
+      "size": "60x33"
+     }
+    ],
+    "fitted": "60x33",
+    "err": null,
+    "partner": {
+     "start": "80x24",
+     "later": [
+      "60x33"
+     ]
+    }
+   },
+   "restored": {
+    "pane": [
+     "80x24",
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "A",
+      "t": 10,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 12,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   }
+  }
+ },
+ "head": {
+  "order": [
+   "font-first-mount",
+   "new-session",
+   "tab-away-0",
+   "tab-back-0",
+   "project-back-0",
+   "sidebar-off",
+   "sidebar-on",
+   "zoom-in",
+   "focus-mode-on",
+   "viewport-8ms",
+   "layout-bar-60ms",
+   "window-drag",
+   "split",
+   "restored"
+  ],
+  "rows": {
+   "font-first-mount": {
+    "pane": [
+     "80x24",
+     "124x39"
+    ],
+    "server": [
+     {
+      "k": "A",
+      "t": 0,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 0,
+      "size": "124x39"
+     }
+    ],
+    "err": null,
+    "workAreaFont": "jetbrains-mono"
+   },
+   "new-session": {
+    "pane": [
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "A",
+      "t": 125,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 125,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null,
+    "start": "80x24",
+    "later": [
+     "124x34"
+    ]
+   },
+   "tab-away-0": {
+    "pane": [],
+    "server": [
+     {
+      "k": "D",
+      "t": 0,
+      "size": "80x"
+     }
+    ],
+    "fitted": null,
+    "err": null
+   },
+   "tab-back-0": {
+    "pane": [],
+    "server": [
+     {
+      "k": "A",
+      "t": 38,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 46,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "project-back-0": {
+    "pane": [],
+    "server": [
+     {
+      "k": "A",
+      "t": 14,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 14,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "sidebar-off": {
+    "pane": [
+     "162x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "162x34"
+     }
+    ],
+    "fitted": "162x34",
+    "err": null
+   },
+   "sidebar-on": {
+    "pane": [
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "zoom-in": {
+    "pane": [
+     "109x30"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "109x30"
+     }
+    ],
+    "fitted": "109x30",
+    "err": null
+   },
+   "focus-mode-on": {
+    "pane": [
+     "169x36"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "169x36"
+     }
+    ],
+    "fitted": "169x36",
+    "err": null
+   },
+   "viewport-8ms": {
+    "pane": [
+     "124x30",
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "124x30"
+     },
+     {
+      "k": "R",
+      "t": 52,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "layout-bar-60ms": {
+    "pane": [
+     "124x30",
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "124x30"
+     },
+     {
+      "k": "R",
+      "t": 61,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "window-drag": {
+    "pane": [
+     "122x34",
+     "104x30",
+     "85x27",
+     "106x31",
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "R",
+      "t": 0,
+      "size": "122x34"
+     },
+     {
+      "k": "R",
+      "t": 108,
+      "size": "119x33"
+     },
+     {
+      "k": "R",
+      "t": 108,
+      "size": "119x33"
+     },
+     {
+      "k": "R",
+      "t": 134,
+      "size": "117x33"
+     },
+     {
+      "k": "R",
+      "t": 148,
+      "size": "114x32"
+     },
+     {
+      "k": "R",
+      "t": 161,
+      "size": "112x32"
+     },
+     {
+      "k": "R",
+      "t": 176,
+      "size": "111x32"
+     },
+     {
+      "k": "R",
+      "t": 191,
+      "size": "109x31"
+     },
+     {
+      "k": "R",
+      "t": 203,
+      "size": "108x31"
+     },
+     {
+      "k": "R",
+      "t": 220,
+      "size": "106x31"
+     },
+     {
+      "k": "R",
+      "t": 243,
+      "size": "104x30"
+     },
+     {
+      "k": "R",
+      "t": 257,
+      "size": "103x30"
+     },
+     {
+      "k": "R",
+      "t": 273,
+      "size": "101x30"
+     },
+     {
+      "k": "R",
+      "t": 287,
+      "size": "100x30"
+     },
+     {
+      "k": "R",
+      "t": 308,
+      "size": "98x29"
+     },
+     {
+      "k": "R",
+      "t": 320,
+      "size": "96x29"
+     },
+     {
+      "k": "R",
+      "t": 335,
+      "size": "95x29"
+     },
+     {
+      "k": "R",
+      "t": 405,
+      "size": "93x28"
+     },
+     {
+      "k": "R",
+      "t": 419,
+      "size": "92x28"
+     },
+     {
+      "k": "R",
+      "t": 439,
+      "size": "90x28"
+     },
+     {
+      "k": "R",
+      "t": 442,
+      "size": "88x28"
+     },
+     {
+      "k": "R",
+      "t": 450,
+      "size": "87x27"
+     },
+     {
+      "k": "R",
+      "t": 463,
+      "size": "85x27"
+     },
+     {
+      "k": "R",
+      "t": 526,
+      "size": "84x27"
+     },
+     {
+      "k": "R",
+      "t": 662,
+      "size": "85x27"
+     },
+     {
+      "k": "R",
+      "t": 694,
+      "size": "87x27"
+     },
+     {
+      "k": "R",
+      "t": 717,
+      "size": "90x28"
+     },
+     {
+      "k": "R",
+      "t": 726,
+      "size": "88x28"
+     },
+     {
+      "k": "R",
+      "t": 734,
+      "size": "92x28"
+     },
+     {
+      "k": "R",
+      "t": 743,
+      "size": "96x29"
+     },
+     {
+      "k": "R",
+      "t": 743,
+      "size": "93x28"
+     },
+     {
+      "k": "R",
+      "t": 770,
+      "size": "98x29"
+     },
+     {
+      "k": "R",
+      "t": 775,
+      "size": "96x29"
+     },
+     {
+      "k": "R",
+      "t": 791,
+      "size": "101x30"
+     },
+     {
+      "k": "R",
+      "t": 791,
+      "size": "100x30"
+     },
+     {
+      "k": "R",
+      "t": 797,
+      "size": "103x30"
+     },
+     {
+      "k": "R",
+      "t": 810,
+      "size": "104x30"
+     },
+     {
+      "k": "R",
+      "t": 818,
+      "size": "106x31"
+     },
+     {
+      "k": "R",
+      "t": 821,
+      "size": "108x31"
+     },
+     {
+      "k": "R",
+      "t": 825,
+      "size": "109x31"
+     },
+     {
+      "k": "R",
+      "t": 830,
+      "size": "111x32"
+     },
+     {
+      "k": "R",
+      "t": 853,
+      "size": "112x32"
+     },
+     {
+      "k": "R",
+      "t": 861,
+      "size": "114x32"
+     },
+     {
+      "k": "R",
+      "t": 876,
+      "size": "116x32"
+     },
+     {
+      "k": "R",
+      "t": 900,
+      "size": "117x33"
+     },
+     {
+      "k": "R",
+      "t": 928,
+      "size": "119x33"
+     },
+     {
+      "k": "R",
+      "t": 940,
+      "size": "120x33"
+     },
+     {
+      "k": "R",
+      "t": 949,
+      "size": "122x34"
+     },
+     {
+      "k": "R",
+      "t": 955,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   },
+   "split": {
+    "pane": [
+     "60x33"
+    ],
+    "server": [
+     {
+      "k": "D",
+      "t": 0,
+      "size": "80x"
+     },
+     {
+      "k": "A",
+      "t": 66,
+      "size": "60x33"
+     },
+     {
+      "k": "R",
+      "t": 79,
+      "size": "60x33"
+     }
+    ],
+    "fitted": "60x33",
+    "err": null,
+    "partner": {
+     "start": "124x34",
+     "later": [
+      "60x33"
+     ]
+    }
+   },
+   "restored": {
+    "pane": [
+     "124x34"
+    ],
+    "server": [
+     {
+      "k": "A",
+      "t": 10,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 12,
+      "size": "124x34"
+     }
+    ],
+    "fitted": "124x34",
+    "err": null
+   }
+  }
+ },
+ "breaks": [
+  {
+   "why": "HEAD's sidebar sent a size the parent's did not",
+   "clause": "c.sidebar-off",
+   "set": [
+    [
+     "head.rows.sidebar-off.pane",
+     [
+      "162x34",
+      "124x34"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's tab return met tmux's default",
+   "clause": "c.tab-back-0",
+   "set": [
+    [
+     "head.rows.tab-back-0.pane",
+     [
+      "80x24",
+      "124x34"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's tab return told the client a second size on its own",
+   "clause": "c.tab-back-0",
+   "set": [
+    [
+     "head.rows.tab-back-0.server",
+     [
+      {
+       "k": "A",
+       "t": 0,
+       "size": "124x34"
+      },
+      {
+       "k": "R",
+       "t": 900,
+       "size": "100x30"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "a row read at the parent and not at HEAD",
+   "clause": "c.zoom-in",
+   "expect": null,
+   "set": [
+    [
+     "head.rows.zoom-in.err",
+     "the zoom key did not land"
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's drag reached the program three times more",
+   "clause": "c.window-drag",
+   "set": [
+    [
+     "head.rows.window-drag.pane",
+     [
+      "122x34",
+      "104x30",
+      "85x27",
+      "106x31",
+      "90x27",
+      "95x28",
+      "99x29",
+      "124x34"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's drag ended at another size",
+   "clause": "c.window-drag",
+   "set": [
+    [
+     "head.rows.window-drag.pane",
+     [
+      "122x34",
+      "104x30",
+      "85x27",
+      "106x31",
+      "123x34"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's split re-attached the original pane at tmux's default",
+   "clause": "c.split",
+   "set": [
+    [
+     "head.rows.split.pane",
+     [
+      "80x24",
+      "60x33"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's new split half was given two sizes after its start",
+   "clause": "c.split",
+   "set": [
+    [
+     "head.rows.split.partner.later",
+     [
+      "60x33",
+      "124x34"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's first mount gave its program a second size (the face loaded after the fit)",
+   "clause": "c.font-first-mount",
+   "set": [
+    [
+     "head.rows.font-first-mount.pane",
+     [
+      "80x24",
+      "124x39",
+      "124x34"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "probe review: the server's hooks recorded nothing at either build, so every row's server half compared two empty lists",
+   "clause": "c.server-read",
+   "expect": null,
+   "set": [
+    [
+     [
+      "parent",
+      "rows",
+      "font-first-mount",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "new-session",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "tab-away-0",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "tab-back-0",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "project-back-0",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "sidebar-off",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "sidebar-on",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "zoom-in",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "focus-mode-on",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "viewport-8ms",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "layout-bar-60ms",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "window-drag",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "split",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "restored",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "font-first-mount",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "new-session",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "tab-away-0",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "tab-back-0",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "project-back-0",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "sidebar-off",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "sidebar-on",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "zoom-in",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "focus-mode-on",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "viewport-8ms",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "layout-bar-60ms",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "window-drag",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "split",
+      "server"
+     ],
+     []
+    ],
+    [
+     [
+      "head",
+      "rows",
+      "restored",
+      "server"
+     ],
+     []
+    ]
+   ]
+  },
+  {
+   "why": "probe review: the parent's window never took the sidebar step (no size at its program or its server, as an occluded window runs no fit)",
+   "clause": "c.sidebar-off",
+   "expect": null,
+   "set": [
+    [
+     [
+      "parent",
+      "rows",
+      "sidebar-off",
+      "pane"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "sidebar-off",
+      "server"
+     ],
+     []
+    ]
+   ]
+  },
+  {
+   "why": "probe review: the parent's window never took the drag, which compared 0 sizes with 0 and passed",
+   "clause": "c.window-drag",
+   "expect": null,
+   "set": [
+    [
+     [
+      "parent",
+      "rows",
+      "window-drag",
+      "pane"
+     ],
+     []
+    ],
+    [
+     [
+      "parent",
+      "rows",
+      "window-drag",
+      "server"
+     ],
+     []
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD's detach hook landed after the step's boundary, in the next step (Lens A's c.tab-away-1 and c.tab-back-1), and attaches and detaches are not sizes, so the row stays equal",
+   "clause": "c.tab-back-0",
+   "expect": true,
+   "set": [
+    [
+     "head.rows.tab-away-0.server",
+     []
+    ],
+    [
+     "head.rows.tab-back-0.server",
+     [
+      {
+       "k": "D",
+       "t": 0,
+       "size": "124x34"
+      },
+      {
+       "k": "A",
+       "t": 38,
+       "size": "124x34"
+      },
+      {
+       "k": "R",
+       "t": 46,
+       "size": "124x34"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "the fix round's run: the parent's client was told the same size twice, 7 ms apart (60x33 at full screen), and HEAD's once, with the program given nothing at either; a size told twice is not a second size, so the row stays equal",
+   "clause": "c.sidebar-off",
+   "expect": true,
+   "set": [
+    [
+     "parent.rows.sidebar-off.server",
+     [
+      {
+       "k": "R",
+       "t": 0,
+       "size": "162x34"
+      },
+      {
+       "k": "R",
+       "t": 7,
+       "size": "162x34"
+      }
+     ]
+    ]
+   ]
+  }
+ ]
+}

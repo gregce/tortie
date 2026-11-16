@@ -1,0 +1,207 @@
+{
+ "arm": "e",
+ "about": "Arm e. The parent half is recorded by probe:p368 at 2026-11-16, the parent checkout 8497c34c launched as HEAD (P368_HEAD_ONLY=1, P368_HEAD_CHECKOUT): Claude's reply narrowed 120 to 96 then copied (cells past the width in the copy), Codex's URL and a long line copied while scrolled back (broken over lines), and the reporter's command at a steady width. The HEAD half is SPEC §8's HEAD column as the fix round left it: its narrowed copy the parent's own reading of what is drawn, and every scrolled-back copy that never scrolled the parent's, line ends trimmed (item 7 taken back out: composed through -J it glued rows a program redrew apart under a stale wrap mark). Each break turns exactly its own clause.",
+ "parent": {
+  "narrow": {
+   "from": "120x30",
+   "to": "96x30",
+   "copy": "     trail conditions for next time.\n  7. Check the Regional weather forecast for Sunday if you are considering a second, shorter outy overnight without     ing.\n  8. Stretch your calves, hamstrings, and hips for ten minutes before bed.\n  9. Plan a lazy Sunday morning; you earned it.\n                                                                                                ver.\n  rsync --archive --verbose --human-readable --progress --partial --exclude=\"*.tmp\" --exclude=\".d add a few notes about DS_Store\"\n  --include=\"*.jpg\" --include=\"*.heic\" --include=\"*.mov\" \"$HOME/Pictures/Riverbend-2026-11-15/\" ing.\n  \"$HOME/Backups/Photos/Riverbend-2026-11-15/\" --log-file=\"$HOME/Backups/rsync.log\"\n\n  Summary\n                                                                                                DS_Store\"\n  This plan covers an early start on the Riverbend trail, a complete packing list built around the ten essentials, a\n  safe drive with offline maps and a fuel stop, a tidy set of git chores so work is safely pushed before you leave, and\n  an evening routine that gets gear, photos, and your body ready for the rest of the weekend. Prepare tonight, start                                                                            he ten essentials, a    \n  early tomorrow, and enjoy the river.                                                          d before you leave, and \n                                                                                                epare tonight, start    \n✻ Worked for 33s · done 10:57 AM\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯                                                                                               ────────────────────────\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                                                        ────────────────────────\n  ⏵⏵ don't ask on (shift+tab to cycle)\n",
+   "drawn": "     trail conditions for next time.\n  7. Check the Regional weather forecast for Sunday if you are considering a second, shorter outing.\n  8. Stretch your calves, hamstrings, and hips for ten minutes before bed.\n  9. Plan a lazy Sunday morning; you earned it.\n\n  rsync --archive --verbose --human-readable --progress --partial --exclude=\"*.tmp\" --exclude=\".DS_Store\"\n  --include=\"*.jpg\" --include=\"*.heic\" --include=\"*.mov\" \"$HOME/Pictures/Riverbend-2026-11-15/\"\n  \"$HOME/Backups/Photos/Riverbend-2026-11-15/\" --log-file=\"$HOME/Backups/rsync.log\"\n\n  Summary\n\n  This plan covers an early start on the Riverbend trail, a complete packing list built around the ten essentials, a\n  safe drive with offline maps and a fuel stop, a tidy set of git chores so work is safely pushed before you leave, and\n  an evening routine that gets gear, photos, and your body ready for the rest of the weekend. Prepare tonight, start\n  early tomorrow, and enjoy the river.\n\n✻ Worked for 33s · done 10:57 AM\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ don't ask on (shift+tab to cycle)\n",
+   "past": [
+    "y overnight without",
+    "ver.",
+    "d add a few notes about",
+    "ing.",
+    "DS_Store\"",
+    "he ten essentials, a",
+    "d before you leave, and",
+    "epare tonight, start",
+    "────────────────────────",
+    "────────────────────────"
+   ],
+   "pastInCopy": [
+    "y overnight without",
+    "d add a few notes about"
+   ],
+   "editMenu": "     trail conditions for next time.\n  7. Check the Regional weather forecast for Sunday if you are considering a second, shorter outy overnight without     ing.\n  8. Stretch your calves, hamstrings, and hips for ten minutes before bed.\n  9. Plan a lazy Sunday morning; you earned it.\n                                                                                                ver.\n  rsync --archive --verbose --human-readable --progress --partial --exclude=\"*.tmp\" --exclude=\".d add a few notes about DS_Store\"\n  --include=\"*.jpg\" --include=\"*.heic\" --include=\"*.mov\" \"$HOME/Pictures/Riverbend-2026-11-15/\" ing.\n  \"$HOME/Backups/Photos/Riverbend-2026-11-15/\" --log-file=\"$HOME/Backups/rsync.log\"\n\n  Summary\n                                                                                                DS_Store\"\n  This plan covers an early start on the Riverbend trail, a complete packing list built around the ten essentials, a\n  safe drive with offline maps and a fuel stop, a tidy set of git chores so work is safely pushed before you leave, and\n  an evening routine that gets gear, photos, and your body ready for the rest of the weekend. Prepare tonight, start                                                                            he ten essentials, a    \n  early tomorrow, and enjoy the river.                                                          d before you leave, and \n                                                                                                epare tonight, start    \n✻ Worked for 33s · done 10:57 AM\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯                                                                                               ────────────────────────\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                                                        ────────────────────────\n  ⏵⏵ don't ask on (shift+tab to cycle)\n",
+   "pastInEditMenu": [
+    "y overnight without",
+    "d add a few notes about"
+   ]
+  },
+  "url": {
+   "parked": true,
+   "drag": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii\niiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+   "all": "  10. alt text — This tests an image with alternative text.\n  11. https://example.org/looks-safe (https://example.com/really-elsewhere) — This tests link text that differs from its\n     destination.\n\n  12. https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii\niiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end\n\n     This tests a long bare URL on its own line.\n\n  13. When a reader follows a lengthy sentence across several lines of a narrow display, the surrounding words provide\n     enough context to examine wrapping, spacing, readability, and the placement of an interactive element after a\n     substantial passage of ordinary prose, eventually bringing the reader to this deep link\n     (https://example.com/deep/path?with=query) near the sentence’s end. This tests a link near the end of a sentence\n     exceeding 250 characters.\n\n   Name          Link\n  ━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n   First row     row one (https://example.com/row1)\n  ────────────  ────────────────────────────────────\n   Second row    row two (https://example.com/row2)\n\n  This card tests thirteen link and image cases plus two table links.\n\n  Worked for 19s • 12:17 PM\nToken usage: total=5,907 input=5,159 (+ 11,392 cached) output=748 (reasoning 233)\nTo continue this session, run:\n  codex resume 01a1db0f-cfb0-7880-b6cb-1e8f35ad69f3\nOr run codex resume and select Create link test card.\n\np368 tail line 1\np368 tail line 2\np368 tail line 3\np368 tail line 4\np368 tail line 5\np368 tail line 6\np368 tail line 7\np368 tail line 8\np368 tail line 9\np368 tail line 10\np368 tail line 11",
+   "dbl": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii",
+   "triple": "  12. https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii"
+  },
+  "line": {
+   "parked": true,
+   "drag": "$ git push origin HEAD:refs/heads/p368-weekend-plan --force-with-lease=p368-weekend-plan:abc123 --set-upstream --verbose\n --progress --no-verify --push-option=ci.skip --push-option=merge_request.create --push-option=merge_request.target=main\n --push-option=merge_request.title=p368-shell-line-end"
+  },
+  "command": {
+   "copy": "git push origin HEAD:refs/heads/riverbend-weekend-plan --force-with-lease=riverbend-weekend-plan:abc123 --set-upstream\n  --verbose --progress --no-verify --push-option=ci.skip --push-option=merge_request.create\n  --push-option=merge_request.target=main --push-option=merge_request.title=\"Riverbend weekend plan\"",
+   "rows": 3
+  }
+ },
+ "head": {
+  "narrow": {
+   "from": "120x30",
+   "to": "96x30",
+   "copy": "     trail conditions for next time.\n  7. Check the Regional weather forecast for Sunday if you are considering a second, shorter outing.\n  8. Stretch your calves, hamstrings, and hips for ten minutes before bed.\n  9. Plan a lazy Sunday morning; you earned it.\n\n  rsync --archive --verbose --human-readable --progress --partial --exclude=\"*.tmp\" --exclude=\".DS_Store\"\n  --include=\"*.jpg\" --include=\"*.heic\" --include=\"*.mov\" \"$HOME/Pictures/Riverbend-2026-11-15/\"\n  \"$HOME/Backups/Photos/Riverbend-2026-11-15/\" --log-file=\"$HOME/Backups/rsync.log\"\n\n  Summary\n\n  This plan covers an early start on the Riverbend trail, a complete packing list built around the ten essentials, a\n  safe drive with offline maps and a fuel stop, a tidy set of git chores so work is safely pushed before you leave, and\n  an evening routine that gets gear, photos, and your body ready for the rest of the weekend. Prepare tonight, start\n  early tomorrow, and enjoy the river.\n\n✻ Worked for 33s · done 10:57 AM\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ don't ask on (shift+tab to cycle)\n",
+   "drawn": "     trail conditions for next time.\n  7. Check the Regional weather forecast for Sunday if you are considering a second, shorter outing.\n  8. Stretch your calves, hamstrings, and hips for ten minutes before bed.\n  9. Plan a lazy Sunday morning; you earned it.\n\n  rsync --archive --verbose --human-readable --progress --partial --exclude=\"*.tmp\" --exclude=\".DS_Store\"\n  --include=\"*.jpg\" --include=\"*.heic\" --include=\"*.mov\" \"$HOME/Pictures/Riverbend-2026-11-15/\"\n  \"$HOME/Backups/Photos/Riverbend-2026-11-15/\" --log-file=\"$HOME/Backups/rsync.log\"\n\n  Summary\n\n  This plan covers an early start on the Riverbend trail, a complete packing list built around the ten essentials, a\n  safe drive with offline maps and a fuel stop, a tidy set of git chores so work is safely pushed before you leave, and\n  an evening routine that gets gear, photos, and your body ready for the rest of the weekend. Prepare tonight, start\n  early tomorrow, and enjoy the river.\n\n✻ Worked for 33s · done 10:57 AM\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ don't ask on (shift+tab to cycle)\n",
+   "past": [
+    "y overnight without",
+    "ver.",
+    "d add a few notes about",
+    "ing.",
+    "DS_Store\"",
+    "he ten essentials, a",
+    "d before you leave, and",
+    "epare tonight, start",
+    "────────────────────────",
+    "────────────────────────"
+   ],
+   "pastInCopy": [],
+   "editMenu": "     trail conditions for next time.\n  7. Check the Regional weather forecast for Sunday if you are considering a second, shorter outing.\n  8. Stretch your calves, hamstrings, and hips for ten minutes before bed.\n  9. Plan a lazy Sunday morning; you earned it.\n\n  rsync --archive --verbose --human-readable --progress --partial --exclude=\"*.tmp\" --exclude=\".DS_Store\"\n  --include=\"*.jpg\" --include=\"*.heic\" --include=\"*.mov\" \"$HOME/Pictures/Riverbend-2026-11-15/\"\n  \"$HOME/Backups/Photos/Riverbend-2026-11-15/\" --log-file=\"$HOME/Backups/rsync.log\"\n\n  Summary\n\n  This plan covers an early start on the Riverbend trail, a complete packing list built around the ten essentials, a\n  safe drive with offline maps and a fuel stop, a tidy set of git chores so work is safely pushed before you leave, and\n  an evening routine that gets gear, photos, and your body ready for the rest of the weekend. Prepare tonight, start\n  early tomorrow, and enjoy the river.\n\n✻ Worked for 33s · done 10:57 AM\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ don't ask on (shift+tab to cycle)\n",
+   "pastInEditMenu": []
+  },
+  "url": {
+   "parked": true,
+   "drag": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii\niiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end",
+   "all": "  10. alt text — This tests an image with alternative text.\n  11. https://example.org/looks-safe (https://example.com/really-elsewhere) — This tests link text that differs from its\n     destination.\n\n  12. https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii\niiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end\n\n     This tests a long bare URL on its own line.\n\n  13. When a reader follows a lengthy sentence across several lines of a narrow display, the surrounding words provide\n     enough context to examine wrapping, spacing, readability, and the placement of an interactive element after a\n     substantial passage of ordinary prose, eventually bringing the reader to this deep link\n     (https://example.com/deep/path?with=query) near the sentence’s end. This tests a link near the end of a sentence\n     exceeding 250 characters.\n\n   Name          Link\n  ━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n   First row     row one (https://example.com/row1)\n  ────────────  ────────────────────────────────────\n   Second row    row two (https://example.com/row2)\n\n  This card tests thirteen link and image cases plus two table links.\n\n  Worked for 19s • 12:17 PM\nToken usage: total=5,907 input=5,159 (+ 11,392 cached) output=748 (reasoning 233)\nTo continue this session, run:\n  codex resume 01a1db0f-cfb0-7880-b6cb-1e8f35ad69f3\nOr run codex resume and select Create link test card.\n\np368 tail line 1\np368 tail line 2\np368 tail line 3\np368 tail line 4\np368 tail line 5\np368 tail line 6\np368 tail line 7\np368 tail line 8\np368 tail line 9\np368 tail line 10\np368 tail line 11",
+   "dbl": "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii",
+   "triple": "  12. https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii"
+  },
+  "line": {
+   "parked": true,
+   "drag": "$ git push origin HEAD:refs/heads/p368-weekend-plan --force-with-lease=p368-weekend-plan:abc123 --set-upstream --verbose\n --progress --no-verify --push-option=ci.skip --push-option=merge_request.create --push-option=merge_request.target=main\n --push-option=merge_request.title=p368-shell-line-end"
+  },
+  "command": {
+   "copy": "git push origin HEAD:refs/heads/riverbend-weekend-plan --force-with-lease=riverbend-weekend-plan:abc123 --set-upstream\n  --verbose --progress --no-verify --push-option=ci.skip --push-option=merge_request.create\n  --push-option=merge_request.target=main --push-option=merge_request.title=\"Riverbend weekend plan\"",
+   "rows": 3
+  }
+ },
+ "breaks": [
+  {
+   "why": "the parent's narrowed copy held nothing past the width",
+   "clause": "e.narrow.parent-past-width",
+   "expect": null,
+   "set": [
+    [
+     "parent.narrow.pastInCopy",
+     []
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's narrowed copy held a cell past the width",
+   "clause": "e.narrow.head-within-width",
+   "set": [
+    [
+     "head.narrow.pastInCopy",
+     [
+      "y overnight without"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's narrowed copy is not what is drawn",
+   "clause": "e.narrow.head-within-width",
+   "set": [
+    [
+     "head.narrow.drawn",
+     "  4. Check the forecast"
+    ]
+   ]
+  },
+  {
+   "why": "the Edit menu's Copy wrote another text than ⌘C at HEAD",
+   "clause": "e.narrow.head-edit-menu",
+   "set": [
+    [
+     "head.narrow.editMenu",
+     "  4. Check the forecast the night before"
+    ]
+   ]
+  },
+  {
+   "why": "HEAD copied the reporter's command as one row",
+   "clause": "e.command.as-parent",
+   "set": [
+    [
+     "head.command.copy",
+     "git push origin HEAD:refs/heads/riverbend-weekend-plan --force-with-lease=riverbend-weekend-plan:abc123 --set-upstream"
+    ]
+   ]
+  },
+  {
+   "why": "a HEAD copy ends a line in a space",
+   "clause": "e.head-no-trailing-space",
+   "set": [
+    [
+     "head.url.dbl",
+     "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii "
+    ]
+   ],
+   "alsoRed": [
+    "e.url.dbl-whole"
+   ]
+  },
+  {
+   "why": "probe review: a HEAD copy ends in a run of non breaking spaces (D11 makes them spaces before the trim)",
+   "clause": "e.head-no-trailing-space",
+   "set": [
+    [
+     "head.url.drag",
+     "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end  "
+    ]
+   ],
+   "alsoRed": [
+    "e.url.head-as-parent"
+   ]
+  },
+  {
+   "why": "the fix round: HEAD's scrolled-back drag that never scrolled joined the URL's rows through -J, as the dropped item 7 did",
+   "clause": "e.url.head-as-parent",
+   "set": [
+    [
+     "head.url.drag",
+     "https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end"
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD's select-all while scrolled back glued rows the screen draws apart",
+   "clause": "e.url.head-as-parent",
+   "set": [
+    [
+     "head.url.all",
+     "  10. alt text — This tests an image with alternative text.  11. https://example.org/looks-safe (https://example.com/really-elsewhere) — This tests link text that differs from its\n     destination.\n\n  12. https://example.net/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiii\niiii/jjjjjjjjjj/kkkkkkkkkk/llllllllll/mmmmmmmmmm/nnnnnnnnnn/oooooooooo/end\n\n     This tests a long bare URL on its own line.\n\n  13. When a reader follows a lengthy sentence across several lines of a narrow display, the surrounding words provide\n     enough context to examine wrapping, spacing, readability, and the placement of an interactive element after a\n     substantial passage of ordinary prose, eventually bringing the reader to this deep link\n     (https://example.com/deep/path?with=query) near the sentence’s end. This tests a link near the end of a sentence\n     exceeding 250 characters.\n\n   Name          Link\n  ━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n   First row     row one (https://example.com/row1)\n  ────────────  ────────────────────────────────────\n   Second row    row two (https://example.com/row2)\n\n  This card tests thirteen link and image cases plus two table links.\n\n  Worked for 19s • 12:17 PM\nToken usage: total=5,907 input=5,159 (+ 11,392 cached) output=748 (reasoning 233)\nTo continue this session, run:\n  codex resume 01a1db0f-cfb0-7880-b6cb-1e8f35ad69f3\nOr run codex resume and select Create link test card.\n\np368 tail line 1\np368 tail line 2\np368 tail line 3\np368 tail line 4\np368 tail line 5\np368 tail line 6\np368 tail line 7\np368 tail line 8\np368 tail line 9\np368 tail line 10\np368 tail line 11"
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD's double click while scrolled back copied another word than the parent's",
+   "clause": "e.url.head-as-parent",
+   "set": [
+    [
+     "head.url.dbl",
+     "aaaaaaaaaa"
+    ]
+   ]
+  },
+  {
+   "why": "the fix round: HEAD's scrolled-back drag joined the long shell line's rows",
+   "clause": "e.line.head-as-parent",
+   "set": [
+    [
+     "head.line.drag",
+     "$ git push origin HEAD:refs/heads/p368-weekend-plan --force-with-lease=p368-weekend-plan:abc123 --set-upstream --verbose --progress --no-verify --push-option=ci.skip --push-option=merge_request.create --push-option=merge_request.target=main --push-option=merge_request.title=p368-shell-line-end"
+    ]
+   ]
+  }
+ ]
+}

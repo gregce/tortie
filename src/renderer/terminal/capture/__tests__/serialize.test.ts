@@ -73,6 +73,10 @@ function cell(spec: FakeCellSpec): IBufferCell {
 function fakeTerm(rows: FakeCellSpec[][], reports?: IBufferRange): Terminal {
   const lines = rows.map((specs) => specs.map(cell));
   return {
+    // Phase 368: a serialized row also ends at the pane's right edge
+    // (../serialize.ts), which every real terminal has. This one is as wide
+    // as its widest row, so the edge cuts nothing here.
+    cols: Math.max(1, ...lines.map((line) => line.length)),
     buffer: {
       active: {
         type: 'normal',

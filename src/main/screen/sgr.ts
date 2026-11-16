@@ -31,7 +31,7 @@
  * it (its grey was false), and a parameter this reader has no meaning for is
  * ignored, readable, as the parent ignored it.
  *
- * A TAB IS A CELL. tmux 3.7b prints a tab as one `\t` (measured, ./cells.ts),
+ * A TAB IS A CELL. tmux 3.7b prints a tab as one `\t` (measured, src/shared/cells.ts),
  * so it is kept as a cell and leaves the row readable; input-row's projection
  * drops it and calls its row unreadable, which is what its parent did with
  * every byte below 0x20.

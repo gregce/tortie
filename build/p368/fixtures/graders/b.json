@@ -1,0 +1,192 @@
+{
+ "arm": "b",
+ "about": "Arm b. The parent half is recorded by probe:p368 at 2026-11-16, the parent checkout 8497c34c launched as HEAD (P368_HEAD_ONLY=1, P368_HEAD_CHECKOUT): a new session and a restored one start at 80x24 and are then fitted; the restored replay (research 145's cold1 shape) starts at 80x24, repaints at 120x32 and leaves items twice. The HEAD half is SPEC §8's HEAD column. Each break turns exactly its own clause.",
+ "parent": {
+  "fresh": {
+   "start": "80x24",
+   "later": [
+    "124x34"
+   ],
+   "fitted": "124x34"
+  },
+  "restored": {
+   "start": "80x24",
+   "later": [
+    "124x34"
+   ],
+   "fitted": "124x34",
+   "status": "restorable",
+   "restoreOk": true
+  },
+  "replay": {
+   "start": "80x24",
+   "later": [
+    "120x32"
+   ],
+   "fitted": "120x32",
+   "repainted": true,
+   "items": {
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 1,
+    "5": 1,
+    "6": 1,
+    "7": 1,
+    "8": 1,
+    "9": 1,
+    "10": 2,
+    "11": 2,
+    "12": 2,
+    "13": 1,
+    "14": 1,
+    "15": 1,
+    "16": 1
+   }
+  }
+ },
+ "head": {
+  "fresh": {
+   "start": "124x39",
+   "later": [],
+   "fitted": "124x39"
+  },
+  "restored": {
+   "start": "124x39",
+   "later": [],
+   "fitted": "124x39",
+   "status": "restorable",
+   "restoreOk": true
+  },
+  "replay": {
+   "start": "120x32",
+   "later": [],
+   "fitted": "120x32",
+   "repainted": false,
+   "items": {
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 1,
+    "5": 1,
+    "6": 1,
+    "7": 1,
+    "8": 1,
+    "9": 1,
+    "10": 1,
+    "11": 1,
+    "12": 1,
+    "13": 1,
+    "14": 1,
+    "15": 1,
+    "16": 1
+   }
+  }
+ },
+ "breaks": [
+  {
+   "why": "the parent's new session started at the fitted size, so the defect did not show",
+   "clause": "b.parent-new-80x24",
+   "expect": null,
+   "set": [
+    [
+     "parent.fresh.start",
+     "124x39"
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's new session was given a second size",
+   "clause": "b.head-new-at-fitted",
+   "set": [
+    [
+     "head.fresh.later",
+     [
+      "124x38"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's new session started at tmux's default",
+   "clause": "b.head-new-at-fitted",
+   "set": [
+    [
+     "head.fresh.start",
+     "80x24"
+    ]
+   ]
+  },
+  {
+   "why": "the parent's restore started at the fitted size",
+   "clause": "b.parent-restore-80x24",
+   "expect": null,
+   "set": [
+    [
+     "parent.restored.start",
+     "124x39"
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's restore started at tmux's default",
+   "clause": "b.head-restore-at-fitted",
+   "set": [
+    [
+     "head.restored.start",
+     "80x24"
+    ]
+   ]
+  },
+  {
+   "why": "the parent's restored replay left nothing twice",
+   "clause": "b.parent-replay-twice",
+   "expect": null,
+   "set": [
+    [
+     "parent.replay.items.10",
+     1
+    ],
+    [
+     "parent.replay.items.11",
+     1
+    ],
+    [
+     "parent.replay.items.12",
+     1
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's restored replay left an item twice",
+   "clause": "b.head-replay-once",
+   "set": [
+    [
+     "head.replay.items.11",
+     2
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's restored replay was repainted on a later size",
+   "clause": "b.head-replay-once",
+   "set": [
+    [
+     "head.replay.repainted",
+     true
+    ]
+   ]
+  },
+  {
+   "why": "probe review: HEAD's restored replay's capture held no numbered item, which read nothing",
+   "clause": "b.head-replay-once",
+   "expect": null,
+   "set": [
+    [
+     "head.replay.items",
+     {}
+    ]
+   ]
+  }
+ ]
+}

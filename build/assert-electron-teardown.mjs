@@ -651,12 +651,22 @@ const HELPER = 'electron-run.mjs';
  * stand-ins hidden before every launch. Phase 359, if it lands first with its
  * own one, makes this 189 at the second landing.
  *
+ * PHASE 368 RAISED IT FROM 189 TO 190, by one for build/p368/probe-p368.mjs
+ * (`probe:p368`), issue 44's app run at the parent and at HEAD: Electrons
+ * through the helper ONE AT A TIME, each launch on its own scratch profile,
+ * HOME and login PATH with HISTFILE=/dev/null, main driven through its
+ * inspector with `shell.openExternal` and the clipboard writers replaced by
+ * recorders before anything is clicked or copied, every probed registry row
+ * but the claude and codex stand-ins hidden before every launch, and research
+ * 145's redacted recordings replayed by build/p368/stand-in.mjs, so no agent
+ * runs and no token is spent.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 189;
+const HELPER_USER_FLOOR = 190;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

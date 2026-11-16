@@ -89,18 +89,20 @@ describe('composeText over an unopened terminal', () => {
     term.dispose();
   });
 
-  it('puts every unwrapped row on a line of its own and keeps the spaces a program wrote', async () => {
+  it('puts every unwrapped row on a line of its own and ends each at its last drawn cell', async () => {
     // xterm trims cells nothing was ever written to and keeps a space a
-    // program printed, and `capture-pane -J` keeps the same spaces, so the
-    // three after "end" survive on both paths. A blank row is a blank line.
+    // program printed, and `capture-pane -J` keeps the same spaces. Since
+    // Phase 368 a copy ends each line at its last drawn cell on both paths
+    // (../drawn-text.ts), because a terminal with no tmux holds none of them,
+    // so the three after "end" go. A blank row is a blank line.
     const term = await bufferTerminal(ROWS, COLS);
     const sel: IBufferRange = { start: { x: 1, y: 0 }, end: { x: 2, y: 8 } };
     expect(composeText(term, sel)).toBe(
       [
         'ne',
         'ABCDEFGHIJ'.repeat(15),
-        '日本語テキ abc 😀 end   ',
-        'x y   ',
+        '日本語テキ abc 😀 end',
+        'x y',
         '',
         'la'
       ].join('\n')

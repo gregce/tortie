@@ -93,6 +93,10 @@ import { captureDefaultForAgent } from './specstory';
 import { errorText } from './errors';
 import type { AppState } from './app-state';
 import { gmuxBridge } from '../bridge';
+// PHASE 368. The size a new or restored session is made at. A leaf: it reads the
+// mounted terminals and this window's last fit, and never the store, so the
+// import makes no cycle.
+import { tabSizeForCreate } from '../terminal/tab-size';
 
 export interface SessionsSlice {
   sessions: Session[];
@@ -836,9 +840,22 @@ export const createSessionsSlice: StateCreator<
       restoringIds: { ...s.restoringIds, [sessionId]: true }
     }));
     try {
+      // PHASE 368 (build/p368/SPEC.md D2). The one place a restore composes
+      // its request, so every Restore control sends the size the session will
+      // be drawn at: the restored agent paints its first frame at that size.
+      const size = tabSizeForCreate(
+        get().visibleSessionIds,
+        get()
+          .projectSessions()
+          .map((x) => x.id)
+      );
+      const choice: CaptureChoice = {
+        ...(withoutCapture ? { withoutCapture: true } : {}),
+        ...(size !== null ? { size } : {})
+      };
       const restored = await api.restore(
         sessionId,
-        withoutCapture ? { withoutCapture: true } : undefined
+        Object.keys(choice).length > 0 ? choice : undefined
       );
       if (after !== undefined) await after();
       return {
@@ -1162,6 +1179,16 @@ export const createSessionsSlice: StateCreator<
           .map((x) => x.name)
       );
       const finalName = dedupedName(name, existing);
+      // PHASE 368 (build/p368/SPEC.md D2). The size of the terminal the new
+      // session will be drawn in, so it is made at that size rather than at
+      // tmux's 80 by 24 and fitted a moment later. Every create surface reaches
+      // this one function, a split's create included.
+      const size = tabSizeForCreate(
+        get().visibleSessionIds,
+        get()
+          .projectSessions()
+          .map((x) => x.id)
+      );
       const session = await gmux.sessions.create({
         name: finalName,
         projectPath: project.path,
@@ -1203,7 +1230,10 @@ export const createSessionsSlice: StateCreator<
         // sign in. The value here is a NAME and never a directory, so nothing
         // a renderer sends can decide where Tortie reads a credential.
         ...(login !== undefined && login.length > 0 ? { login } : {}),
-        ...(signIn === true ? { signIn: true } : {})
+        ...(signIn === true ? { signIn: true } : {}),
+        // PHASE 368. Absent when no pane has been fitted yet, and main then
+        // uses the last size it heard, or tmux's 80 by 24.
+        ...(size !== null ? { size } : {})
       });
       // PHASE 90.3. A session started on a machine FROM A TAB ON THIS MAC has
       // its own tab over there, because main opened one for the folder the

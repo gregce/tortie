@@ -503,8 +503,12 @@ describe('AttachHost, a session on another machine', () => {
     attach(host(), makeSender());
     const spawned = spawnedPtys[0]!;
     expect(spawned.file).toBe('/opt/fake/tmux');
+    // Phase 368 (build/p368/SPEC.md §4.5, item 9): the local client asks for tmux's
+    // `hyperlinks` feature, so the links a program prints reach the terminal.
     expect(spawned.argv).toEqual([
       '-u',
+      '-T',
+      'hyperlinks',
       '-L',
       'gmux-attach-test',
       '-f',

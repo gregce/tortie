@@ -1,0 +1,537 @@
+{
+ "arm": "a",
+ "about": "Arm a. The parent half is recorded by probe:p368 on 2026-11-16 with the parent checkout 8497c34c launched as HEAD: held 30 ms every return met 80x24; held 15 ms the race is a coin the parent can win (printed, not graded). The HEAD half has the shape the mid-integration HEAD build read the same day (an attach and a same-size client-resized at one instant, the program seeing nothing), at SPEC §8's HEAD column. Each break turns exactly its own clause.",
+ "parent": {
+  "returns": [
+   {
+    "delay": 15,
+    "i": 0,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 62,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 64,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 15,
+    "i": 1,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 57,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 57,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 15,
+    "i": 2,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "R",
+      "t": 47,
+      "size": "124x34"
+     },
+     {
+      "k": "A",
+      "t": 48,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 15,
+    "i": 3,
+    "pane": [
+     "80x24",
+     "124x34"
+    ],
+    "attach": "80x24",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 45,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 46,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 30,
+    "i": 0,
+    "pane": [
+     "80x24",
+     "124x34"
+    ],
+    "attach": "80x24",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "R",
+      "t": 51,
+      "size": "80x24"
+     },
+     {
+      "k": "A",
+      "t": 52,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 65,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 30,
+    "i": 1,
+    "pane": [
+     "80x24",
+     "124x34"
+    ],
+    "attach": "80x24",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 41,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 41,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 55,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 30,
+    "i": 2,
+    "pane": [
+     "80x24",
+     "124x34"
+    ],
+    "attach": "80x24",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 65,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 66,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 67,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 30,
+    "i": 3,
+    "pane": [
+     "80x24",
+     "124x34"
+    ],
+    "attach": "80x24",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "R",
+      "t": 48,
+      "size": "80x24"
+     },
+     {
+      "k": "A",
+      "t": 50,
+      "size": "80x24"
+     },
+     {
+      "k": "R",
+      "t": 59,
+      "size": "124x34"
+     }
+    ]
+   }
+  ]
+ },
+ "head": {
+  "returns": [
+   {
+    "delay": 15,
+    "i": 0,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 15,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 15,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 15,
+    "i": 1,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 16,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 16,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 15,
+    "i": 2,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 17,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 17,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 15,
+    "i": 3,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 18,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 18,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 30,
+    "i": 0,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 19,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 19,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 30,
+    "i": 1,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 20,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 20,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 30,
+    "i": 2,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 21,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 21,
+      "size": "124x34"
+     }
+    ]
+   },
+   {
+    "delay": 30,
+    "i": 3,
+    "pane": [],
+    "attach": "124x34",
+    "fitted": "124x34",
+    "server": [
+     {
+      "k": "A",
+      "t": 22,
+      "size": "124x34"
+     },
+     {
+      "k": "R",
+      "t": 22,
+      "size": "124x34"
+     }
+    ]
+   }
+  ]
+ },
+ "breaks": [
+  {
+   "why": "the parent won every race, held 15 ms and 30 ms, so the defect did not show (the fix round: one lost race at either delay shows it)",
+   "clause": "a.parent-lost-race",
+   "expect": null,
+   "set": [
+    [
+     "parent.returns.0.pane",
+     []
+    ],
+    [
+     "parent.returns.1.pane",
+     []
+    ],
+    [
+     "parent.returns.2.pane",
+     []
+    ],
+    [
+     "parent.returns.3.pane",
+     []
+    ],
+    [
+     "parent.returns.4.pane",
+     []
+    ],
+    [
+     "parent.returns.5.pane",
+     []
+    ],
+    [
+     "parent.returns.6.pane",
+     []
+    ],
+    [
+     "parent.returns.7.pane",
+     []
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's program met 80x24 on one return held 30 ms (a size the program sees fails the attach clause too)",
+   "clause": "a.head-never-80x24",
+   "set": [
+    [
+     "head.returns.6.pane",
+     [
+      "80x24",
+      "124x39"
+     ]
+    ]
+   ],
+   "alsoRed": [
+    "a.head-attach-at-fitted"
+   ]
+  },
+  {
+   "why": "HEAD's attach client was spawned at tmux's default",
+   "clause": "a.head-attach-at-fitted",
+   "set": [
+    [
+     "head.returns.2.attach",
+     "80x24"
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's attach was not seen at all",
+   "clause": "a.head-attach-at-fitted",
+   "set": [
+    [
+     "head.returns.7.attach",
+     null
+    ]
+   ]
+  },
+  {
+   "why": "HEAD told the attached client another size",
+   "clause": "a.head-attach-at-fitted",
+   "set": [
+    [
+     "head.returns.1.server",
+     [
+      {
+       "k": "A",
+       "t": 16,
+       "size": "124x34"
+      },
+      {
+       "k": "R",
+       "t": 16,
+       "size": "124x34"
+      },
+      {
+       "k": "R",
+       "t": 40,
+       "size": "100x30"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "HEAD's program was given a size on a return",
+   "clause": "a.head-attach-at-fitted",
+   "set": [
+    [
+     "head.returns.3.pane",
+     [
+      "124x33"
+     ]
+    ]
+   ]
+  },
+  {
+   "why": "probe review: the server's hooks recorded nothing at any of HEAD's returns (a set-hook that failed), which is a reading that did not arrive",
+   "clause": "a.head-attach-at-fitted",
+   "expect": null,
+   "set": [
+    [
+     "head.returns.0.server",
+     []
+    ],
+    [
+     "head.returns.0.attach",
+     null
+    ],
+    [
+     "head.returns.1.server",
+     []
+    ],
+    [
+     "head.returns.1.attach",
+     null
+    ],
+    [
+     "head.returns.2.server",
+     []
+    ],
+    [
+     "head.returns.2.attach",
+     null
+    ],
+    [
+     "head.returns.3.server",
+     []
+    ],
+    [
+     "head.returns.3.attach",
+     null
+    ],
+    [
+     "head.returns.4.server",
+     []
+    ],
+    [
+     "head.returns.4.attach",
+     null
+    ],
+    [
+     "head.returns.5.server",
+     []
+    ],
+    [
+     "head.returns.5.attach",
+     null
+    ],
+    [
+     "head.returns.6.server",
+     []
+    ],
+    [
+     "head.returns.6.attach",
+     null
+    ],
+    [
+     "head.returns.7.server",
+     []
+    ],
+    [
+     "head.returns.7.attach",
+     null
+    ]
+   ]
+  }
+ ]
+}

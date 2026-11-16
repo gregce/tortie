@@ -6,10 +6,12 @@
  * on the phone), so everything is decided here, from one read (./read.ts):
  *
  *  1. ROWS OF CELLS, by the one style reader (./sgr.ts), the pen carried across
- *     rows, cut into tmux's own cells (./cells.ts, tmux 3.7b's widths and the
- *     seven measured sequence rules). A tab is one cell spanning to the next
- *     multiple of eight, tmux's default tab stops (measured, ./cells.ts); a
- *     program that moves its tab stops draws its tab one span off here, stated.
+ *     rows, cut into tmux's own cells (src/shared/cells.ts, tmux 3.7b's widths
+ *     and the seven measured sequence rules, moved there by Phase 368 so the
+ *     Mac's terminal cuts a row the same way). A tab is one cell spanning to the
+ *     next multiple of eight, tmux's default tab stops (measured,
+ *     src/shared/cells.ts); a program that moves its tab stops draws its tab
+ *     one span off here, stated.
  *  2. STYLES RESOLVED TO sRGB as this Mac's own dark terminal draws them at its
  *     default appearance (./palette.ts, D12): the sixteen slots, xterm's cube
  *     and greys, 24-bit passed through; inverse swaps the two, the ground
@@ -74,6 +76,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { clusterCells, type TaggedCell, type TaggedPoint } from '@shared/cells';
 import {
   POCKET_SCREEN_MAX_BYTES,
   POCKET_SCREEN_MAX_COLS,
@@ -89,12 +92,11 @@ import {
 import type { SessionStatus } from '@shared/types';
 import { detectDialogRows, hashScreen, normalizeCapture } from '../activity/screen';
 import { readBackWindowOf } from '../reply/reader';
-import { clusterCells, type TaggedCell, type TaggedPoint } from './cells';
 import { SCREEN_PALETTE, xterm256 } from './palette';
 import type { MarksRoad, ScreenMarks, ScreenReading } from './read';
 import { DEFAULT_PEN, readStyledRows, styledRows, type Colour, type Pen, type StyledRow } from './sgr';
 
-/** tmux's default tab stops: every eighth column (measured, ./cells.ts). */
+/** tmux's default tab stops: every eighth column (measured, src/shared/cells.ts). */
 const TAB_STOP = 8;
 
 /** What the composer is told besides the read. */

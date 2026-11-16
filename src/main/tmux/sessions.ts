@@ -14,6 +14,7 @@
  */
 
 import { existsSync } from 'node:fs';
+import { sanitizeTerminalSize, type TerminalSize } from '@shared/terminal-size';
 import { tmuxArgument, tmuxFolderArgument } from './argument';
 import { isControlSession } from './control-client';
 import { gmuxError, isGmuxError } from '../errors';
@@ -78,6 +79,15 @@ export interface CreateTmuxSessionInput {
    * pairs and the argv are held back either way.
    */
   folderAsRecorded?: true;
+  /**
+   * PHASE 368 (build/p368/SPEC.md D2, D3). The size of the terminal this
+   * session will be shown in. It becomes `-x` and `-y` on the `new-session`
+   * line, which sizes the window and the session's `default-size`, so the
+   * program in it starts at the size its pane draws at. Absent, or not a whole
+   * size inside the attach host's bounds, sends neither, and the session is
+   * made at tmux's 80 by 24 as every create was before this phase.
+   */
+  size?: TerminalSize;
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +194,14 @@ export async function createSession(
   );
 
   const args = ['new-session', '-d', '-P', '-F', CREATE_FORMAT, '-s', tmuxName];
+  // PHASE 368 (build/p368/SPEC.md D3). A detached session is made at `-x` by
+  // `-y` and keeps it as its `default-size` (cmd-new-session.c, 3.7b), so the
+  // first attach, spawned at the same size, changes nothing the program sees.
+  // Without a size this pushes nothing and the session is made at 80 by 24.
+  const size = sanitizeTerminalSize(input.size);
+  if (size !== null) {
+    args.push('-x', String(size.cols), '-y', String(size.rows));
+  }
   // PHASE 353 (build/p353/SPEC.md D354-1, D354-3). tmux reads `-c` as a format
   // and every element as the end of a command when it ends in `;`, so the
   // folder, each pair and each argv element are handed held back

@@ -28,13 +28,28 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
+import { sanitizeTerminalSize } from '@shared/terminal-size';
 import type { GmuxErrorPayload, Session, SessionStatus } from '@shared/types';
 import { useApp } from '../state/store';
 // Phase 12.11: a terminal zooms by changing its FONT, never by CSS scaling —
 // see src/renderer/zoom/regions.ts for why, and for the S1 band rule.
 import { zoomedFontSize, useZoom } from '../zoom';
-import { snapshotSelection } from './capture';
+import { routePaneCopy, snapshotSelection } from './capture';
 import { registerTerminal } from './drop/registry';
+// PHASE 368 (build/p368/SPEC.md §9.2). The other builders' seams, wired here:
+// tmux's cell widths, the link handler, and (above) the Edit menu's Copy.
+import { paneLinks } from './links/pane-link-handler';
+import { registerTmuxWidths } from './tmux-widths';
+// PHASE 368 (D1, D2, D4, D6). The size this pane attaches at, the window's
+// last fitted size, and the bound on the first fit's wait.
+import {
+  boxHasSize,
+  firstFitLatch,
+  noteFit,
+  settleForAttach,
+  sizeForAttach,
+  withinFirstFitBound
+} from './tab-size';
 import { terminalKeyHandler } from './keys';
 import { isPaneReport } from './keys/pane-report';
 import {
@@ -251,6 +266,16 @@ export function TerminalPane({
     // is right, not merely harmless.
     void primeMultilineKeys();
 
+    // The session's row, read when asked and never captured: a session can be
+    // renamed, its machine is a live fact, and the agent it runs is what picks
+    // the ⇧Enter newline bytes. Declared before the terminal because the width
+    // table below is read from it before anything is written.
+    const sessionRow = (): Session | undefined =>
+      useApp.getState().sessions.find((s) => s.id === sessionId);
+    // PHASE 368 (build/p368/SPEC.md D14 to D17). The handler for the links a
+    // session's program sends, made first so the options below can name it.
+    const links = paneLinks();
+
     const term = new Terminal({
       scrollback: TERMINAL_SCROLLBACK,
       fontFamily: resolveTerminalFontFamily(),
@@ -271,9 +296,20 @@ export function TerminalPane({
       macOptionClickForcesSelection: true,
       // Phase 40. xterm defaults this to true on macOS, and it is what threw
       // the selection away before the menu could be built. See ./theme.ts.
-      rightClickSelectsWord: TERMINAL_RIGHT_CLICK_SELECTS_WORD
+      rightClickSelectsWord: TERMINAL_RIGHT_CLICK_SELECTS_WORD,
+      // PHASE 368 (D7). tmux's cell widths ride xterm's own width provider
+      // interface, which xterm offers only to a terminal made with this on.
+      allowProposedApi: true,
+      // PHASE 368 (D14). A link the session's program sent opens through the
+      // handler's one route, `window.open`, so main's gate decides.
+      linkHandler: links.handler
     });
     termRef.current = term;
+    // PHASE 368 (D7). The cells this session's server draws each code point
+    // in, registered before anything is written. A row on another machine
+    // carries no table, and its pane keeps xterm's own widths, as today.
+    registerTmuxWidths(term, sessionRow()?.cellWidths ?? null);
+    links.bind(term);
     // The constructor above read `--font-terminal`, so a pane mounting under
     // a preset that ships no face is already drawing the right one and has
     // nothing to await. A bundled preset leaves this null, so the font effect
@@ -282,6 +318,8 @@ export function TerminalPane({
     // with no family to load (System) is already drawing the right face, so
     // the effect is marked done; a real face (bundled or a typed Custom
     // family) leaves this null so the effect loads and re-measures once.
+    // Phase 368: the open below now waits for that face first and marks the
+    // key itself, so the effect's re-measure finds nothing to change.
     appliedFontRef.current =
       workFont(workAreaFontRef.current).familyName === null
         ? `${workAreaFontRef.current} ${customFontFamily}`
@@ -302,6 +340,10 @@ export function TerminalPane({
     };
     container.addEventListener('mousedown', swallowRightButton, true);
     container.addEventListener('mouseup', swallowRightButton, true);
+    // PHASE 368 (D12). The Edit menu's Copy chosen with the mouse fires a DOM
+    // `copy` on this terminal, which xterm answered with its own selection,
+    // past the right edge included. It copies what ⌘C copies instead.
+    const unroute = routePaneCopy(container, sessionId, term);
 
     // Published for the features that must reach a terminal they do not own:
     // capture + the context menu (Phase 12 #1/#2) and file drop (#8).
@@ -349,8 +391,6 @@ export function TerminalPane({
     // before the menu (see ./keys), so this handler, not `role:'copy'`, decides.
     // The closures are read per keystroke, never captured: a session can be
     // renamed, and the agent it runs is what picks the ⇧Enter newline bytes.
-    const sessionRow = (): Session | undefined =>
-      useApp.getState().sessions.find((s) => s.id === sessionId);
     term.attachCustomKeyEventHandler(
       terminalKeyHandler(
         sessionId,
@@ -384,26 +424,36 @@ export function TerminalPane({
     // The two closures are read PER HOVER and never captured, for the same
     // reason the key handler's are one screen above: a session's machine and
     // its project are live facts.
-    const pathLinks = term.registerLinkProvider(
-      new PathLinkProvider(term, {
-        // REFUSAL 5: a pane whose session runs on another machine offers no
-        // path links at all. The same question ⌘K asks one screen above, and
-        // the same one `attachPaths` asks before it decides a drop must carry
-        // bytes — except that this one FAILS CLOSED when there is no row,
-        // which `sessionRow()?.machine === undefined` does not. See
-        // `paneIsLocal`.
-        isLocal: () => paneIsLocal(sessionRow()),
-        repoPath: () => sessionRow()?.projectPath ?? '',
-        classify: classifyThroughBridge,
-        openInTortie: (path, repoPath, line) => {
-          openFileAt(path, repoPath, {
-            preview: false,
-            ...(line !== undefined ? { line } : {})
-          });
-        },
-        openOnMac: handToMac
-      })
-    );
+    const pathProvider = new PathLinkProvider(term, {
+      // REFUSAL 5: a pane whose session runs on another machine offers no
+      // path links at all. The same question ⌘K asks one screen above, and
+      // the same one `attachPaths` asks before it decides a drop must carry
+      // bytes — except that this one FAILS CLOSED when there is no row,
+      // which `sessionRow()?.machine === undefined` does not. See
+      // `paneIsLocal`.
+      isLocal: () => paneIsLocal(sessionRow()),
+      repoPath: () => sessionRow()?.projectPath ?? '',
+      classify: classifyThroughBridge,
+      openInTortie: (path, repoPath, line) => {
+        openFileAt(path, repoPath, {
+          preview: false,
+          ...(line !== undefined ? { line } : {})
+        });
+      },
+      openOnMac: handToMac
+    });
+    const pathLinks = term.registerLinkProvider(pathProvider);
+    // PHASE 368, THE FIX ROUND (build/p368/SPEC.md D14 rule 0). xterm's own
+    // OSC 8 provider outranks this one and drops a path link whose cells it
+    // covers, so a file an agent linked to a web page opened the web page
+    // where it used to open the file. The link handler asks this provider
+    // directly, and a path on the clicked cell opens through this provider's
+    // own link, as it did.
+    links.paths((y, then) => {
+      pathProvider.provideLinks(y, (found) => {
+        then(found ?? []);
+      });
+    });
     // Opened inside the boot sequence below — AFTER document.fonts.ready —
     // so xterm never measures cells or builds its (WebGL) glyph atlas from
     // a not-yet-loaded font (Bug C hardening: a @font-face --font-mono
@@ -466,6 +516,10 @@ export function TerminalPane({
     // a rewrap makes a different place; it is deleted, and
     // `ScrollSurface.noteEntry` carries the account.
     const resizeSub = term.onResize(({ cols, rows }) => {
+      // PHASE 368 (D2). The window's last fitted size, which the next attach
+      // or create that has no size of its own is made at. Not while this pane's
+      // container has no size: a fit there is a squeeze, not a size it is shown.
+      if (boxHasSize(container)) noteFit(cols, rows);
       void gmux.sessions.resize({ sessionId, cols, rows }).catch(() => {
         /* hidden/unattached panes may race a resize; harmless */
       });
@@ -512,6 +566,9 @@ export function TerminalPane({
 
     // ---- fit on container resize ------------------------------------------
     let raf = 0;
+    // PHASE 368 (D4). Settles an attach that is waiting for this pane's first
+    // fit with a size, the first time a fit finds the container laid out.
+    const firstFit = firstFitLatch();
     const doFit = (): void => {
       if (disposed) return;
       try {
@@ -519,6 +576,7 @@ export function TerminalPane({
       } catch {
         /* fitting mid-teardown is harmless */
       }
+      if (boxHasSize(container)) firstFit.fitted();
     };
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(raf);
@@ -551,6 +609,23 @@ export function TerminalPane({
         /* non-browser test envs have no FontFaceSet — proceed */
       }
       if (disposed) return;
+      // PHASE 368 (build/p368/SPEC.md D6). A preset that names a face (the
+      // bundled two, or a typed Custom family) has its face loaded BEFORE the
+      // terminal opens, at most FIRST_FIT_WAIT_MS, so the first fit measures
+      // the face it will draw in. Before this the first mount of a launch fitted
+      // with the fallback's cell, attached, and the font effect below fitted
+      // again once the face arrived: a second size right after the attach.
+      // System names no face and passes straight through, as before.
+      const preset = workAreaFontRef.current;
+      if (workFont(preset).familyName !== null) {
+        await withinFirstFitBound(
+          loadWorkAreaFace(preset, term.options.fontSize ?? terminalBaseFontSize())
+        );
+        if (disposed) return;
+        term.options.fontFamily = resolveTerminalFontFamily();
+        // The font effect's own key, so it does not measure this face again.
+        appliedFontRef.current = `${preset} ${customFontFamily}`;
+      }
       term.open(container);
       const attachWebgl = (): boolean => {
         try {
@@ -587,14 +662,42 @@ export function TerminalPane({
         }
       };
       doFit(); // size the pty request window before the first paint lands
+      // PHASE 368 (build/p368/SPEC.md D1, D4). The size the attach client is
+      // spawned at, so tmux never tells the session's program 80 by 24 for a
+      // pane that is not: this pane's own fit, or, when its container has no
+      // size yet, its first fit within FIRST_FIT_WAIT_MS, then the window's
+      // last fitted size.
+      const wanted = await sizeForAttach({
+        fitNow: () => {
+          doFit();
+          if (!boxHasSize(container)) return null;
+          const own = sanitizeTerminalSize({ cols: term.cols, rows: term.rows });
+          if (own !== null) noteFit(own.cols, own.rows);
+          return own;
+        },
+        latch: firstFit
+      });
+      if (disposed) return;
+      // PHASE 368, THE FIX ROUND. The terminal is put at that size BEFORE the
+      // client is spawned, and the attach names the terminal's own size: a
+      // client at one size beside a terminal at another (a pane mounted while
+      // the work area was hidden) left its rows garbled until the window was
+      // resized. See settleForAttach.
+      const size = settleForAttach(term, wanted);
       try {
-        await gmux.sessions.attach(sessionId);
+        await gmux.sessions.attach(sessionId, size ?? undefined);
         if (disposed) return;
         doFit();
-        // Push the real size even if fit produced the 80×24 default.
-        void gmux.sessions
-          .resize({ sessionId, cols: term.cols, rows: term.rows })
-          .catch(() => undefined);
+        // Push the real size, in case a fit landed while the attach was in
+        // flight. PHASE 368: only a size this pane has fitted; a container
+        // with no size yet has none, and its terminal stands at the attach's
+        // size until its first fit, which pushes the size it is shown at.
+        if (boxHasSize(container)) {
+          noteFit(term.cols, term.rows);
+          void gmux.sessions
+            .resize({ sessionId, cols: term.cols, rows: term.rows })
+            .catch(() => undefined);
+        }
         // The attach lands hundreds of milliseconds after whatever selected
         // this session. If that was an arrow key, the person still has the
         // keyboard in the list and this must not take it away.
@@ -607,6 +710,9 @@ export function TerminalPane({
 
     return () => {
       disposed = true;
+      // PHASE 368 (D4). An attach still waiting for this pane's first fit
+      // stops waiting, and the disposed check after it spawns nothing.
+      firstFit.close();
       dragDoorClosed = true;
       detachDragSelect?.();
       scroll.dispose();
@@ -621,6 +727,7 @@ export function TerminalPane({
       unsubExit?.();
       unsubStatus();
       pathLinks.dispose();
+      unroute();
       dataSub.dispose();
       binarySub.dispose();
       resizeSub.dispose();

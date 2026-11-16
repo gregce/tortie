@@ -98,13 +98,34 @@
  * arithmetic over the history it holds then (src/main/tmux/history-lines.ts).
  * Measured exact at 10, 80 and 700 lines a second on 3.6a and 3.7b.
  *
- * AND ONE CHARACTER IN A THOUSAND COPIES A SPACE WIDER FROM THE HISTORY THAN
- * FROM THE SCREEN. xterm ships the Unicode 6 width table, where an emoji is
- * one cell wide, and the session server measures the same character at two,
- * so the server paints a pad cell after it and `capture-pane` answers the
- * character with no pad. Measured on 2026-09-03, a row reading `pad <emoji>
- * end` copied with two spaces before `end` from the screen and one from the
- * history. Everything either path can disagree about is that pad.
+ * AND ONE CHARACTER IN A THOUSAND COPIED A SPACE WIDER FROM THE HISTORY THAN
+ * FROM THE SCREEN, until Phase 368. xterm ships the Unicode 6 width table,
+ * where an emoji is one cell wide, and the session server measures the same
+ * character at two, so the server paints a pad cell after it and
+ * `capture-pane` answers the character with no pad. Measured on 2026-09-03, a
+ * row reading `pad <emoji> end` copied with two spaces before `end` from the
+ * screen and one from the history. Everything either path could disagree
+ * about was that pad. Since Phase 368 the pane's terminal and the copy's both
+ * draw with the widths of this Mac's server, so the pad is the character's
+ * own second cell on both paths; a session on another machine keeps xterm's
+ * table (build/p368/SPEC.md D7), and the pad with it.
+ *
+ * ONLY A DRAG THAT SCROLLED IS HELD AS HISTORY, and Phase 368 measured the
+ * alternative and took it back out (build/p368/SPEC.md §As built, the fix
+ * round). Its item 7 held every selection made while scrolled back (a click,
+ * a double click, a select all, a drag that never scrolled) as history
+ * positions, so Copy composed it through `-J` and a line tmux wrapped stayed
+ * whole. But `-J` trusts tmux's wrap mark, and a mark goes stale when a
+ * program redraws a row in place (research 142 §2.3 and §2.4: 8 of 15 redraw
+ * primitives leave one, a Codex approval among them). Over such rows the
+ * attack lens copied 4 lines where the screen draws 11, three of them rows
+ * drawn apart glued with runs of a hundred spaces, where this path copies
+ * the 11 as drawn. The guard that would refuse a mark on a row with no ink in
+ * its last column still glues a full-width row redrawn over a stale mark
+ * (research 142's G2), which this path copies as drawn, so no rule was left
+ * that is never worse than this one. A selection that did not scroll is
+ * xterm's own, as it always was. Do not convert it again without a
+ * measurement over research 142's cases that finds no case worse.
  */
 
 import type { Terminal } from '@xterm/xterm';

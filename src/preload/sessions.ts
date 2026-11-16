@@ -18,7 +18,9 @@ export const sessions: InstalledSessionsApi = {
   list: () => invoke('sessions:list'),
   rename: (input) => invoke('sessions:rename', input),
   kill: (sessionId) => invoke('sessions:kill', sessionId),
-  attach: (sessionId) => invoke('sessions:attach', sessionId),
+  // Phase 368: the pane's fitted size, when it has one, so main spawns the
+  // attach at it.
+  attach: (sessionId, size) => invoke('sessions:attach', sessionId, size),
   detach: (sessionId) => invoke('sessions:detach', sessionId),
   resize: (input) => invoke('sessions:resize', input),
   onChanged: (cb) => on(EVT_SESSIONS_CHANGED, cb),

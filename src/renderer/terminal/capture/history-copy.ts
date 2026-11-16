@@ -25,9 +25,20 @@
  * only `select` needs a renderer. The joined line re-wraps at the same width
  * and marks its continuation rows wrapped, which is the flag the join below
  * reads, and wide characters occupy their two cells because the same parser
- * put them there. The join itself is xterm's `selectionText` in twenty lines,
- * over the public buffer API, and the probe proves the two paths byte for
- * byte over a wrapped row and a wide row by copying the same rows both ways.
+ * put them there. The join itself is ./drawn-text.ts's `drawnSelectionText`,
+ * the one spelling of xterm's `selectionText` over the public buffer API, and
+ * the probe proves the two paths byte for byte over a wrapped row and a wide
+ * row by copying the same rows both ways.
+ *
+ * PHASE 368 (issue 44): THE SAME TEXT AS THE SCREEN, ENDS AND WIDTHS
+ * INCLUDED. A line copied from here ends at its last drawn cell, as a line
+ * copied from the screen now does: `-J` keeps the spaces tmux drew at a
+ * line's end (cmd-capture-pane.c), and a terminal with no tmux holds none, so
+ * both paths drop them through the one function. And the buffer is drawn
+ * with the session server's widths, which the pane's terminal now uses too:
+ * the joined line re-wraps where the pane wrapped only if a wide character
+ * takes the cells it took there, and with xterm's own table every emoji took
+ * one where the server drew two.
  *
  * This module is behind a lazy door: ./index.ts imports it only when a copy
  * spans the history, so an ordinary copy parses nothing new.
@@ -43,15 +54,22 @@
 
 import { Terminal } from '@xterm/xterm';
 import type { IBufferRange, ITheme } from '@xterm/xterm';
+import type { CellWidthTable } from '@shared/cell-widths';
 import type { InstalledGmuxApi } from '@shared/ipc';
 import type { Session } from '@shared/types';
+import { registerTmuxWidths } from '../tmux-widths';
+import { drawnSelectionText } from './drawn-text';
 import type { HistorySelectionRange } from './history-selection';
 import { serializeAsHtml, toClipboardHtml } from './serialize';
 
 type CaptureBridge = NonNullable<InstalledGmuxApi['capture']>;
 
-/** The session a history read is for: its id, and its tmux-side name. */
-export type HistoryPane = Pick<Session, 'id' | 'tmuxName'>;
+/**
+ * The session a history read is for: its id, its tmux-side name, and since
+ * Phase 368 the width table of the server that drew it (absent for a session
+ * on another machine, which keeps xterm's own widths).
+ */
+export type HistoryPane = Pick<Session, 'id' | 'tmuxName' | 'cellWidths'>;
 
 /** What main answered for an exact range, split into rows. */
 export interface HistoryRows {
@@ -97,10 +115,16 @@ export async function readHistoryRows(
  * The scrollback is sized to the bytes rather than to the row count, because
  * a joined line re-wraps into as many rows as its width demands and a buffer
  * that runs out drops the OLDEST rows, which are the start of the selection.
+ *
+ * `table` is the width table of the server that drew the rows (Phase 368),
+ * registered before anything is written, so the parser gives each character
+ * the cells that server gave it and the re-wrap breaks where the pane broke.
+ * Null keeps xterm's own table, as a session on another machine does.
  */
 export async function bufferTerminal(
   rows: string[],
-  cols: number
+  cols: number,
+  table: CellWidthTable | null = null
 ): Promise<Terminal> {
   let chars = 0;
   for (const row of rows) chars += row.length;
@@ -110,6 +134,7 @@ export async function bufferTerminal(
     scrollback: rows.length + Math.ceil(chars / Math.max(1, cols)) + 24,
     allowProposedApi: true
   });
+  registerTmuxWidths(term, table);
   if (rows.length > 0) {
     await new Promise<void>((resolve) => {
       term.write(rows.join('\r\n'), resolve);
@@ -122,27 +147,16 @@ export async function bufferTerminal(
  * xterm's `selectionText` over a buffer range, `end.x` exclusive as in
  * xterm's model: the first row from its column, every wrapped row joined to
  * the row above with nothing between, every other row on a line of its own,
- * trailing blanks trimmed, non breaking spaces made plain.
+ * cells nothing was written to dropped, non breaking spaces made plain.
+ *
+ * Phase 368: through ./drawn-text.ts, the one spelling the screen's copy uses
+ * too, so each joined line also ends at its last drawn cell. `-J` hands back
+ * the spaces tmux drew at a line's end (cmd-capture-pane.c) and they are gone
+ * here, while a space at the end of a row the next row continues is kept,
+ * because it is one the program wrote between two words.
  */
 export function composeText(term: Terminal, sel: IBufferRange): string {
-  const buffer = term.buffer.active;
-  const text = (y: number, from: number, to?: number): string =>
-    buffer.getLine(y)?.translateToString(true, from, to) ?? '';
-  const wrapped = (y: number): boolean => buffer.getLine(y)?.isWrapped === true;
-  const out: string[] = [];
-  const oneRow = sel.start.y === sel.end.y;
-  out.push(text(sel.start.y, sel.start.x, oneRow ? sel.end.x : undefined));
-  for (let y = sel.start.y + 1; y <= sel.end.y - 1; y += 1) {
-    const row = text(y, 0);
-    if (wrapped(y)) out[out.length - 1] += row;
-    else out.push(row);
-  }
-  if (!oneRow) {
-    const row = text(sel.end.y, 0, sel.end.x);
-    if (wrapped(sel.end.y)) out[out.length - 1] += row;
-    else out.push(row);
-  }
-  return out.map((line) => line.replace(/ /g, ' ')).join('\n');
+  return drawnSelectionText(term, sel);
 }
 
 /**
@@ -193,7 +207,7 @@ export async function composeHistorySelection(
     true
   );
   if (rows.length === 0) return { text: '', html: '' };
-  const term = await bufferTerminal(rows, range.cols);
+  const term = await bufferTerminal(rows, range.cols, pane.cellWidths ?? null);
   try {
     // The buffer is as tall as the re-wrapped rows, plus the blank rows of a
     // screen nothing was written to, which the range never reaches.

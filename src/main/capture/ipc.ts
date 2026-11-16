@@ -6,9 +6,13 @@
  *   - capture:viewport      capturePage over the live `.xterm-screen` rect
  *   - capture:image         renderer-rasterized PNG bytes → clipboard
  *   - capture:saveLast      write the most recent capture to disk
- *   - capture:pane          tmux capture-pane -e (no -J) for scrollback; a
- *                           range for a session on another machine is read
- *                           on that machine (Phase 320.1)
+ *   - capture:pane          tmux capture-pane -e for scrollback: the last N
+ *                           lines as drawn, never joined (no -J), for Capture
+ *                           Last N Lines; a range of history lines joined
+ *                           with -J when the copy of a held selection asks,
+ *                           and as drawn when a picture of one does (Phase
+ *                           209); a range for a session on another machine
+ *                           is read on that machine (Phase 320.1)
  *   - clipboard:writeRich   text + HTML flavors together (Copy as HTML)
  *   - terminal:clearHistory tmux clear-history behind the Clear item
  */

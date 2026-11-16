@@ -17,16 +17,42 @@
  *
  * ## The two shapes
  *
- * The local shape is what `./attach-host.ts` composed inline at `b660df9`, byte
- * for byte:
+ * The local shape is what `./attach-host.ts` composed inline at `b660df9`, with
+ * one flag more since Phase 368:
  *
- *     <tmux bin> -u -L <socket> -f <conf path> attach-session -t =<name>
+ *     <tmux bin> -u -T hyperlinks -L <socket> -f <conf path> \
+ *           attach-session -t =<name>
  *
  * The remote shape is one ssh client on this Mac carrying one tmux client on the
  * other machine:
  *
  *     <ssh> -t <the carriage options> <host> '<program> -L <socket> \
- *           -f /dev/null -u attach-session -t =<name>'
+ *           -f /dev/null -u [-T hyperlinks] attach-session -t =<name>'
+ *
+ * ## `-T hyperlinks` (Phase 368, build/p368/SPEC.md D18, research 145 section 5)
+ *
+ * tmux keeps every OSC 8 link a program prints and writes it to a client only
+ * when that client has the `hyperlinks` feature, which no terminal type in its
+ * defaults carries. So until this flag every link Claude Code and Codex sent
+ * was stripped before Tortie's terminal saw it, and for Claude, which draws a
+ * Markdown link's words only, the address was lost. The flag is the CLIENT's
+ * (`tmux.c` reads it at its getopt, the client sends it to the server as a
+ * bitmask by the feature's index at `client.c:466`), so it needs no server
+ * option, re-asserts nothing and keeps nothing in a warm server.
+ *
+ * On this Mac it is always there: a packaged Tortie attaches with the tmux it
+ * ships (3.7b), and both server versions the local gate admits (3.7b, and 3.6a
+ * beside that client) know the feature; measured on both (build/p368/SPEC.md
+ * section 2.5), an attach with it gains `hyperlinks` and stays attached.
+ *
+ * On another machine it is
+ * added only when the caller says `hyperlinks: true`, and the one caller that
+ * says so asks `./hyperlinks-gate.ts`, which answers yes only when that
+ * machine's server AND its program are both a version that knows the feature
+ * (3.4 and later). A program before 3.2 has no `-T` at all and exits through
+ * its usage line, and a 3.2a or 3.3a server reads the bitmask's index 4 as
+ * another feature (`cstyle`), so anything older or unknown keeps the argv it
+ * had, byte for byte.
  *
  * ## Four notes on the remote argv, because a reviewer will ask about each
  *
@@ -88,6 +114,15 @@ export interface AttachTargetRemote {
   readonly ctx: RemoteMachineContext;
   /** The sanitized session name on that machine's server. */
   readonly tmuxName: string;
+  /**
+   * PHASE 368 (D18). Whether the far client asks for the `hyperlinks` feature.
+   * Only `true` adds `-T hyperlinks`; anything else composes the argv this
+   * module composed before the phase, byte for byte. The attach host is the one
+   * production caller, and it asks `farAttachHyperlinks` in
+   * `./hyperlinks-gate.ts`, which says yes only when the machine's server and
+   * its program are both 3.4 or later.
+   */
+  readonly hyperlinks: boolean;
 }
 
 export type AttachTarget = AttachTargetLocal | AttachTargetRemote;
@@ -160,6 +195,9 @@ export function attachPlan(target: AttachTarget): SpawnPlan {
       file: target.bin,
       argv: [
         '-u',
+        // PHASE 368: links reach the terminal. See the header.
+        '-T',
+        'hyperlinks',
         '-L',
         target.socket,
         '-f',
@@ -174,7 +212,16 @@ export function attachPlan(target: AttachTarget): SpawnPlan {
   // The target is appended rather than passed through the general quoter,
   // because it is the one argument that must be quoted whatever it looks like.
   // See the header of quoteTarget for the measurement.
-  const call = remoteTmuxArgv(ctx, ['-u', 'attach-session', '-t']);
+  //
+  // PHASE 368 (D18): `-T hyperlinks` only behind an explicit true, so a caller
+  // that says nothing, and every machine the gate does not know, keeps the far
+  // call it had.
+  const call = remoteTmuxArgv(
+    ctx,
+    target.hyperlinks === true
+      ? ['-u', '-T', 'hyperlinks', 'attach-session', '-t']
+      : ['-u', 'attach-session', '-t']
+  );
   return {
     file: ctx.sshBin,
     argv: [

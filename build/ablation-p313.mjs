@@ -322,6 +322,17 @@
  * an answer the offer's own 13 bytes alone put over the 1 MiB cap, each red on
  * the `pages` vitest case that drives the cap.
  *
+ * PHASE 368 ADDED SEVEN (build/p368/SPEC.md §4.2), 825 entries in all, at the
+ * end of the table, because the composer's width table and its seven joining
+ * rules moved to src/shared so the Mac's terminal reads the phone's own, and
+ * Z12 now holds a second table, Homebrew's 3.6a's: `Z12d` computes the 3.6a
+ * table at run time, `Z12e` and `Z12j` drop a range from the 3.6a and the
+ * 3.7b table (the rule before asked the 3.7b one for 900 elements and read
+ * `Z12j` green), `Z12k` has the joining rules read a file where they now live,
+ * and `Z7x`, `Z8x` and `Z9h` make them log, set a status and name a size,
+ * which Z7, Z8 and Z9 read since the move. No earlier arm named either file,
+ * so none moved.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -386,6 +397,7 @@
  *   P313_ONLY=RM1a,RM4b,RM5a,PS1b,PS4a,PS8b,PSHw node build/ablation-p313.mjs  some of Phase 348's
  *   P313_ONLY=RN1a,RN2b,RN5a,RN6c,RN9b,RN10a,X4r,G1r,RNHw node build/ablation-p313.mjs  some of Phase 349's
  *   P313_ONLY=Z3p,Z3q,Z3r,Z3s,Z3t,Z8p,Z8q,Z8r,Z8s,Z11p,Z11q,Z11r,Z31a,Z31b,Z31c,Z31d,Z31e,Z31f,Z31g,Z11s,Z32a,Z32b,Z32c,PK4a,PK5a node build/ablation-p313.mjs  Phase 350's twenty-five (Z31f, Z31g and Z11s its fix round's)
+ *   P313_ONLY=Z12a,Z12b,Z12c,Z12d,Z12e,Z12f,Z12g,Z12h,Z12i,Z12j,Z12k,Z7x,Z8x,Z9h node build/ablation-p313.mjs  every Z12 arm and Phase 368's seven
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
  *   P313_SCRATCH=/private/var/tmp/<dir> node build/ablation-p313.mjs  the clone under that directory
  */
@@ -478,6 +490,10 @@ const LIFECYCLE_GATE = 'src/main/sessions/lifecycle-gate.ts';
 const SCREEN_COPY = 'src/shared/screen-copy.ts';
 // PHASE 349: the one name rule, and the far rename whose warnings log a code.
 const SESSION_NAMES = 'src/shared/session-names.ts';
+// PHASE 368: the composer's width tables and its seven joining rules, moved
+// out of src/main/screen so the Mac's terminal reads the phone's own.
+const SHARED_CELLS = 'src/shared/cells.ts';
+const SHARED_CELL_WIDTHS = 'src/shared/cell-widths.ts';
 const REMOTE_SESSIONS = 'src/main/machines/remote-sessions.ts';
 
 /**
@@ -9090,6 +9106,79 @@ const ABLATIONS = [
     from: "    if (known !== undefined && known.state === 'recorded') {\n      // Answered again, acting on nothing, and carrying what it recorded.",
     to: "    if (known !== undefined && known.state === ('never' as string)) {\n      // Answered again, acting on nothing, and carrying what it recorded.",
     needs: ['gate', 'hostile']
+  },
+  // PHASE 368 (build/p368/SPEC.md §4.2): the width table and the joining
+  // rules moved to src/shared, and Z12 holds a second table. Each arm breaks
+  // one clause where the files now live.
+  {
+    n: 'Z12d',
+    rule: 'Z12',
+    name: 'the 3.6a width table computed at run time',
+    why: 'build/p368/SPEC.md §4.2, D7: a width table is data generated from the measurement, never computed, so the widths a session on a 3.6a server is drawn at cannot move with the runtime that computes them.',
+    file: SHARED_CELL_WIDTHS,
+    from: /(const SCANNED_36A: readonly number\[\] = Object\.freeze\(\[[\s\S]*?\n\])\);/,
+    to: (_match, literal) => `${literal}.map((n) => n));`,
+    needs: ['gate']
+  },
+  {
+    n: 'Z12e',
+    rule: 'Z12',
+    name: 'a range dropped from the 3.6a width table',
+    why: 'build/p368/SPEC.md §4.2, D7: the table is the measurement whole, 937 ranges; one range short draws every code point it held at the width of the range beside it.',
+    file: SHARED_CELL_WIDTHS,
+    from: 'const SCANNED_36A: readonly number[] = Object.freeze([\n  32, 126, 1, ',
+    to: 'const SCANNED_36A: readonly number[] = Object.freeze([\n  ',
+    needs: ['gate']
+  },
+  {
+    n: 'Z12j',
+    rule: 'Z12',
+    name: 'a range dropped from the 3.7b width table',
+    why: 'build/p368/SPEC.md §4.2: the 3.7b table is held whole too, 925 ranges, where the rule before asked only for 900 elements and would have read this green.',
+    file: SHARED_CELL_WIDTHS,
+    from: 'const SCANNED: readonly number[] = Object.freeze([\n  32, 126, 1, ',
+    to: 'const SCANNED: readonly number[] = Object.freeze([\n  ',
+    needs: ['gate']
+  },
+  {
+    n: 'Z12k',
+    rule: 'Z12',
+    name: 'the joining rules read a file, where they now live',
+    why: 'build/p368/SPEC.md §4.2: the composer is pure wherever its modules live; the rule reads src/shared/cells.ts since the move, and this proves it reads it.',
+    file: SHARED_CELLS,
+    from: "import { cellWidthIn, type CellWidthTable } from './cell-widths';",
+    to: "import { cellWidthIn, type CellWidthTable } from './cell-widths';\nimport { readFileSync as p368ReadFile } from 'node:fs';\nvoid p368ReadFile;",
+    needs: ['gate']
+  },
+  {
+    n: 'Z7x',
+    rule: 'Z7',
+    name: 'the width table logs, where it now lives',
+    why: 'D41: nothing that reads a screen logs, and the width table and the joining rules read every cell of one; Z7 reads them in src/shared since Phase 368.',
+    file: SHARED_CELL_WIDTHS,
+    from: 'export function cellWidthsForServer(version: string | null): CellWidthTable | null {\n',
+    to: 'export function cellWidthsForServer(version: string | null): CellWidthTable | null {\n  console.log(version);\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z8x',
+    rule: 'Z8',
+    name: 'the joining rules set a status, where they now live',
+    why: 'D23: in the Screen only the keys and paste verbs move a status, once each; Z8 reads the joining rules in src/shared since Phase 368.',
+    file: SHARED_CELLS,
+    from: 'export function nextCell(state: CellState, cp: number, table: CellWidthTable): CellStep {\n',
+    to: 'export function nextCell(state: CellState, cp: number, table: CellWidthTable): CellStep {\n  (globalThis as unknown as { setStatus?: (s: string) => void }).setStatus?.(\'needs_input\');\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z9h',
+    rule: 'Z9',
+    name: 'the joining rules name a size, where they now live',
+    why: 'his ruling 2, D7: nothing the Screen reads with sizes anything; Z9 reads the joining rules in src/shared since Phase 368.',
+    file: SHARED_CELLS,
+    from: "const TAB = '\\t';",
+    to: "const TAB = '\\t';\nexport const P368_SIZE = ['resize-window', '-x', '80'];",
+    needs: ['gate']
   }
 ];
 

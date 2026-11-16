@@ -500,7 +500,9 @@ function depsOf(manifest: ReturnType<typeof fakeManifest>): Parameters<typeof cr
     broadcastSessions: () => undefined,
     startIdCapture: () => undefined,
     // The session core's own reader (id-harvest.ts): the last resolved scan.
-    cachedAgentVersion: (agent) => peekDetectedAgents()?.agents.find((a) => a.id === agent)?.version ?? null
+    cachedAgentVersion: (agent) => peekDetectedAgents()?.agents.find((a) => a.id === agent)?.version ?? null,
+    // Phase 368: no pane has fitted here, so a create sends no size.
+    lastFittedSize: () => null
   };
 }
 

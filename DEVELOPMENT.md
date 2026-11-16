@@ -40,7 +40,8 @@ Node they found and the range they need.
 
 A system `tmux` (3.6 or newer, `brew install tmux`) is needed to run
 `npm run dev` and the harnesses, because a development build resolves tmux from
-PATH. It is NOT needed to run a packaged Tortie. Since Phase 41 the app carries
+PATH. Older is refused in practice: since Phase 368 every attach asks for
+`-T hyperlinks`, which a tmux before 3.2 rejects with its usage line. It is NOT needed to run a packaged Tortie. Since Phase 41 the app carries
 its own tmux 3.7b at `Contents/Resources/bin/tmux` and a packaged build resolves
 only that path.
 

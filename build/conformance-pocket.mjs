@@ -484,7 +484,7 @@ const RULES = [
   ['Z9', 'build/p337/SPEC.md D5, D6, D7, §5.3.3; build/p348/SPEC.md D44, §7.1', 'THE READS: read.ts sends only display-message -p -t <x> SCREEN_FORMAT and capture-pane -p -e [-F] -t <x>, and (Phase 348) on the fallback capture-pane -p -T -N -t <x> and capture-pane -p -J -t <x>; scrollback.ts the same with the page’s -S and -E; remote-screen.ts makes ONE execOn( a read of display ; the styled capture ; [the fallback’s two ;] display, its -F or fallback chosen by marksRoadOf( alone; marksRoadOf declared once, in compose.ts; SCREEN_FORMAT declared once and equal to the spec’s; nothing this phase adds names refresh-client, resize-window, resize-pane, attach-session, new-session, switch-client, -x or -y'],
   ['Z10', 'build/p337/SPEC.md D3, §Attack A7', 'THE HOLD: SCREEN_HOLD_MS + SCREEN_TICK_MS <= ANSWER_TIMEOUT_MS - 2,000, 2 * SCREEN_TICK_MS < DOOR_STOP_JOIN_MS and the local read deadline <= the remote one, as arithmetic over the declared constants; every read raced against its deadline; a poll answered from its own timer, whose callback asks closing( and awaits nothing'],
   ['Z11', 'build/p337/SPEC.md D13, D15; build/p348/SPEC.md D30, D43; build/p350/SPEC.md D5, D6, §7.2', 'THE ANSWER FIELD BY FIELD: routes.ts’s screenOf composes the screen answer with no spread, no clone and fresh arrays; the five caps imported from the contract, each read once, and equal to the spec’s; why exactly ended, unreachable or large; and (Phase 348) paste copied only where its caller says the route is served, and wraps a fresh array of whole numbers; and (Phase 350) pages set once in the door, in screenBodyOf, as the literal true under exactly screen.pages === true and NO served gate, and DRIVEN through the shipping screenOf, true leaves as true whether or not paste is served and every other value as no key'],
-  ['Z12', 'build/p337/SPEC.md §5.3.4, §Attack A16', 'THE COMPOSER IS PURE: sgr, cells, cell-widths, palette and compose import no fs, child_process, tmux, settings, config or registry and read no clock; compose.ts imports nothing outside src/main/screen and src/shared but ../activity/screen and ../reply/reader; windowMarkOf declared once, in compose.ts, the one readBackWindowOf( in src/main/screen; the width table and the palette are frozen literals'],
+  ['Z12', 'build/p337/SPEC.md §5.3.4, §Attack A16; build/p368/SPEC.md §4.2', 'THE COMPOSER IS PURE: sgr, cells, cell-widths, palette and compose import no fs, child_process, tmux, settings, config or registry and read no clock (cells and cell-widths in src/shared since Phase 368); compose.ts imports nothing outside src/main/screen and src/shared but ../activity/screen and ../reply/reader; windowMarkOf declared once, in compose.ts, the one readBackWindowOf( in src/main/screen; the palette and BOTH width tables (SCANNED, 3.7b’s 925 ranges, and SCANNED_36A, 3.6a’s 937) are frozen literals'],
   ['Z13', 'build/p337/SPEC.md D3, §5.3.1', 'CLOSING HANDED TO THE READ: server.ts calls deps.answer( once, with refusal 1’s own closing, deps.shuttingDown() || door.stopping(), as its third argument'],
   ['Z14', 'build/p337/SPEC.md D32; conformance:manager T23', 'THE SCREEN ROW: /v1/session’s screen is set in ONE place, facts.screen !== undefined && screenLive(session); screenLive is declared once, in routes.ts, and answers sessionActionGates(…).live, the one live partition, naming no status; and the watcher asks screenLive( and names no status list'],
   ['Z15', 'build/p337/SPEC.md D35', 'THE WORDS AT ALLOW: WRITE_CLAUSES.keys is type into any session as you would at this Mac, and POCKET_DOOR_HONESTY names the screen and typing and no longer says the phone can change nothing else'],
@@ -7979,6 +7979,15 @@ const replyFiles = sourcesUnder(REPLY_DIR);
 /** PHASE 337: the Screen's read and its keys (build/p337/SPEC.md §5.3, §5.4), outside the door like the reply. */
 const SCREEN_DIR = join(ROOT, 'src', 'main', 'screen');
 const screenFiles = sourcesUnder(SCREEN_DIR);
+/**
+ * PHASE 368 (build/p368/SPEC.md §4.2): the composer's width table and its
+ * seven joining rules left src/main/screen for src/shared, so the Mac's
+ * terminal reads the phone's own. The Screen's rules that walk
+ * src/main/screen for what its modules must never do (Z7's log and .message,
+ * Z8's status setters and Z9's sizing words) read these two with it, so the
+ * move took nothing out of their reach. A missing one is Z12's to name.
+ */
+const SCREEN_SHARED = [join(ROOT, 'src', 'shared', 'cells.ts'), join(ROOT, 'src', 'shared', 'cell-widths.ts')].filter((p) => existsSync(p));
 const REMOTE_SCREEN = join(ROOT, 'src', 'main', 'machines', 'remote-screen.ts');
 const Y_RULES = ['Y1', 'Y2', 'Y3', 'Y4', 'Y5', 'Y6', 'Y7', 'Y8', 'Y9', 'Y10', 'Y11', 'Y12', 'Y13', 'Y14', 'Y15', 'Y16', 'Y17', 'Y18'];
 
@@ -9724,7 +9733,8 @@ function sessionsAnswerRules() {
  * line a later round can delete with the phone still drawing a screen and
  * still typing, and they are read with the parser against the names
  * build/p337/SPEC.md §5 pins: `src/main/screen/{keys,watch,read,compose,sgr,
- * cells,cell-widths,palette}.ts`, `src/main/machines/remote-screen.ts`,
+ * palette}.ts`, `src/shared/{cells,cell-widths}.ts` (moved there by Phase 368,
+ * build/p368/SPEC.md §4.2), `src/main/machines/remote-screen.ts`,
  * `TmuxControlClient.handleLine`, `parseKeysBody`, `screenOf`, `SCREEN_LIVE`,
  * `KEYS_LOG_QUIET_MS`, `SCREEN_KEYS_GAP_MS`, `windowMarkOf` and `nudge`.
  *
@@ -9739,7 +9749,8 @@ const Z_OWNER = {
   screen: "Phase 337 builder screen's",
   keys: "Phase 337 builder keys's",
   door3371: "Phase 337.1 builder door's",
-  screen3371: "Phase 337.1 builder screen's"
+  screen3371: "Phase 337.1 builder screen's",
+  widths368: "Phase 368 builder widths's"
 };
 
 /** The page reader (Phase 337.1, build/p3371/SPEC.md §5.3.5). */
@@ -10135,7 +10146,7 @@ function screenRules() {
     }
 
     // Z5, THE ONE REFUSAL.
-    const screenFilesNow = sourcesUnder(join(ROOT, 'src', 'main', 'screen'));
+    const screenFilesNow = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...SCREEN_SHARED];
     const verbText = k.scope.map((f) => codeOfNode(keysFile, f)).join('\n');
     // Asking, read over the FRESH screen in the verb (its own steps and the
     // helpers it calls) and over the composed screen in the answer: the row
@@ -10277,7 +10288,7 @@ function screenRules() {
 
   // Z7, NO TEXT IN AN ARGV, NO .message, NO LOG — over the whole screen domain.
   {
-    const files = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+    const files = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...SCREEN_SHARED, ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
     checked('Z7');
     if (files.length === 0) fail('Z7', `src/main/screen/ holds no source file, so nothing of Z7 was read. It is ${Z_OWNER.screen} and ${Z_OWNER.keys}.`);
     // PHASE 337.1 (build/p3371/SPEC.md D15, §6.1): the page reader is read
@@ -10550,7 +10561,7 @@ function screenRules() {
         }
       }
     }
-    const phaseFiles = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+    const phaseFiles = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...SCREEN_SHARED, ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
     for (const file of phaseFiles) {
       for (const { node, text } of codeStringsOf(file)) {
         checked('Z9');
@@ -10682,7 +10693,16 @@ function screenRules() {
   // Z12, THE COMPOSER IS PURE, AND THE MARK IS SPELLED ONCE.
   // -------------------------------------------------------------------------
   {
-    const pure = ['sgr', 'cells', 'cell-widths', 'palette', 'compose'].map((b) => [b, zFile(`src/main/screen/${b}.ts`, 'Z12', Z_OWNER.screen)]);
+    // PHASE 368 (build/p368/SPEC.md §4.2): the width table and the seven joining
+    // rules moved to src/shared, so the Mac's terminal reads the phone's own;
+    // the composer's purity is asked of them where they now live.
+    const pure = [
+      ['sgr', 'src/main/screen/sgr.ts', Z_OWNER.screen],
+      ['cells', 'src/shared/cells.ts', Z_OWNER.widths368],
+      ['cell-widths', 'src/shared/cell-widths.ts', Z_OWNER.widths368],
+      ['palette', 'src/main/screen/palette.ts', Z_OWNER.screen],
+      ['compose', 'src/main/screen/compose.ts', Z_OWNER.screen]
+    ].map(([b, path, owner]) => [b, zFile(path, 'Z12', owner)]);
     for (const [base, file] of pure) {
       if (file === null) continue;
       for (const { node, text } of specifiersOf(file)) {
@@ -10727,12 +10747,26 @@ function screenRules() {
       const sites = sourcesUnder(join(ROOT, 'src', 'main', 'screen')).flatMap((file) => nodesOf(file).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'readBackWindowOf').map((n) => ({ file, n })));
       if (sites.length !== 1 || sites[0].file !== compose) fail('Z12', `src/main/screen calls readBackWindowOf( ${String(sites.length)} time(s); once, inside windowMarkOf in compose.ts, the one spelling of the window's mark`);
     }
-    for (const [base, name] of [['cell-widths', null], ['palette', 'SCREEN_PALETTE']]) {
-      const file = pure.find(([b]) => b === base)?.[1] ?? null;
-      if (file === null) continue;
+    const palette = pure.find(([b]) => b === 'palette')?.[1] ?? null;
+    if (palette !== null) {
       checked('Z12');
-      const frozen = nodesOf(file).some((n) => ts.isVariableDeclaration(n) && (name === null || (ts.isIdentifier(n.name) && n.name.text === name)) && n.initializer !== undefined && ts.isCallExpression(bare(n.initializer)) && bare(n.initializer).expression.getText() === 'Object.freeze' && (name !== null || (bare(n.initializer).arguments[0] !== undefined && ts.isArrayLiteralExpression(bare(bare(n.initializer).arguments[0])) && bare(bare(n.initializer).arguments[0]).elements.length >= 900)));
-      if (!frozen) fail('Z12', `${rel(file)}: ${name ?? 'the width table'} is not a frozen literal${name === null ? ' of the generated ranges (925 at tmux 3.7b)' : ''}; it is data, never computed at run time (D10, D12)`);
+      const frozen = nodesOf(palette).some((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'SCREEN_PALETTE' && n.initializer !== undefined && ts.isCallExpression(bare(n.initializer)) && bare(n.initializer).expression.getText() === 'Object.freeze');
+      if (!frozen) fail('Z12', `${rel(palette)}: SCREEN_PALETTE is not a frozen literal; it is data, never computed at run time (D10, D12)`);
+    }
+    // PHASE 368 (build/p368/SPEC.md §4.2, D7): TWO width tables, each held
+    // whole: declared once, `Object.freeze` of an array literal of exactly
+    // its build's measured ranges, three numeric literals a range, so neither
+    // can be computed at run time, read from a file, or lose a range.
+    const widths = pure.find(([b]) => b === 'cell-widths')?.[1] ?? null;
+    if (widths !== null) {
+      for (const [name, ranges, build] of [['SCANNED', 925, 'tmux 3.7b'], ['SCANNED_36A', 937, 'Homebrew’s tmux 3.6a']]) {
+        checked('Z12');
+        const decls = nodesOf(widths).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name);
+        const init = decls.length === 1 && decls[0].initializer !== undefined ? bare(decls[0].initializer) : null;
+        const array = init !== null && ts.isCallExpression(init) && init.expression.getText() === 'Object.freeze' && init.arguments.length === 1 && ts.isArrayLiteralExpression(bare(init.arguments[0])) ? bare(init.arguments[0]) : null;
+        const whole = array !== null && array.elements.length === ranges * 3 && array.elements.every((e) => ts.isNumericLiteral(e));
+        if (!whole) fail('Z12', `${rel(widths)}: ${name} is ${decls.length === 1 ? '' : `declared ${String(decls.length)} time(s) and `}not a frozen literal of ${build}’s ${String(ranges)} measured ranges (${String(ranges * 3)} numbers${array === null ? '' : `; it holds ${String(array.elements.length)} elements`}); each width table is data generated from build/fixtures/screen/tmux-widths.json, never computed at run time (D10, D12; build/p368/SPEC.md §4.2)`);
+      }
     }
   }
 

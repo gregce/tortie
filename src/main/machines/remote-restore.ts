@@ -98,6 +98,7 @@
 
 import { getLog } from '../log';
 import { gmuxError, isGmuxError } from '../errors';
+import type { TerminalSize } from '@shared/terminal-size';
 import type { LaunchableAgentKind, Session } from '@shared/types';
 import { savedOutputAt } from '../restore/snapshots';
 // PHASE 353. Whether a row recorded before this phase comes back in the folder
@@ -290,9 +291,14 @@ function agentKeepsConversation(agent: string): boolean {
  * @throws GmuxError INVALID_INPUT carrying the gate's own sentence when the
  *   restore is refused. Nothing is sent in that case.
  * @throws GmuxError SPAWN_FAILED when the machine did not create the session.
+ *
+ * PHASE 368 (build/p368/SPEC.md D2, D3). `size` is the size the core decided
+ * the session will be shown at. Null, which is every caller before this phase,
+ * makes it at that machine's tmux default of 80 by 24.
  */
 export async function restoreRemoteSession(
-  sessionId: string
+  sessionId: string,
+  size: TerminalSize | null = null
 ): Promise<RemoteRestoreOutcome> {
   const record = remoteRecordOf(sessionId);
   if (record === null) {
@@ -562,7 +568,9 @@ export async function restoreRemoteSession(
     // the same session starting again.
     argv: createArgv,
     ...(record.env !== undefined ? { env: record.env } : {}),
-    ...(passthrough.length > 0 ? { envNames: passthrough } : {})
+    ...(passthrough.length > 0 ? { envNames: passthrough } : {}),
+    // PHASE 368 (D3). Made at the size it will be shown, as the local restore.
+    ...(size !== null ? { size } : {})
   });
   const printed = await execOn(
     ctx,

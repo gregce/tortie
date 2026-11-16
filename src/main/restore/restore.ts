@@ -50,6 +50,7 @@
 import { existsSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { loginProviderForAgent } from '@shared/logins';
+import type { TerminalSize } from '@shared/terminal-size';
 import type { LaunchableAgentId, LaunchableAgentKind, SessionRestore } from '@shared/types';
 import { LOCAL_MACHINE_ID } from '@shared/workspace-target';
 // PHASE 350. pi's floor is read off the same detection cache the version
@@ -248,6 +249,15 @@ export interface RestoreSessionOptions {
    * recorded command is already the bare one and there is nothing to decline.
    */
   withoutCapture?: boolean;
+  /**
+   * PHASE 368 (build/p368/SPEC.md D2, D3). The size the session is made at,
+   * which the core decided: the restore request's own, then the last size a
+   * pane was fitted at. A restored agent then paints its first frame at the
+   * size it is shown, where one made at 80 by 24 and repainted at the pane's
+   * width left part of a resumed reply twice (research 145, cold1). Absent
+   * keeps tmux's 80 by 24, as every restore did before this phase.
+   */
+  size?: TerminalSize;
 }
 
 /**
@@ -1126,7 +1136,9 @@ export async function restoreSessionInTmux(
       // agent filed there is found; every other row starts in its folder. The
       // decision is the row's, and it holds for whichever folder is handed,
       // the recorded one or, when that is gone, the project's.
-      ...(folderAsRecordedFor(rec) ? { folderAsRecorded: true as const } : {})
+      ...(folderAsRecordedFor(rec) ? { folderAsRecorded: true as const } : {}),
+      // PHASE 368 (D3). Made at the size it will be shown.
+      ...(options.size !== undefined ? { size: options.size } : {})
     });
   } catch (err) {
     return {

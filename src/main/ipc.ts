@@ -132,8 +132,11 @@ export function registerIpcHandlers(): void {
   handle('sessions:kill', async (_e, sessionId) =>
     (await getGmuxCore()).killSession(sessionId)
   );
-  handle('sessions:attach', async (e, sessionId) =>
-    (await getGmuxCore()).attachSession(sessionId, e.sender)
+  // PHASE 368. The pane's fitted size rides the attach, so the client is
+  // spawned at the size it draws at rather than at tmux's 80 by 24. The core
+  // validates it; anything that is not a size is no size.
+  handle('sessions:attach', async (e, sessionId, size) =>
+    (await getGmuxCore()).attachSession(sessionId, e.sender, size)
   );
   // PHASE 81. Whether the login shell has answered and its PATH is installed.
   // It deliberately does NOT call getGmuxCore(): asking whether the shell has
