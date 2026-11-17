@@ -766,17 +766,21 @@ describe('create, list, rename and end', () => {
     expect(forgetRemoteRow('ours-1')).toBe(false);
   });
 
-  it('refuses to invent a row when the machine lists none back', async () => {
+  it('invents no feed row when the machine lists none back, and answers the session it started', async () => {
     answers['new-session'] = '$4\n';
     answers['list-sessions'] = '';
-    const id = await remoteCreate({
+    // PHASE 360 (build/p360/SPEC.md D12). The machine answered `$4`, so the
+    // session is there. The create answers it from what it sent, as unknown,
+    // and the feed still invents no row: only a completed list draws one.
+    const session = await remoteCreate({
       machineId: MACHINE,
       name: 'work',
       projectPath: '/srv/repo',
       cwd: '/srv/repo',
       agent: 'shell'
-    }).catch(() => null);
-    expect(id).toBeNull();
+    });
+    expect(session.id).toBe(createdUuid);
+    expect(session.status).toBe('unknown');
     expect(remoteSessions()).toEqual([]);
   });
 

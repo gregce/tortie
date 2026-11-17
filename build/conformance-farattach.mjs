@@ -57,9 +57,14 @@
  *        `dropProvenAbsentCreates` tests `.owns(` before `clearIssuedRemoteId(`.
  *   FA8  The core.ts methods (and functions) that call `isRemoteSessionId(` or
  *        `remoteSessionRow(` and call none of `remoteRecordOf(`,
- *        `isRemoteRecord(` or a `machineId !==` test are a SUBSET of
+ *        `isRemoteRecord(`, a `machineId !==` test or the create's own machine
+ *        rule `createMachineIdFor(` are a SUBSET of
  *        {handleUnexpectedAttachExit, renameSessionAdmitted, killSessionAdmitted,
  *        resumeSessionInPlace}, and `attachSessionAdmitted` is not among them.
+ *        (Phase 360, D26: `createSession` decides a create's machine from what
+ *        it was asked, by `createMachineIdFor`, and reads the feed only to ask
+ *        whether a list has shown a session it already knows is on another
+ *        machine.)
  *        Pinned BY METHOD NAME, never by line, so a rebase that moves lines
  *        cannot turn it red and a new feed-only method cannot pass. It can
  *        shrink; it cannot grow.
@@ -655,7 +660,7 @@ export function feedOnlyMembers(core) {
   const names = new Set();
   for (const m of membersOf(core)) {
     const feed = /\bisRemoteSessionId\(|\bremoteSessionRow\(/.test(m.body);
-    const record = /\bremoteRecordOf\(|\bisRemoteRecord\(|\bmachineId\s*!==/.test(m.body);
+    const record = /\bremoteRecordOf\(|\bisRemoteRecord\(|\bmachineId\s*!==|\bcreateMachineIdFor\(/.test(m.body);
     if (feed && !record) names.add(m.name);
   }
   return [...names];

@@ -127,6 +127,103 @@ const sessionsLog = getLog('sessions');
 const broadcast = broadcastEvent;
 
 /**
+ * PHASE 360 (build/p360/SPEC.md D1 to D9). ONCE THE SPAWN HAS ANSWERED, THE
+ * CREATE ANSWERS THE SESSION IT STARTED.
+ *
+ * The point of no return is the return of `tmux.createSession` below, and for
+ * a create on another machine the return of `remoteCreate`. Before it, a
+ * failure is true: nothing runs, and the spawn's own catch removes the row it
+ * wrote. After it, a session is running, and every step that follows runs
+ * through {@link afterSpawn} or {@link afterSpawnRead}, which log one line in
+ * that step's own words and never rethrow.
+ *
+ * Measured at the parent, `de9ea8f2` (build/p360/SPEC.md §2.1): every one of
+ * sixteen faults planted after the spawn, a SQLite error on the record write,
+ * on the broadcast's reads or on the read-back, a window that cannot be sent
+ * to, a conversation watch that would not start, answered a failure for a
+ * session that was running, so the sheet stayed open and a second press of
+ * Create started a second session.
+ *
+ * NO ROLLBACK. Nothing here ends the session a create started so that its
+ * error becomes true. Tortie never ends a session on its own.
+ *
+ * The line names the step, the session id and the error's code, and never
+ * the error's message, which can hold payload (V8's `JSON.parse` error quotes
+ * its input; 357's D16 keeps messages out of its records for that reason).
+ */
+export const AFTER_SPAWN_WORDS = Object.freeze({
+  record: 'the session started, and its tmux name and process id were not recorded',
+  'login-notice':
+    'the session started, and the notice that it fell back to the default login was not sent',
+  'env-notice':
+    'the session started, and the notice naming a shell variable it did not get was not sent',
+  'id-capture': 'the session started, and its conversation id is not being watched for yet',
+  'capture-notice':
+    'the session started, and the notice that capture was declined was not sent',
+  broadcast: 'the session started, and the windows were not sent the new session list',
+  'read-back':
+    'the session started, and its row could not be read back, so the create answers the row it wrote'
+} as const);
+
+/** One step after the spawn, by the name its log line is written under. */
+type AfterSpawnStep = keyof typeof AFTER_SPAWN_WORDS;
+
+/** A word that names a kind of failure and can carry no text of its own. */
+const FAILURE_WORD = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
+
+/**
+ * What kind of failure `err` is, in one word: its string `code` (SQLite's
+ * `SQLITE_BUSY`, the stopped list's `MANIFEST_STOPPED`, an errno), else its
+ * `name`, else `unknown`. NEVER its message. A code or a name that is not one
+ * short word is passed over too, because then it is text rather than a code.
+ *
+ * IT NEVER THROWS, because the guards call it from their catches: reading
+ * `code` or `name` runs a getter when the error has one, and a getter that
+ * throws there would carry its throw out of the guard and answer a failure
+ * for a running session (the attack lens, 2026-11-08). Such an error answers
+ * `unreadable`, as `failureWordOf` in ../machines/remote-sessions.ts does.
+ */
+function failureCodeOf(err: unknown): string {
+  try {
+    if (typeof err !== 'object' || err === null) return 'unknown';
+    const { code, name } = err as { code?: unknown; name?: unknown };
+    if (typeof code === 'string' && FAILURE_WORD.test(code)) return code;
+    if (typeof name === 'string' && FAILURE_WORD.test(name)) return name;
+    return 'unknown';
+  } catch {
+    return 'unreadable';
+  }
+}
+
+/**
+ * Run one step after the spawn. A failure is logged once and never rethrown.
+ * Answers whether the step ran to its end, which only the record write reads
+ * (see the launch context below).
+ */
+function afterSpawn(step: AfterSpawnStep, sessionId: string, run: () => void): boolean {
+  try {
+    run();
+    return true;
+  } catch (err) {
+    sessionsLog.warn(AFTER_SPAWN_WORDS[step], { sessionId, code: failureCodeOf(err) });
+    return false;
+  }
+}
+
+/**
+ * Read one answer after the spawn. A failure is logged once, never rethrown,
+ * and answers `fallback`.
+ */
+function afterSpawnRead<T>(step: AfterSpawnStep, sessionId: string, read: () => T, fallback: T): T {
+  try {
+    return read();
+  } catch (err) {
+    sessionsLog.warn(AFTER_SPAWN_WORDS[step], { sessionId, code: failureCodeOf(err) });
+    return fallback;
+  }
+}
+
+/**
  * Does this path name a folder that exists?
  *
  * It lives here because the create path is two of its three readers. The third
@@ -278,13 +375,18 @@ export async function createLocalSession(
     // The session is NOT refused. A refused capture has never been fatal in
     // this product and it does not become fatal here. The person gets the
     // session they asked for, without capture, and one sentence saying so.
+    //
+    // PHASE 360 (D9). The session is running over there by this line, so a
+    // notice that cannot be sent is logged and the create still answers it.
     if (input.capture === true && captureRefused !== null) {
-      sessionsLog.warn(`${captureRefused} (session "${input.name}")`);
-      broadcast(EVT_CAPTURE_NOTICE, {
-        kind: 'declined',
-        sessionId: session.id,
-        sessionName: input.name,
-        message: captureRefused
+      afterSpawn('capture-notice', session.id, () => {
+        sessionsLog.warn(`${captureRefused} (session "${input.name}")`);
+        broadcast(EVT_CAPTURE_NOTICE, {
+          kind: 'declined',
+          sessionId: session.id,
+          sessionName: input.name,
+          message: captureRefused
+        });
       });
     }
     // PHASE 90.3. The folder over there becomes a tab, so the session lands
@@ -311,7 +413,11 @@ export async function createLocalSession(
     // already running over there, and with the record cleared the next completed
     // list re-homes it.
     openTabsForRemoteCreate(deps.manifest, machineId, farProjectPath, session);
-    deps.broadcastSessions();
+    // PHASE 360 (D9). A list that cannot be sent is not a reason to call a
+    // session that is running a failure; the next broadcast sends it.
+    afterSpawn('broadcast', session.id, () => {
+      deps.broadcastSessions();
+    });
     return session;
   }
   // PHASE 81. The one wait a create still has. Every read below and the
@@ -742,6 +848,10 @@ export async function createLocalSession(
     throw err;
   }
 
+  // PHASE 360 (D1). THE POINT OF NO RETURN. The spawn answered, so a session
+  // is running from here on, and nothing below may answer a failure for it or
+  // end it. Every step that can throw runs through `afterSpawn` or
+  // `afterSpawnRead` (see the paragraph above AFTER_SPAWN_WORDS).
   faultPoint('create.after-spawn');
 
   deps.liveIds.set(id, info.sessionId);
@@ -750,12 +860,21 @@ export async function createLocalSession(
   // tmux may have deduped the name ("foo-2"), and `new-session -P -F`
   // hands back the pane pid — the F2 forensic anchor, recorded once here
   // because tmux forgets it the moment the dead pane is reaped.
+  //
+  // PHASE 360 (D3). A write that fails (a busy lock, a full disk, the stopped
+  // list) leaves the row with the predicted name and no pid, as the parent
+  // left it, and is not retried: a busy retry waits out `BUSY_TIMEOUT_MS`
+  // (../db/sqlite.ts) a second time and a stopped list refuses every write.
+  // The answer below carries the name tmux applied either way.
+  let recorded = true;
   if (info.tmuxName !== record.tmuxName || info.panePid !== undefined) {
-    deps.manifest.updateSession(id, {
-      ...(info.tmuxName !== record.tmuxName
-        ? { tmuxName: info.tmuxName }
-        : {}),
-      ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
+    recorded = afterSpawn('record', id, () => {
+      deps.manifest.updateSession(id, {
+        ...(info.tmuxName !== record.tmuxName
+          ? { tmuxName: info.tmuxName }
+          : {}),
+        ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
+      });
     });
   }
 
@@ -771,21 +890,31 @@ export async function createLocalSession(
   // is about, for the reason the sentence below is said here: nothing else on
   // the machine would say it, and the alternative is a person wondering why
   // their agent is signed in as somebody else.
+  //
+  // PHASE 360 (D6). A notice goes to every window, and a window that cannot
+  // be sent to throws (../typed-events has no guard around the send), so each
+  // notice runs through the guard. The conditions read fields only and stay
+  // outside it.
   if (login !== null && login.fellBack && login.asked !== null) {
-    postDurabilityNotice({
-      kind: 'login-fell-back',
-      sessionId: id,
-      sessionName: input.name,
-      login: login.asked
+    const asked = login.asked;
+    afterSpawn('login-notice', id, () => {
+      postDurabilityNotice({
+        kind: 'login-fell-back',
+        sessionId: id,
+        sessionName: input.name,
+        login: asked
+      });
     });
   }
   if (envProbe !== null && (envProbe.missing.length > 0 || envProbe.probeFailed)) {
-    postDurabilityNotice({
-      kind: 'env-unresolved',
-      sessionId: id,
-      sessionName: input.name,
-      names: envProbe.missing,
-      probeFailed: envProbe.probeFailed
+    afterSpawn('env-notice', id, () => {
+      postDurabilityNotice({
+        kind: 'env-unresolved',
+        sessionId: id,
+        sessionName: input.name,
+        names: envProbe.missing,
+        probeFailed: envProbe.probeFailed
+      });
     });
   }
 
@@ -804,8 +933,12 @@ export async function createLocalSession(
       );
     }
   } catch (err) {
+    // PHASE 360 (fix round). Read with `?.`: a rejection that carries no value
+    // made `(err as Error).message` throw here, inside the catch, and that
+    // throw answered a failure for the running session (the attack lens's
+    // plant, at the parent and at the build alike).
     sessionsLog.warn(
-      `could not mirror metadata into tmux options: ${(err as Error).message}`
+      `could not mirror metadata into tmux options: ${String((err as Error | undefined)?.message)}`
     );
   }
 
@@ -813,36 +946,47 @@ export async function createLocalSession(
   // antigravity): read the id back out of their store after spawn and
   // record the armed resume argv. The pane pid and tmux session id are the
   // correlation keys — qwen writes a descendant pid, muse writes the pane.
+  //
+  // PHASE 360 (D7). A watch that could not start does not unmake the
+  // session: `refresh()` and the boot rescue arm it again, as they do for a
+  // watch that timed out (./id-harvest.ts).
   if (spec.idCapture === 'store-harvest') {
-    deps.startIdCapture(
-      id,
-      input.agent,
-      {
-        // `cwdReal`, not `cwd`. The row keeps the folder the user chose and
-        // the harvest needs the folder itself: pi and qwen build their
-        // store directory from it, and every ownership rule in
-        // ./claim-strength.ts compares it as a string. Two panes in one
-        // physical folder can spell it two ways, e.g. /tmp and /private/tmp.
-        cwd: cwdReal,
-        sinceTs: now,
-        tmuxSessionId: info.sessionId,
-        ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
-      },
-      input.extraArgs ?? [],
-      { atCreate: true }
-    );
+    afterSpawn('id-capture', id, () => {
+      deps.startIdCapture(
+        id,
+        input.agent,
+        {
+          // `cwdReal`, not `cwd`. The row keeps the folder the user chose and
+          // the harvest needs the folder itself: pi and qwen build their
+          // store directory from it, and every ownership rule in
+          // ./claim-strength.ts compares it as a string. Two panes in one
+          // physical folder can spell it two ways, e.g. /tmp and /private/tmp.
+          cwd: cwdReal,
+          sinceTs: now,
+          tmuxSessionId: info.sessionId,
+          ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
+        },
+        input.extraArgs ?? [],
+        { atCreate: true }
+      );
+    });
   }
 
   // A capture the user asked for and did not get is said NOW, next to the
   // session it is about — the alternative is discovering an empty
   // .specstory/history days later and blaming SpecStory for it.
+  //
+  // PHASE 360 (D6). Through the guard, for the reason the two notices above
+  // are.
   if (captureDeclined !== null) {
-    sessionsLog.warn(`${captureDeclined} (session "${input.name}")`);
-    broadcast(EVT_CAPTURE_NOTICE, {
-      kind: 'declined',
-      sessionId: id,
-      sessionName: input.name,
-      message: captureDeclined
+    afterSpawn('capture-notice', id, () => {
+      sessionsLog.warn(`${captureDeclined} (session "${input.name}")`);
+      broadcast(EVT_CAPTURE_NOTICE, {
+        kind: 'declined',
+        sessionId: id,
+        sessionName: input.name,
+        message: captureDeclined
+      });
     });
   }
 
@@ -858,14 +1002,37 @@ export async function createLocalSession(
   // last in this method for the same reason: every durability-critical
   // effect above it has already happened, so nothing it does or fails to do
   // can reach them.
-  recordLaunchContext(deps.manifest, {
-    sessionId: id,
-    reason: 'create',
-    agent: input.agent,
-    cwd: cwdReal
-  });
+  //
+  // PHASE 360 (fix round, build/p360/SPEC.md D21). NOT TRIED WHEN THE RECORD
+  // WRITE ABOVE COULD NOT BE MADE. The same store has just refused a write, and
+  // its own write is synchronous: behind a write lock another process holds it
+  // waited out the busy timeout on the main thread before the create could
+  // answer, so a create that answered its session took 15.4 s where the
+  // parent's false failure took 10.4 s (lens A, measured twice). A stopped list
+  // refuses it at once and a full disk refuses it too. The parent never reached
+  // this line when that write failed, so the session has no snapshot there
+  // either, and the readout says so in its own sentence.
+  if (recorded) {
+    recordLaunchContext(deps.manifest, {
+      sessionId: id,
+      reason: 'create',
+      agent: input.agent,
+      cwd: cwdReal
+    });
+  }
 
-  deps.broadcastSessions();
-  const stored = deps.manifest.getSession(id);
-  return toSession(stored ?? record);
+  // PHASE 360 (D4). The broadcast reads the session list and the project list
+  // and sends to every window. 357's D19 already answers the last clean list
+  // when the list has stopped; any other failure (a busy or I/O error on
+  // either read, a window that cannot be sent to) is logged here, and the next
+  // broadcast sends the list.
+  afterSpawn('broadcast', id, () => {
+    deps.broadcastSessions();
+  });
+  // PHASE 360 (D5). The read-back. When it cannot read (the broadcast's own
+  // read stopped the list, or any other error), the create answers the row it
+  // wrote. Either way the answer carries the name tmux applied, which is the
+  // stored name when the write above landed and the truth when it did not.
+  const stored = afterSpawnRead('read-back', id, () => deps.manifest.getSession(id), undefined);
+  return toSession({ ...(stored ?? record), tmuxName: info.tmuxName });
 }

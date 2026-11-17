@@ -115,7 +115,7 @@ import {
 // store refusal: did the session list stop reading correctly? Direct rather
 // than through the barrel, as ../restart does for the record type, so the
 // barrel's export list stays the store builder's.
-import { isManifestStopped } from '../manifest/store';
+import { isManifestStopped, manifestStoppedError } from '../manifest/store';
 // The one channel main uses to say a durability layer is degraded, and the
 // owner of the once-per-run latch (Phase 19 item 9). Never broadcast a
 // DurabilityNotice directly — the latch is the point of the module.
@@ -606,7 +606,10 @@ import {
   type FarAttachDeps,
   type RemoteSessionRow
 } from './far-attach';
-import { snapshotRecipeOf } from './launch-plan';
+// PHASE 360, HIS SECOND RULED ROUND (2026-11-16). The one rule that says which
+// machine a create runs on, asked by `createSession` below so its stopped check
+// covers exactly the creates the local create runs on this Mac.
+import { createMachineIdFor, snapshotRecipeOf } from './launch-plan';
 import {
   claimStrengthOf,
   identityProbeNeeded,
@@ -3519,11 +3522,76 @@ export class GmuxCore {
    * Phase 125 moved the body to ./create-local.ts. The gate, the entry name
    * and the returned promise are unchanged, and the two load bearing positions
    * above are now the first two statements of that file.
+   *
+   * PHASE 360, HIS RULING OF 2026-11-14 ("360 a", build/p360/SPEC.md D24). A
+   * create during which the session list stopped answers as the parent does:
+   * the stopped list's own refusal, `MANIFEST_STOPPED` with its one sentence,
+   * so the sheet stays open on it and the window stays on the session in use.
+   * It is decided HERE, from the store's own latch once the create has
+   * ended, and never from the order in which a window hears the stopped
+   * notice: the fix round's reverify measured the create's answer overtaking
+   * that notice in a busy window (the session in use printing and a long task
+   * as the create ended), and the window then landed on the new session,
+   * which main does not open while the list is stopped, drew "Can't connect
+   * to this session" and had closed the session in use (7 of 7; the parent
+   * stayed, 3 of 3).
+   *
+   * Nothing is lost, which is why he chose it: the session keeps running
+   * (nothing here ends it, and Tortie never ends a session on its own), its
+   * row was written before the stop so a relaunch over a fine file reads it,
+   * and a second Create is refused before anything starts. Every other create
+   * answers the session it started, as the rest of the phase built it. The
+   * refusal is the one the parent's create met at its read-back, `getSession`
+   * (when the record write was what met the stop the parent named
+   * `updateSession` instead; no surface draws a detail). A create that fails
+   * passes its error through untouched, and every create entry point reaches
+   * this one method: the sheet, quick create, the agent hotkeys, the phone's
+   * start and Restart.
+   *
+   * HIS SECOND RULING (2026-11-16, "360 a"): ON THIS MAC, so a create on
+   * another machine answers what the parent answers. The check is decided by
+   * the one rule the create itself decides its machine by (`createMachineIdFor`,
+   * ./launch-plan). The reverify of the first ruling measured why: with the
+   * list stopped after that machine had answered (a stop at the create's tab
+   * write), the parent closed the sheet on the running session 7 of 7 and this
+   * check made it say "Restart Tortie, then try again" 7 of 7 for a session
+   * running over there. The window's reason for the check is where main opens
+   * a session while the list is stopped: none on this Mac, and on another
+   * machine one that a list of that machine has shown, from memory
+   * (`attachSessionAdmitted` → `remoteSessionRow`).
+   *
+   * SO ON ANOTHER MACHINE IT IS ASKED OF ONE CREATE, the one no list has shown
+   * yet (build/p360/SPEC.md D26, his second ruled round's measurement): there
+   * the window landed on a session main did not open (typing never reached
+   * it, not even when it was chosen again later), while the parent answered a
+   * failure and stayed on the session in use. That create answers the
+   * parent's refusal; a create on another machine that a list has shown
+   * answers its session, as the parent does, and the window then does what
+   * the parent's does (from that machine's own tab both builds land on the
+   * new session, which some runs draw "Machine unreachable" and which then
+   * takes no key he types).
+   *
+   * HIS THIRD RULING (2026-11-17, "360 a then ship 115.0"; D27): a create on
+   * another machine whose list stopped BEFORE that machine's create returned
+   * never reaches this check. Its own feed met the stopped store, and
+   * `remoteCreate` lets that refusal through, as the parent did, so it
+   * answers "Restart Tortie, then try again" and the window stays on the
+   * session in use. Answering the session there was worse than the parent:
+   * the window landed on it, drawn "Machine unreachable" and taking none of
+   * his keys, or, from a tab on this Mac, fell back to that tab's last shell,
+   * and the session in use was lost until a restart.
    */
   createSession(input: CreateSessionInput): Promise<Session> {
-    return this.ledger.admit('createSession', () =>
-      createLocalSession(input, this.createDeps)
-    );
+    return this.ledger.admit('createSession', async () => {
+      const session = await createLocalSession(input, this.createDeps);
+      if (
+        this.manifest.stoppedReading() &&
+        (createMachineIdFor(input) === undefined || remoteSessionRow(session.id) === null)
+      ) {
+        throw manifestStoppedError('getSession');
+      }
+      return session;
+    });
   }
 
   /**

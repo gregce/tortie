@@ -1187,6 +1187,22 @@ const MACHINE_REFUSALS = [
       'answers and holds no such session. Nothing was started a second time.'
     ]
   },
+  // PHASE 360 added this one, beside the lost answer's, for the same reason: a
+  // branch production reaches rarely. A create whose answer named no session
+  // is read by its own id, and only a machine that then answers that it holds
+  // no such session gets this sentence; every other such answer binds the
+  // session or keeps the row as unknown.
+  {
+    id: 'machine.create-not-started',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'it is the one sentence a create says after its far command ran and the ' +
+      'machine answered that it holds no session carrying the id of this ' +
+      'create. Without it a person is told nothing, or reads a sentence ' +
+      'carrying the login text of another machine, which is what Phase 360 ' +
+      'removed',
+    fragments: ['That machine did not start a session called ', '. Nothing was changed.']
+  },
   {
     id: 'machine.restore-create-unconfirmed',
     source: 'src/main/machines/remote-copy.ts',
@@ -1897,11 +1913,14 @@ function main() {
   // build/contract-inventory.mjs, which reads THIS file's arrays. Both have to
   // move in the commit that adds or removes a refusal, and that is the point of
   // each of them.
+  //
+  // PHASE 360 moved MACHINE_REFUSALS from 53 to 54 (machine.create-not-started),
+  // and the baseline's `machines=` line moves with it in the same commit.
   const EXPECTED_COUNTS = [
     ['REFUSALS', REFUSALS.length, 23],
     ['SKILLS_REFUSALS', SKILLS_REFUSALS.length, 6],
     ['CONFIG_REFUSALS', CONFIG_REFUSALS.length, 6],
-    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 53],
+    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 54],
     ['UPDATER_REFUSALS', UPDATER_REFUSALS.length, 8],
     ['LOG_REFUSALS', LOG_REFUSALS.length, 1],
     ['ARCH_AIM_REFUSALS', ARCH_AIM_REFUSALS.length, 6],

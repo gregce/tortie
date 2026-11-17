@@ -72,7 +72,10 @@ import {
 // the reconstruction surface and the boot path, and `build/contract-inventory.mjs`
 // bundles the manifest store on its own to read the schema. Phase 69 measured
 // what a wider graph costs that gate: one native module reached it and the gate
-// crashed rather than diffed.
+// crashed rather than diffed. (Phase 360 re-exports one VALUE of the store's at
+// the foot of this file, its stopped-refusal predicate: an edge from this layer
+// INTO the store, which leaves the store's own graph, the one that gate bundles,
+// as it was.)
 import type { ManifestStore } from '../manifest/store';
 import type { ManifestSessionRecord } from '../manifest/codecs';
 // Phase 118. The two shapes the removal transaction is written in. They are
@@ -837,3 +840,15 @@ export function resetRemoteStoreRecordsForTests(): void {
  * edge to `../manifest/`.
  */
 export type { MachineTombstoneEntry, MarkMachinesForgottenHooks };
+
+/**
+ * The stopped store's own refusal predicate, re-exported from this one module
+ * (Phase 360, his third ruled round, build/p360/SPEC.md D27).
+ *
+ * `./remote-sessions.ts` lets exactly that refusal through a create's feed
+ * start, as the parent did, and asks the store's own predicate rather than a
+ * second spelling of it; re-exporting it here keeps the rule above, that the
+ * machine layer reaches the manifest through this file and no other. It is a
+ * pure read of an error's `code` and writes no row.
+ */
+export { isManifestStopped } from '../manifest/store';

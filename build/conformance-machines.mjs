@@ -6931,10 +6931,15 @@ process.stdout.write(
 // next free numbers are these. Nothing is renumbered.
 //
 // 69. The confirmation has other than three kinds, a kind maps to the wrong
-//     action, or `dropRemoteRow` is called from anywhere but the two arms that
-//     already had it, being a proven absence and an answer that is not an
-//     identifier. A durable row deleted from a third place is the defect this
-//     phase closed coming back.
+//     action, or `dropRemoteRow` is called from anywhere but the ONE arm left,
+//     being a proven absence. A durable row deleted from a second place is the
+//     defect this phase closed coming back. PHASE 360 MOVED THE COUNT FROM TWO
+//     TO ONE ON PURPOSE: the second arm was an answer that is not an
+//     identifier, and Phase 360's spec step measured the far command running
+//     anyway behind a login file that printed first (build/p360/SPEC.md §2.3),
+//     so that arm deleted the only record of a running session. Such an answer
+//     now goes to the same confirmation read and reaches this one arm only when
+//     the machine answers that it holds no such session.
 // 70. More than one production place writes `unknown` into a session's status
 //     column, `markRemoteCreateUnconfirmed` has other than one caller, or the
 //     create's unreachable arm does not call it. One writer is what makes the
@@ -6989,12 +6994,14 @@ process.stdout.write(
     }
   }
   const dropCallers = p117.dropCallers ?? [];
-  if (dropCallers.length !== 2) {
+  if (dropCallers.length !== 1) {
     fail(
       `dropRemoteRow is called from ${String(dropCallers.length)} place(s) and ` +
-        `there are exactly two: the arm where tmux itself answered that the ` +
-        `session is not there, and the arm where the answer was not an ` +
-        `identifier at all. Every other failure keeps the row.\n` +
+        `there is exactly one: the arm where tmux itself answered that the ` +
+        `session is not there. Every other failure keeps the row. Since Phase ` +
+        `360 an answer that is not an identifier is no longer a second one, ` +
+        `because the far command can run behind a login file that printed ` +
+        `first (build/p360/SPEC.md §2.3).\n` +
         dropCallers.map((one) => `      ${one.file}:${String(one.line)}`).join('\n')
     );
   }

@@ -239,6 +239,10 @@ import { assertRemoteDirUsable } from './dir-list';
 // nothing else from `../manifest/`, which is how the boundary stays checkable.
 import {
   conversationSyncedAt,
+  // PHASE 360, HIS THIRD RULED ROUND (build/p360/SPEC.md D27). The stopped
+  // store's own refusal predicate, re-exported by that one module, so a
+  // create's feed start lets exactly that error through.
+  isManifestStopped,
   markRemoteCreateUnconfirmed,
   noteRemoteRowSeen,
   remoteManifest,
@@ -253,11 +257,14 @@ import {
 } from './remote-record';
 // Phase 117. The pure table that decides what one read at the end of a create is
 // allowed to prove. This module composes the read and acts on the answer.
+// PHASE 360. And the one strict reader of the create's own answer, beside it.
 import {
+  answerLineCount,
   classifyConfirmationFailure,
   confirmationArgs,
   confirmationDisposition,
   confirmationWhy,
+  createdTmuxIdOf,
   readConfirmationEnvironment,
   type RemoteCreateConfirmation
 } from './create-confirmation';
@@ -318,7 +325,7 @@ import {
   CREATE_ANSWER_LOST,
   REMOTE_DIR_MISSING,
   TARGET_UNBOUND,
-  noRemoteRowFor
+  remoteCreateNotStarted
 } from './remote-copy';
 // Phase 73, item 2. The allowlist for the two names a create may put on a
 // session on another machine. It is pure, so `remoteCreateArgs` stays a
@@ -1739,10 +1746,15 @@ export function readyContextToStart(machineId: string): RemoteMachineContext {
  *     crash can strand with a live agent and no record of it.
  *  8. `new-session`, with both identity variables on the line itself.
  *  9. If that failed, ONE read of the environment, to see whether it ran anyway.
- *     A create that truly failed takes its row back out.
+ *     A create that truly failed takes its row back out. PHASE 360: an answer
+ *     that is not exactly one session id (`createdTmuxIdOf`) gets the same
+ *     read, because a login file on that machine can print before tmux does.
  * 10. Stamp the four options. A stamp that fails is logged and the create still
  *     succeeds, because the pane environment already carries the identity.
  * 11. Poll once, at once, so the row is on screen without waiting a cadence.
+ *     PHASE 360: from step 10 on nothing throws into the answer. The create
+ *     answers the session the machine started, listed or not yet listed, and
+ *     never ends it so that an error would become true.
  *
  * ## 3.4 Why `argv[0]` is an absolute path on a machine, and what that costs
  *
@@ -1949,7 +1961,10 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     // ON THAT MACHINE, and every path in the row belongs to that machine.
     //
     // A create that then fails takes the row back out below. A create that runs
-    // and loses its answer KEEPS it, because the session is there.
+    // and loses its answer KEEPS it, because the session is there. Since Phase
+    // 360 so does a create whose answer named no session, until that machine
+    // answers that it holds none, and a create the machine answered keeps it
+    // whatever happens after.
     //
     // PHASE 84. `cwd` is the empty string when the person named no folder, and
     // THE MANIFEST ROW RECORDS EXACTLY THAT. Tortie does NOT compose a home path
@@ -1999,6 +2014,9 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     });
 
     let tmuxId: string;
+    // PHASE 360 (build/p360/SPEC.md D10). How many lines the answer held, which
+    // is the one thing about its text a log line or an error may carry.
+    let answerLines = 0;
     try {
       const printed = await execOn(
         ctx,
@@ -2012,72 +2030,31 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
             }
           : {}
       );
-      tmuxId = (printed.split('\n')[0] ?? '').trim();
+      // PHASE 360. ONE strict reader, and never the first line: a login file on
+      // that machine can print before tmux does, and the session still starts
+      // (`createdTmuxIdOf` has the measurement). An answer that is not exactly
+      // one session id is never parsed further.
+      tmuxId = createdTmuxIdOf(printed);
+      answerLines = answerLineCount(printed);
     } catch (err) {
-      // THE CONFIRMATION READ, and it is not the pane environment rescue.
-      //
-      // A create can run on the far side and lose its answer, so one read asks
-      // whether the session this call just asked for exists. It only ever accepts
-      // a uuid this call itself generated seconds ago, and it never looks at a
-      // session it did not just ask for. The rescue that re-binds a marked session
-      // found at reconcile time with no row pointing at it is Phase 71.
-      //
-      // PHASE 117 GAVE THAT READ THREE ANSWERS. It used to have two, being an
-      // identifier or null, and every failure to read produced null. The caller
-      // read null as nothing running and deleted the durable row, so a create that
-      // really succeeded on the far side left nothing on this Mac recording it.
-      // A machine that did not answer is not a machine that answered no.
-      const confirmation = await confirmCreate(ctx, tmuxName, sessionId);
-      const disposition = confirmationDisposition(confirmation);
-      if (disposition === 'dropRow') {
-        // Phase 72. Nothing is running, so the row is a claim about a session that
-        // does not exist. The local create path removes its row on a failed spawn
-        // for the same reason, and leaving one here would put a permanent
-        // `restorable` row on screen for work that never started.
-        //
-        // PHASE 117 NARROWED WHAT REACHES THIS ARM to the two cases where tmux
-        // itself answered, being a machine holding no server at all and a machine
-        // that named the session as missing. This is the only caller of
-        // `dropRemoteRow` on the confirmation path, and the conformance gate fails
-        // on a second one.
-        dropRemoteRow(sessionId);
-        throw createFailure(err, cwd);
-      }
-      // The `kind` test is what narrows the answer for the compiler. The table
-      // returns `bind` for a present confirmation and for nothing else, and the
-      // conformance gate asserts that.
-      if (disposition === 'keepUnknown' || confirmation.kind !== 'present') {
-        // THE ROW IS KEPT. The session may be running on that machine right now,
-        // and deleting the only record of it is the data loss this phase exists to
-        // stop. The status column says unknown, the id stays in the issued set so
-        // the pane environment rescue can still bind it, and the seed at the top
-        // of the next run's first pass puts it back in that set after a restart.
-        markRemoteCreateUnconfirmed(sessionId);
-        machinesLog.warn(
-          `the create on ${input.machineId} could not be confirmed, so the row ` +
-            `is kept and marked unknown: ${confirmationWhy(confirmation)}`
-        );
-        // TMUX_UNREACHABLE rather than SPAWN_FAILED, because nothing here proved a
-        // failed spawn. The person reads one sentence saying the state is unknown.
-        throw gmuxError(
-          'TMUX_UNREACHABLE',
-          CREATE_ANSWER_LOST,
-          `${input.machineId}: ${confirmationWhy(confirmation)}`
-        );
-      }
-      tmuxId = confirmation.tmuxId;
-      machinesLog.warn(
-        `the create on ${input.machineId} lost its answer and the session was ` +
-          `there: ${(err as Error).message}`
-      );
+      // THE CONFIRMATION READ. Since Phase 360 it lives, with its three arms
+      // and unchanged, in `settleUnansweredCreate`, so an answer that came back
+      // and could not be read takes the same road as one that was lost.
+      tmuxId = await settleUnansweredCreate(ctx, input, tmuxName, sessionId, cwd, {
+        kind: 'lost',
+        err
+      });
     }
     if (!tmuxId.startsWith('$')) {
-      dropRemoteRow(sessionId);
-      throw gmuxError(
-        'SPAWN_FAILED',
-        noRemoteRowFor(input.name),
-        `${input.machineId} answered ${JSON.stringify(tmuxId)}`
-      );
+      // PHASE 360 (D11). The machine answered and the answer named no session.
+      // That used to drop the row and say nothing was changed, and the spec
+      // step measured the far command running anyway behind a login file that
+      // printed first, so the only record of a running session was deleted. The
+      // identity read decides it instead, by this create's own id.
+      tmuxId = await settleUnansweredCreate(ctx, input, tmuxName, sessionId, cwd, {
+        kind: 'unread',
+        lines: answerLines
+      });
     }
     // PHASE 326. The machine answered, so the flight knows which `$-id` it is
     // binding, in which connection generation. It covers both answers: the plain
@@ -2128,8 +2105,31 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     // machine as not answering, so the row read Offline about a machine
     // nothing under the new details had asked (the reverify's arm D, at the
     // parent and at the build). Prepare starts the feed again.
+    //
+    // PHASE 360 (D13). The feed's own pass writes to the manifest, and a write
+    // it could not make used to throw out of here and answer a failure for a
+    // session that was made, stamped and running. The session is the answer
+    // whatever this list does, so a list that could not start is said once.
+    //
+    // HIS THIRD RULED ROUND (2026-11-17, "360 a then ship 115.0"; D27): EXCEPT
+    // the stopped list's own refusal, which goes through first, as it did at
+    // the parent. It means the session list stopped before this create
+    // returned, and there the parent answered "Restart Tortie, then try again"
+    // with the sheet open and the window still on the session in use. Answering
+    // the session instead closed the sheet and landed the window on a session
+    // drawn "Machine unreachable" that took none of the keys he typed, and the
+    // session in use stopped taking them too, or was lost until a restart from
+    // a tab on this Mac (the reverify's RF and RFL, 3 of 3 each).
     if (machineRouteEpoch(input.machineId) === routeEpoch) {
-      await startMachineFeed(input.machineId);
+      try {
+        await startMachineFeed(input.machineId);
+      } catch (err) {
+        if (isManifestStopped(err)) throw err;
+        machinesLog.warn(
+          `the session started on ${input.machineId}, and its list could not ` +
+            `be started: ${failureWordOf(err)}`
+        );
+      }
     } else {
       machinesLog.info(
         `${input.machineId}'s details changed while a session was being ` +
@@ -2138,10 +2138,14 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     }
     const row = remoteSessionRow(sessionId);
     if (row === null) {
-      throw gmuxError(
-        'SPAWN_FAILED',
-        noRemoteRowFor(input.name),
-        `${input.machineId} created ${tmuxId} and did not list it back`
+      // PHASE 360 (D12). The machine answered, so the session is there, and a
+      // list that has not shown it yet proves nothing else: this used to throw
+      // a sentence saying nothing was changed, about a session that was
+      // running. The create answers it from what it sent, the row stays
+      // exactly as it is, and the next completed list settles it.
+      machinesLog.warn(
+        `the session started on ${input.machineId} as ${tmuxId}, and no list ` +
+          `has shown it yet, so the create answers it from what it sent`
       );
     }
     // PHASE 270. The same sentence the local create raises, at the same moment
@@ -2162,21 +2166,251 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     // started without a variable they named — so it is the same sentence, and
     // merging it here rather than raising a second notice keeps the latch's
     // promise of one notice per session.
-    const envMissing = [
-      ...new Set([...(envProbe?.missing ?? []), ...envDropped])
-    ].sort();
-    if (envMissing.length > 0 || envProbe?.probeFailed === true) {
-      postDurabilityNotice({
-        kind: 'env-unresolved',
-        sessionId,
-        sessionName: oneLine(input.name),
-        names: envMissing,
-        probeFailed: envProbe?.probeFailed ?? false
-      });
+    //
+    // PHASE 360 (D13). In its own `try`, composition included: a window that
+    // could not be sent the notice is not a session that did not start.
+    try {
+      const envMissing = [
+        ...new Set([...(envProbe?.missing ?? []), ...envDropped])
+      ].sort();
+      if (envMissing.length > 0 || envProbe?.probeFailed === true) {
+        postDurabilityNotice({
+          kind: 'env-unresolved',
+          sessionId,
+          sessionName: oneLine(input.name),
+          names: envMissing,
+          probeFailed: envProbe?.probeFailed ?? false
+        });
+      }
+    } catch (err) {
+      machinesLog.warn(
+        `the session started on ${input.machineId}, and the notice naming a ` +
+          `shell variable it did not get was not sent: ${failureWordOf(err)}`
+      );
     }
-    return projectRow(row, stateOf(input.machineId));
+    return remoteCreateAnswer(
+      {
+        machineId: input.machineId,
+        id: sessionId,
+        name: oneLine(input.name),
+        tmuxName,
+        projectPath: oneLine(input.projectPath),
+        cwd,
+        // Widened as `agentOf` widens the stamp a list reads back: `AgentKind`
+        // has carried the registry's other ids at runtime since Phase 10.
+        agent: input.agent as AgentKind,
+        createdAt
+      },
+      row
+    );
   } finally {
     flight.end();
+  }
+}
+
+/**
+ * Why a create has no session id to bind (Phase 360, build/p360/SPEC.md D11).
+ *
+ *   lost    the line went out and its answer never came back (Phase 117)
+ *   unread  the machine answered, and the answer was not exactly one session
+ *           id. Only how many lines it held travels, never what they said
+ */
+type UnansweredCreate =
+  | { readonly kind: 'lost'; readonly err: unknown }
+  | { readonly kind: 'unread'; readonly lines: number };
+
+/**
+ * The read a create gets when it holds no session id, and the three arms that
+ * act on its answer (Phase 72, then Phase 117, moved here by Phase 360).
+ *
+ * Answers the `$`-id the machine lists the session under, or throws.
+ *
+ * PHASE 360 MOVED IT OUT OF THE CREATE'S CATCH, byte for byte for a lost
+ * answer: the same read, the same three arms, the same log lines, sentences and
+ * details. The spec step measured why a second road needed it (§2.3): the far
+ * command runs past a login file that prints first, so an answer that names no
+ * session can belong to a session that started, and the drop that used to
+ * follow such an answer deleted the only record of it and said nothing was
+ * changed. A login file can also end the shell before tmux runs, so exit 0
+ * proves nothing either. The id this create generated is the one thing that
+ * decides, and this is the read that asks for it.
+ *
+ * For an answer that could not be read, only its line count is ever logged or
+ * put in a detail. What the far account printed is its own text, and a line
+ * like `…/.profile:3: no such file or directory: …` would read as a missing
+ * folder through {@link createFailure}.
+ */
+async function settleUnansweredCreate(
+  ctx: RemoteMachineContext,
+  input: RemoteCreateInput,
+  tmuxName: string,
+  sessionId: string,
+  cwd: string,
+  why: UnansweredCreate
+): Promise<string> {
+  // THE CONFIRMATION READ, and it is not the pane environment rescue.
+  //
+  // A create can run on the far side and lose its answer, so one read asks
+  // whether the session this call just asked for exists. It only ever accepts
+  // a uuid this call itself generated seconds ago, and it never looks at a
+  // session it did not just ask for. The rescue that re-binds a marked session
+  // found at reconcile time with no row pointing at it is Phase 71.
+  //
+  // PHASE 117 GAVE THAT READ THREE ANSWERS. It used to have two, being an
+  // identifier or null, and every failure to read produced null. The caller
+  // read null as nothing running and deleted the durable row, so a create that
+  // really succeeded on the far side left nothing on this Mac recording it.
+  // A machine that did not answer is not a machine that answered no.
+  const confirmation = await confirmCreate(ctx, tmuxName, sessionId);
+  const disposition = confirmationDisposition(confirmation);
+  if (disposition === 'dropRow') {
+    // Phase 72. Nothing is running, so the row is a claim about a session that
+    // does not exist. The local create path removes its row on a failed spawn
+    // for the same reason, and leaving one here would put a permanent
+    // `restorable` row on screen for work that never started.
+    //
+    // PHASE 117 NARROWED WHAT REACHES THIS ARM to the two cases where tmux
+    // itself answered, being a machine holding no server at all and a machine
+    // that named the session as missing. PHASE 360 made this the ONLY caller of
+    // `dropRemoteRow` in the product: the second one, which deleted the row of
+    // an answer that named no session, is gone, because the far command can
+    // run behind a login file that printed first (build/p360/SPEC.md §2.3).
+    // conformance:machines condition 69 fails on a second one.
+    dropRemoteRow(sessionId);
+    if (why.kind === 'lost') throw createFailure(why.err, cwd);
+    machinesLog.warn(
+      `the create on ${input.machineId} answered ${String(why.lines)} ` +
+        `line(s), none of them a session, and the machine holds no session ` +
+        `with its id, so the row is removed`
+    );
+    throw gmuxError(
+      'SPAWN_FAILED',
+      remoteCreateNotStarted(input.name),
+      `${input.machineId} answered ${String(why.lines)} line(s) and none named a session`
+    );
+  }
+  // The `kind` test is what narrows the answer for the compiler. The table
+  // returns `bind` for a present confirmation and for nothing else, and the
+  // conformance gate asserts that.
+  if (disposition === 'keepUnknown' || confirmation.kind !== 'present') {
+    // THE ROW IS KEPT. The session may be running on that machine right now,
+    // and deleting the only record of it is the data loss this phase exists to
+    // stop. The status column says unknown, the id stays in the issued set so
+    // the pane environment rescue can still bind it, and the seed at the top
+    // of the next run's first pass puts it back in that set after a restart.
+    // An answer that could not be read is kept the same way (Phase 360).
+    markRemoteCreateUnconfirmed(sessionId);
+    machinesLog.warn(
+      `the create on ${input.machineId} could not be confirmed, so the row ` +
+        `is kept and marked unknown: ${confirmationWhy(confirmation)}`
+    );
+    // TMUX_UNREACHABLE rather than SPAWN_FAILED, because nothing here proved a
+    // failed spawn. The person reads one sentence saying the state is unknown.
+    throw gmuxError(
+      'TMUX_UNREACHABLE',
+      CREATE_ANSWER_LOST,
+      `${input.machineId}: ${confirmationWhy(confirmation)}`
+    );
+  }
+  if (why.kind === 'lost') {
+    machinesLog.warn(
+      `the create on ${input.machineId} lost its answer and the session was ` +
+        `there: ${(why.err as Error).message}`
+    );
+  } else {
+    machinesLog.warn(
+      `the create on ${input.machineId} answered ${String(why.lines)} ` +
+        `line(s), none of them a session, and its id was found there`
+    );
+  }
+  return confirmation.tmuxId;
+}
+
+/** What a create knows of the session it started, from what it sent (Phase 360). */
+interface RemoteCreateFacts {
+  readonly machineId: string;
+  readonly id: string;
+  readonly name: string;
+  readonly tmuxName: string;
+  readonly projectPath: string;
+  readonly cwd: string;
+  readonly agent: AgentKind;
+  readonly createdAt: number;
+}
+
+/**
+ * The session a create answers once the machine has answered (Phase 360,
+ * build/p360/SPEC.md D12, D13). IT NEVER THROWS.
+ *
+ * The row a list showed, projected as every surface reads it. With no row yet,
+ * the create's own facts with the status `unknown` and the machine level badge,
+ * which reads no manifest: `projectRemoteRecord` cannot stand in here, because
+ * for exactly this case it reads the manifest through `remoteRecordOf`, and a
+ * read that throws would answer a failure for a running session. If even the
+ * badge cannot be read, the same facts with no machine, because an answer is
+ * owed either way and the next completed list draws the rest.
+ */
+function remoteCreateAnswer(
+  facts: RemoteCreateFacts,
+  row: RemoteSessionRow | null
+): Session {
+  try {
+    if (row !== null) return projectRow(row, stateOf(facts.machineId));
+  } catch (err) {
+    machinesLog.warn(
+      `the session started on ${facts.machineId}, and its listed row could ` +
+        `not be drawn, so the create answers it from what it sent: ` +
+        `${failureWordOf(err)}`
+    );
+  }
+  try {
+    return {
+      id: facts.id,
+      name: facts.name,
+      tmuxName: facts.tmuxName,
+      projectPath: facts.projectPath,
+      cwd: facts.cwd,
+      agent: facts.agent,
+      status: 'unknown',
+      createdAt: facts.createdAt,
+      machine: remoteSessionMachine(facts.machineId)
+    };
+  } catch (err) {
+    machinesLog.warn(
+      `the session started on ${facts.machineId}, and its machine could not ` +
+        `be read for the answer: ${failureWordOf(err)}`
+    );
+  }
+  return {
+    id: facts.id,
+    name: facts.name,
+    tmuxName: facts.tmuxName,
+    projectPath: facts.projectPath,
+    cwd: facts.cwd,
+    agent: facts.agent,
+    status: 'unknown',
+    createdAt: facts.createdAt
+  };
+}
+
+/**
+ * One word for a failure after a create's answer, for a log line (Phase 360).
+ *
+ * A string `code` property (an SQLite error, the stopped manifest's refusal),
+ * else a structured error's code, else the error's name. NEVER its message,
+ * which can carry a detail string or another machine's own text. It never
+ * throws, because it is called from the catches that keep a create's answer.
+ */
+function failureWordOf(err: unknown): string {
+  try {
+    const code = (err as { code?: unknown } | null | undefined)?.code;
+    if (typeof code === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(code)) return code;
+    const payload = gmuxErrorPayloadOf(err);
+    if (payload !== null) return payload.code;
+    if (err instanceof Error && /^[A-Za-z0-9_]{1,64}$/.test(err.name)) return err.name;
+    return typeof err;
+  } catch {
+    return 'unreadable';
   }
 }
 

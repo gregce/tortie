@@ -7,6 +7,10 @@
  * and it is on its own here for the same reason `./restore-gate.ts` is: the
  * table can be read and tested without a machine in the room.
  *
+ * PHASE 360 put the create's own answer here too. `createdTmuxIdOf` is the one
+ * reader of what `new-session` printed, and an answer it cannot read as exactly
+ * one session id is settled by this file's three answers, as a lost one is.
+ *
  * ## The defect this exists to close, in the order it used to happen
  *
  * A remote create sends `new-session` and the reply is lost. One read then asks
@@ -195,4 +199,61 @@ export function confirmationWhy(
   return confirmation.kind === 'present'
     ? `the machine holds ${confirmation.tmuxId}`
     : confirmation.why;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 360: the create's own answer, read by one strict reader
+// ---------------------------------------------------------------------------
+
+/**
+ * The session id a far `new-session -P -F '#{session_id}'` answered, or `''`
+ * (Phase 360, build/p360/SPEC.md D10).
+ *
+ * ONE STRICT READER. With `\r` dropped, each line trimmed and the blank lines
+ * removed, the answer is a session id exactly when ONE line remains and that
+ * line is `$` and digits. Anything else is `''`, and the caller then asks the
+ * read above, which decides by the id this create generated and never by the
+ * answer's text.
+ *
+ * WHY NOT THE FIRST LINE, which is what a create read until this phase. The far
+ * command runs past a login file that prints first. MEASURED by the Phase 360
+ * spec step (§2.3): the shipping composition, each string run the way sshd
+ * hands it over (`<login shell> -c <string>`) with a scratch far home, against
+ * tmux 3.7b on a scratch socket:
+ *
+ *   zsh, with names, `.zprofile` prints        exit 0, its line then `$0`, the session there
+ *   zsh, no names (as shipped), `.zshenv` prints exit 0, its line then `$2`, the session there
+ *   bash, with names, `.bash_profile` prints   exit 0, its line then `$4`, the session there
+ *   zsh, with names, `.zprofile` exits early   exit 0, its line alone, NO session
+ *
+ * So a first line that is not an id does not mean nothing ran, and exit 0 does
+ * not mean the session ran either: only the identity read can tell the two
+ * apart. Two id shaped lines are `''` too, never the first of them, because a
+ * login file that prints `$3` before tmux's own `$5` would bind somebody else's
+ * session.
+ *
+ * The text never leaves this file. The caller logs {@link answerLineCount} and
+ * nothing else, because the far account's own words can match a refusal's
+ * pattern (`…/.profile:3: no such file or directory: …` reads as a missing
+ * folder) and would draw the wrong sentence.
+ */
+export function createdTmuxIdOf(printed: string): string {
+  const lines = answerLinesOf(printed);
+  if (lines.length !== 1) return '';
+  const only = lines[0] ?? '';
+  return /^\$\d+$/.test(only) ? only : '';
+}
+
+/** How many non blank lines a create's answer held, for a log line and nothing else. */
+export function answerLineCount(printed: string): number {
+  return answerLinesOf(printed).length;
+}
+
+/** The answer's lines, with `\r` dropped, each one trimmed, the blank ones removed. */
+function answerLinesOf(printed: string): string[] {
+  return printed
+    .replace(/\r/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }

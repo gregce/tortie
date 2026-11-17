@@ -295,7 +295,14 @@ export const RESTART_ON_MACHINE =
   'and restarting it here would start it on this Mac instead. End it, then ' +
   'start a new session on that machine. Nothing was changed.';
 
-/** A create that ran and then could not be found again by name. */
+/**
+ * A create that ran and then could not be found again by name.
+ *
+ * Since Phase 360 a create no longer says it: a session the machine answered
+ * for is answered whether or not a list has shown it yet, and an answer that
+ * named no session says {@link remoteCreateNotStarted} only once that machine
+ * has answered that it holds none. The remote restore still says it.
+ */
 export function noRemoteRowFor(name: string): string {
   return (
     `Tortie could not find a session called ${name} on that machine after it ` +
@@ -867,6 +874,26 @@ export const CREATE_ANSWER_LOST =
   'and shown as unreachable. Tortie will match the row to the session the ' +
   'next time that machine answers, and it will remove the row if that machine ' +
   'answers and holds no such session. Nothing was started a second time.';
+
+// ---------------------------------------------------------------------------
+// Phase 360: a create whose answer named no session
+// ---------------------------------------------------------------------------
+
+/**
+ * The create's answer named no session, and that machine then answered that it
+ * holds no session carrying this create's id.
+ *
+ * PINNED as `machine.create-not-started`, because production reaches it rarely,
+ * as it does `machine.create-answer-lost`. It is said only after the identity
+ * read a lost answer gets has answered, because the first line of what a far
+ * command prints proves nothing: a login file there can print before tmux does
+ * and the session still start, or end the shell first and start nothing
+ * (build/p360/SPEC.md §2.3). So after the far command has run, a create says
+ * nothing was changed only once that machine has said it holds no such session.
+ */
+export function remoteCreateNotStarted(name: string): string {
+  return `That machine did not start a session called ${name}. Nothing was changed.`;
+}
 
 /**
  * Restore, refused because the create was never confirmed.

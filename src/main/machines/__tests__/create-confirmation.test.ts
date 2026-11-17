@@ -14,10 +14,12 @@ import { describe, expect, it } from 'vitest';
 import { GmuxError } from '../../errors';
 import {
   CONFIRMATION_KINDS,
+  answerLineCount,
   classifyConfirmationFailure,
   confirmationArgs,
   confirmationDisposition,
   confirmationWhy,
+  createdTmuxIdOf,
   readConfirmationEnvironment,
   type RemoteCreateConfirmation
 } from '../create-confirmation';
@@ -329,5 +331,67 @@ describe('Phase 200: the payload is read by shape', () => {
     for (const payload of malformed) {
       expect(classifyConfirmationFailure(withPayload(payload))).toBe('unreachable');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 360. The create's own answer, read by one strict reader
+// ---------------------------------------------------------------------------
+//
+// The spec step measured a far command that ran behind a login file printing
+// first (build/p360/SPEC.md §2.3), so the first line of an answer is not the
+// session id, and a create that read it dropped the row of a running session.
+// The reader answers a `$`-id only for an answer that is exactly one, and `''`
+// for everything else, which the create then settles by its own id.
+describe('Phase 360: the one strict reader of a create answer', () => {
+  /** build/p360/SPEC.md §7.1 CA4, the gate's ten shapes, the same rows. */
+  const CA4: readonly (readonly [string, string])[] = [
+    ['$4\n', '$4'],
+    ['$4', '$4'],
+    [' $4 \r\n', '$4'],
+    ['\n$4\n\n', '$4'],
+    ['noise\n$4\n', ''],
+    ['$3\n$5\n', ''],
+    ['', ''],
+    ['$', ''],
+    ['$4 extra', ''],
+    ['4', '']
+  ];
+
+  it('answers the ten shapes the gate drives', () => {
+    for (const [printed, wanted] of CA4) {
+      expect([printed, createdTmuxIdOf(printed)]).toEqual([printed, wanted]);
+    }
+  });
+
+  /** What the spec step's far shells printed, line for line (§2.3 A1, B1, D1, C1). */
+  it('reads no id from what a login file printed first, whatever followed it', () => {
+    expect(createdTmuxIdOf('far login file: hello from .zprofile\n$0\n')).toBe('');
+    expect(createdTmuxIdOf('far zshenv: hello\n$2\n')).toBe('');
+    expect(createdTmuxIdOf('far bash_profile: hello\n$4\n')).toBe('');
+    expect(createdTmuxIdOf('far login file: leaving early\n')).toBe('');
+    expect(
+      createdTmuxIdOf('/home/x/.profile:3: no such file or directory: /opt/x/env\n$4\n')
+    ).toBe('');
+  });
+
+  /** A noise line shaped like an id before tmux's own would bind somebody else's session. */
+  it('never takes the first of two id shaped lines', () => {
+    expect(createdTmuxIdOf('$3\n$5')).toBe('');
+    expect(createdTmuxIdOf('$5\r\n$5\r\n')).toBe('');
+  });
+
+  it('refuses an id with anything around it but blanks', () => {
+    for (const printed of ['$4;', '$-1', '$ 4', '$4$5', 'x$4', '$4\tx', '@4', '%4', '$４']) {
+      expect([printed, createdTmuxIdOf(printed)]).toEqual([printed, '']);
+    }
+  });
+
+  it('counts the non blank lines, which is all a log line may carry', () => {
+    expect(answerLineCount('$4\n')).toBe(1);
+    expect(answerLineCount('')).toBe(0);
+    expect(answerLineCount('\n \r\n\t\n')).toBe(0);
+    expect(answerLineCount('Last login: Sun Nov  8\n$4\n')).toBe(2);
+    expect(answerLineCount(' a \r\n\r\n b \r\n c')).toBe(3);
   });
 });

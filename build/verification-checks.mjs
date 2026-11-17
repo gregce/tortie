@@ -1154,6 +1154,21 @@ export const CHECKS = [
   // over in-memory copies with it broken, every one red, beside controls that
   // stay green. It starts nothing and writes nothing. About a second.
   pure('conformance:diagnostic'),
+  // PHASE 360 (build/p360/SPEC.md §7.1). A create that started a session
+  // answers that session. build/conformance-create-answer.mjs reads
+  // createLocalSession and its remote branch, remoteCreate,
+  // settleUnansweredCreate and remoteCreateAnswer, createdTmuxIdOf, the new
+  // sentence in remote-copy.ts and the core's createSession and
+  // keepCreatedSession with the TypeScript parser and asserts six rules, CA1 to
+  // CA6: after the spawn's answer no statement that can throw sits outside a
+  // guard, an answer that is not one session id is read by this create's own
+  // id and never by its text, and a session started while the session list was
+  // stopped is in the list the windows draw. Each rule is asked again over
+  // in-memory copies with it broken, every one of which must read red on that
+  // rule alone, beside a control that stays green. It spawns one process, the
+  // pinned tsx, for CA4's driven half, which starts nothing, opens no database
+  // and reads nothing under any home. About 1 s.
+  pure('conformance:createanswer'),
   adapter(
     'conformance:specstory:entitlement',
     'macOS codesign and the vendored specstory binary; it signs scratch copies and runs them'
@@ -1784,6 +1799,27 @@ export const CHECKS = [
   // them. `--grader-self-test` grades build/p357/fixtures/graders.json and
   // starts nothing.
   electron('probe:p357'),
+  // PHASE 360 (build/p360/SPEC.md §8): a create whose later step fails, at the
+  // parent and at HEAD. TWO launches per build through build/electron-run.mjs
+  // ONE AT A TIME and never at once, the parent's (`P360_PARENT_CHECKOUT`, a
+  // built de9ea8f2, required) FIRST, each on a fresh scratch profile, HOME and
+  // ZDOTDIR with HISTFILE=/dev/null and the socket gmux-p360…, named as the
+  // launch's tmuxSocket, every probed registry row hidden by
+  // build/hidden-agents.mjs before each launch and `agents:list` read back. The
+  // world is his recorded shape through build/p3167/seed-sessions.mts (counts
+  // only) and three shells. The faults are made in scratch: this Mac's tmux is
+  // build/p360/local-tmux.sh named by GMUX_TMUX_BIN, which can hold one command
+  // (capped at 4,000 ms), Phase 357's harness-only seam armed during a hold, and
+  // a real held sqlite3 write lock on the scratch manifest. It builds its OWN
+  // loopback machine (build/scratch-machine.mjs's scratchYard and scratchMachine
+  // with the quiet shell, the scratch far home and no key of his; never
+  // build/with-scratch-machine.mjs, whose isolated() reads ~/.ssh/config),
+  // reached through an ssh wrapper with `-F none`, its tmux
+  // build/p326/far-tmux.sh, which is why this is `remote` and not `electron`.
+  // Every shell, lock holder and scratch server it starts is ended in a
+  // finally. No agent runs and no token is spent. `--grader-self-test` grades
+  // build/p360/fixtures/graders.json and starts nothing.
+  remote('probe:p360'),
   // PHASE 362 (build/p362/SPEC.md §8): his long ⌘Q, at the parent and at HEAD.
   // Electrons through build/electron-run.mjs ONE AT A TIME and never at once,
   // the parent's (`P362_PARENT_CHECKOUT`, a built 795f5a14, 357.1 as landed,

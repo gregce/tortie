@@ -48,10 +48,14 @@ describe('what each half of createSession does with the answer', () => {
   it('the remote branch says it, on the channel Phase 15 already shipped', () => {
     // The session still starts. A refused capture has never been fatal in this
     // product and it does not become fatal here.
-    const branch = source.slice(
-      source.indexOf('const session = await remoteCreate({'),
-      source.indexOf('deps.broadcastSessions();\n    return session;')
-    );
+    // PHASE 360 moved the branch's broadcast into a guard, so the slice ends
+    // at the tab open just before it, the bound p306-held-closed reads too. An
+    // end that is not found must fail rather than slice to the end of the file.
+    const start = source.indexOf('const session = await remoteCreate({');
+    const end = source.indexOf('openTabsForRemoteCreate(deps.manifest', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const branch = source.slice(start, end);
     expect(branch).toContain('EVT_CAPTURE_NOTICE');
     expect(branch).toContain("kind: 'declined'");
     expect(branch).toContain('captureRefused !== null');

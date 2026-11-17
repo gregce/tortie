@@ -586,5 +586,5 @@ verify
 durability=23
 skills=6
 config=6
-machines=53
+machines=54
 updater=8

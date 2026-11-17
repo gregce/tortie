@@ -670,13 +670,27 @@ const HELPER = 'electron-run.mjs';
  * 2026-11-02), two launches a build when its restore arm runs, every probed
  * registry row but its seven stand-ins hidden before every launch, his made-up
  * words through the pane's own xterm, and every stand-in pid ended in its `finally`.
+ * PHASE 360 RAISED IT BY ONE (184 TO 185 at its parent, 187 TO 188 once
+ * rebased on Phase 365, 190 TO 191 once rebased on Phase 368, and 191 TO 192
+ * once rebased on Phase 325.1), for
+ * build/p360/probe-p360.mjs
+ * (`probe:p360`), a create whose later step fails: Electrons through the
+ * helper ONE AT A TIME, two launches per build, the parent's
+ * (`P360_PARENT_CHECKOUT`, required) FIRST, each on a fresh scratch profile,
+ * HOME and ZDOTDIR with HISTFILE=/dev/null and the socket gmux-p360… named as
+ * its `tmuxSocket` (his ruling of 2026-11-02), every probed registry row
+ * hidden before every launch and `agents:list` read back, the faults made in
+ * scratch (build/p360/local-tmux.sh named by GMUX_TMUX_BIN, Phase 357's
+ * harness-only seam, a held sqlite3 write lock on the scratch manifest), and
+ * its own loopback machine from build/scratch-machine.mjs with the quiet shell
+ * and the scratch far home, never build/with-scratch-machine.mjs.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 191;
+const HELPER_USER_FLOOR = 192;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

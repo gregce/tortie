@@ -191,10 +191,15 @@ describe('a create held at new-session, then the route retired, then the answer'
     expect(remoteMachineFacts(MACHINE).timerArmed).toBe(false);
     expect(remoteMachineFacts(MACHINE).statusTimerArmed).toBe(false);
     expect(machineLinkFacts(MACHINE).link).not.toBe('quiet');
-    // The create's own answer is the parent's: with no list, it cannot read
-    // its row back (SPAWN_FAILED), a sentence this round does not change.
-    expect(outcome).toBeInstanceOf(GmuxError);
-    expect((outcome as GmuxError).payload.code).toBe('SPAWN_FAILED');
+    // PHASE 360 (build/p360/SPEC.md D12). With no list its row was never read
+    // back, and the parent answered SPAWN_FAILED about a session the machine
+    // had made and stamped. The create now answers that session from what it
+    // sent, with the status unknown; the next completed list settles it.
+    expect(outcome).not.toBeInstanceOf(GmuxError);
+    expect(outcome).not.toBeInstanceOf(Error);
+    expect((outcome as { id: string }).id).toBe(createdUuid);
+    expect((outcome as { status: string }).status).toBe('unknown');
+    expect(record.rows.has(createdUuid)).toBe(true);
   });
 
   it('the control: a create nobody overtook starts its feed, lists, and returns its session', async () => {

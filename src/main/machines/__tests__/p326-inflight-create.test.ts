@@ -563,7 +563,7 @@ describe('every exit of a remote create ends its flight', () => {
     expect(issuedRemoteIdHeld(createdUuid)).toBe(true);
   });
 
-  it('ends it when the feed start throws', async () => {
+  it('ends it when the feed start throws, and answers the session it made', async () => {
     record.installed = true;
     const watch = watchTheFlight('$4\n');
     answers['list-sessions'] = () =>
@@ -574,21 +574,32 @@ describe('every exit of a remote create ends its flight', () => {
       record.throwOnSeen = true;
       return '';
     };
-    const failed = await remoteCreate(CREATE).then(
-      () => null,
-      (err: unknown) => err as Error
-    );
-    expect(failed?.message).toContain('the manifest refused the write');
+    // PHASE 360 (build/p360/SPEC.md D13). The parent answered that write's
+    // error for a session made, stamped and running; the feed start now sits
+    // in its own try, so the create answers the session and the flight still
+    // ends.
+    const session = await remoteCreate(CREATE);
+    expect(session.id).toBe(createdUuid);
+    expect(record.rows.has(createdUuid)).toBe(true);
+    expect(record.dropped).toEqual([]);
+    expect(sent.filter((argv) => argv[0] === 'new-session')).toHaveLength(1);
     await expect(watch.settled()).resolves.toBe('settled');
     expect(remoteCreateInFlight(createdUuid)).toBe(false);
   });
 
-  it('ends it when the machine does not list the session back', async () => {
+  it('ends it when the machine does not list the session back, and answers the session as unknown', async () => {
     const watch = watchTheFlight('$4\n');
     answers['list-sessions'] = '';
-    const payload = await refusalOf(() => remoteCreate(CREATE));
-    expect(payload?.code).toBe('SPAWN_FAILED');
-    expect(payload?.detail).toContain('did not list it back');
+    // PHASE 360 (D12). The machine answered `$4`, so the session is there; the
+    // parent threw "Nothing was changed." about it. The create now answers it
+    // from what it sent, with the status unknown, and keeps the row.
+    const session = await remoteCreate(CREATE);
+    expect(session.id).toBe(createdUuid);
+    expect(session.status).toBe('unknown');
+    expect(session.tmuxName).toBe('work');
+    expect(session.machine?.id).toBe(MACHINE);
+    expect(record.rows.has(createdUuid)).toBe(true);
+    expect(record.dropped).toEqual([]);
     await expect(watch.settled()).resolves.toBe('settled');
     expect(remoteCreateInFlight(createdUuid)).toBe(false);
   });
@@ -1062,8 +1073,13 @@ describe('a list that lands inside the create’s own window', () => {
       return '';
     };
     answers['show-environment'] = () => `GMUX_SESSION_ID=${createdUuid}\n`;
-    const payload = await refusalOf(() => remoteCreate(CREATE));
-    expect(payload?.code).toBe('SPAWN_FAILED');
+    // PHASE 360 (D12). The parent answered SPAWN_FAILED here, about a session
+    // the machine had made; the create now answers it from what it sent, as
+    // unknown, and everything after is the parent's: the id stays issued and
+    // the first pass after the flight rescues `$4`.
+    const session = await remoteCreate(CREATE);
+    expect(session.id).toBe(createdUuid);
+    expect(session.status).toBe('unknown');
     expect(remoteCreateInFlight(createdUuid)).toBe(false);
     expect(issuedRemoteIdHeld(createdUuid)).toBe(true);
     listFails = false;
