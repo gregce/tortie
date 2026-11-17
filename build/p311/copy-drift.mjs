@@ -2876,13 +2876,27 @@ const MODULE_MUTATIONS = [
  */
 const ACTIVITY_DIR = join('src', 'main', 'activity');
 
-/** A call on something that logs: `log.info(`, `console.error(`, `logLine(`. */
+/**
+ * A call on something that logs: `log.info(`, `console.error(`, `logLine(`,
+ * and (Phase 325.1, D3251-14) a logger called where it is fetched,
+ * `getLog('activity').info(`, which the empty-parentheses form alone missed;
+ * and (Phase 325.1's probe review) a logger bound under the house's own name,
+ * `<domain>Log` (`sessionsLog`, `machinesLog`, the binding nearly every module
+ * under src/main gives `getLog(…)`), with or without `this.`. The pattern read
+ * `log.` alone, so `const activityLog = getLog('activity')` and
+ * `activityLog.info('own', { ownWords })` named his record and read green.
+ */
 const LOG_CALL_RE =
-  /(?:^|[^A-Za-z0-9_$.])((?:console|log|logger|getLog\(\))\s*\.\s*[A-Za-z]+|log|logLine|appLog|debugLog)\s*\(/g;
+  /(?:^|[^A-Za-z0-9_$.])((?:this\s*\.\s*)?(?:console|log|logger|[A-Za-z_$][A-Za-z0-9_$]*Log|getLog\([^()]*\))\s*\.\s*[A-Za-z]+|log|logLine|appLog|debugLog)\s*\(/g;
 
 /**
  * The identifiers that can be, or can hold, a line of the person's own words.
  * Matched as whole words, so `bodyRef` counts and `somebody` does not.
+ *
+ * PHASE 325.1 (build/p3251/SPEC.md D3251-14) adds three: `ownWords`, the
+ * session's record of what he typed and has not sent, and `data` and `text`,
+ * the names the record's two writers (`noteOwnWords`, `noteReplayedScreen`)
+ * hand his bytes and a restore's replayed screen in under.
  */
 const PAYLOAD_WORDS = [
   'body',
@@ -2894,7 +2908,27 @@ const PAYLOAD_WORDS = [
   'excerpt',
   'capture',
   'screen',
-  'prompt'
+  'prompt',
+  'ownWords',
+  'data',
+  'text'
+];
+
+/**
+ * The leaves: modules whose whole job is to read the person's own words, which
+ * may therefore name NO log call at all, honest or not. Each with the reason a
+ * finding gives.
+ */
+const LOG_FREE_LEAVES = [
+  {
+    file: join(ACTIVITY_DIR, 'question.ts'),
+    why: 'the question leaf may name NO log call at all. It is handed the person’s own prompt text and it is the one module whose whole job is to read it'
+  },
+  {
+    // PHASE 325.1 (D3251-14): the record of what he typed.
+    file: join(ACTIVITY_DIR, 'own-words.ts'),
+    why: 'the record of what he typed may name NO log call at all. It is handed every byte he sends a session and holds the lines he has not sent (Phase 325.1)'
+  }
 ];
 
 /** The argument text of a call whose `(` is at `open`, by matching brackets. */
@@ -2928,7 +2962,7 @@ function logRuleFindings(sources) {
   let callSites = 0;
   for (const [path, raw] of [...sources].sort()) {
     const text = withoutComments(raw);
-    const isLeaf = path.endsWith(join('activity', 'question.ts'));
+    const leaf = LOG_FREE_LEAVES.find((l) => path === l.file);
     LOG_CALL_RE.lastIndex = 0;
     let m;
     while ((m = LOG_CALL_RE.exec(text)) !== null) {
@@ -2936,11 +2970,11 @@ function logRuleFindings(sources) {
       const open = text.indexOf('(', m.index + m[0].length - 1);
       const args = callArgs(text, open);
       const line = text.slice(0, m.index).split('\n').length;
-      if (isLeaf) {
+      if (leaf !== undefined) {
         findings.push({
           file: path,
           text: `${m[1] ?? 'log'}( at line ${String(line)}`,
-          why: 'the question leaf may name NO log call at all. It is handed the person’s own prompt text and it is the one module whose whole job is to read it'
+          why: leaf.why
         });
         continue;
       }
@@ -3014,6 +3048,49 @@ const LOG_MUTATIONS = [
     }
   },
   {
+    // PHASE 325.1 (D3251-14).
+    what: 'a log call in the record of what he typed (own-words.ts), even one naming nothing',
+    apply(sources) {
+      const next = new Map(sources);
+      const path = join(ACTIVITY_DIR, 'own-words.ts');
+      next.set(path, `${next.get(path) ?? ''}\nfunction p3251Ablation() { log.info('fixed-word'); }\n`);
+      return next;
+    }
+  },
+  {
+    // PHASE 325.1 (D3251-14).
+    what: 'a log call in monitor.ts naming the record of what he typed',
+    apply(sources) {
+      const next = new Map(sources);
+      const path = join(ACTIVITY_DIR, 'monitor.ts');
+      next.set(path, `${next.get(path) ?? ''}\nfunction p3251Ablation(st) { getLog('activity').info('own', { ownWords: st.ownWords }); }\n`);
+      return next;
+    }
+  },
+  {
+    // PHASE 325.1's probe review: the house's own logger binding, which the
+    // pattern read as no log call at all.
+    what: 'a log call naming the record of what he typed through a logger bound as `activityLog`',
+    apply(sources) {
+      const next = new Map(sources);
+      const path = join(ACTIVITY_DIR, 'monitor.ts');
+      next.set(path, `${next.get(path) ?? ''}\nconst activityLog = getLog('activity');\nfunction p3251AblationHouse(st) { activityLog.info('own', { ownWords: st.ownWords }); }\n`);
+      return next;
+    }
+  },
+  {
+    // The control beside it: the same binding carrying a fixed word stays
+    // green, or the widened pattern is a ban on the house's loggers.
+    control: true,
+    what: 'an honest log call through a logger bound as `activityLog`, carrying a fixed reason word',
+    apply(sources) {
+      const next = new Map(sources);
+      const path = join(ACTIVITY_DIR, 'monitor.ts');
+      next.set(path, `${next.get(path) ?? ''}\nconst activityLog = getLog('activity');\nfunction p3251ControlHouse(reason) { activityLog.info('tick', { reason }); }\n`);
+      return next;
+    }
+  },
+  {
     // The CONTROL. An honest log call must stay green, or the rule is a ban on
     // logging rather than a ban on logging the person's words.
     control: true,
@@ -3026,6 +3103,27 @@ const LOG_MUTATIONS = [
     }
   }
 ];
+
+/**
+ * Ends the run with `code` once stdout and stderr have handed on every byte
+ * written to them (Phase 361.1). The callbacks of an empty write run only
+ * after every earlier write to that stream. The promise never settles, so
+ * nothing after the caller's await runs, as after process.exit. gate:checks
+ * clause 9 pins this function's text byte for byte, so change both together,
+ * and ablation:p3251 reads this gate through a pipe (Phase 325.1, his ruled
+ * round).
+ */
+function exitWhenWritten(code) {
+  process.exitCode = code;
+  let open = 2;
+  const done = () => {
+    open -= 1;
+    if (open === 0) process.exit(code);
+  };
+  process.stdout.write('', done);
+  process.stderr.write('', done);
+  return new Promise(() => {});
+}
 
 function main() {
   const argv = process.argv.slice(2);
@@ -3109,6 +3207,16 @@ function main() {
       text: `${String(logRule.callSites)} log calls found under ${ACTIVITY_DIR}, floor is ${String(LOG_CALL_FLOOR)}`,
       why: 'the finder has stopped finding, so the rule is asserting nothing. Lower the floor deliberately and name the file whose log call went'
     });
+  }
+  // A leaf that moved or went leaves its rule asking nothing (Phase 325.1).
+  for (const leaf of LOG_FREE_LEAVES) {
+    if (!activity.has(leaf.file)) {
+      findings.push({
+        file: 'build/p311/copy-drift.mjs',
+        text: `${leaf.file} is not there to read`,
+        why: 'a module this rule keeps from naming any log call moved or went, so the rule is asking nothing about it. Move the rule with it'
+      });
+    }
   }
 
   if (!quiet) {
@@ -3323,7 +3431,7 @@ function main() {
     console.error(
       'phonecopy: the mock says something Tortie does not. Fix the mock, or, where Tortie is the one that moved, move the ledger rule and say so in the commit.'
     );
-    process.exit(1);
+    return exitWhenWritten(1);
   }
   console.log('phonecopy OK');
 }

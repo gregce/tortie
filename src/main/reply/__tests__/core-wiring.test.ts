@@ -175,11 +175,20 @@ describe('the hook bumps (§5.3 item 1)', () => {
 describe('the desk bump (§5.3 item 2, D23)', () => {
   it('the attach host\'s onInput moves the id as a desk keystroke', () => {
     const { turns, calls } = recordingTurns();
-    const onInput = lift<(id: string) => void>(arrowText(objectOf({ ctor: 'AttachHost' }), 'onInput'), {}, {
-      replyTurns: turns
-    });
-    onInput('s1');
-    expect(calls).toEqual([['bump', 's1', 'desk']]);
+    // PHASE 325.1 (build/p3251/SPEC.md §4.5, seam S1): the same arrow then hands
+    // the chunk to main's record of what he typed, after the bump, so taking
+    // the bump out still reddens this row. Made-up words, never his.
+    const self = {
+      activity: { noteOwnWords: (...a: unknown[]) => calls.push(['words', ...a]) }
+    };
+    const onInput = lift<(id: string, data: string) => void>(
+      arrowText(objectOf({ ctor: 'AttachHost' }), 'onInput'),
+      self,
+      { replyTurns: turns }
+    );
+    const data = '1. to cancel\n\u001b[200~2. x\u001b[201~';
+    onInput('s1', data);
+    expect(calls).toEqual([['bump', 's1', 'desk'], ['words', 's1', data]]);
   });
 });
 

@@ -70,7 +70,7 @@ export function hashScreen(text: string): string {
  * Because it requires a RENDERED dialog, the Phase 9.2 self-inflicted-input
  * rule is preserved by construction: an answered dialog leaves the screen.
  */
-const BORDER = /^[\s│┃║▌▏|]+|[\s│┃║▕|]+$/g;
+export const BORDER = /^[\s│┃║▌▏|]+|[\s│┃║▕|]+$/g;
 const OPT1 = /^[❯›●▶◆*>▸○◇⏵\s]{0,4}1[.)]\s+\S/;
 const OPT2 = /^[❯›●▶◆*>▸○◇⏵\s]{0,4}2[.)]\s+\S/;
 const HINT =
@@ -106,6 +106,40 @@ function dialogWindow(capture: string): { raw: string[]; rows: string[] } {
 export function detectDialog(capture: string): boolean {
   return detectDialogRows(capture).atChoice;
 }
+
+/**
+ * PHASE 325.1, ITS FIX ROUND (build/p3251/SPEC.md §As built). WHICH ROWS THE
+ * VERDICT READS AS A QUESTION'S EVIDENCE: for each row of `capture` (split on
+ * its line breaks, so the index is the row's), which of the three classes the
+ * verdict counts the row carries, one bit each (`EVIDENCE_OPT1`,
+ * `EVIDENCE_OPT2`, and `EVIDENCE_HINT` for `HINT` or `QUEST`), over the same
+ * border-stripped rows of the same window; 0 for a row outside the window or
+ * carrying none. It answers no verdict and moves none: `detectDialogRows` is
+ * the one spelling of the predicate. Read by ./own-words.ts alone, so a row of
+ * a question the agent drew below his own words keeps that question the
+ * agent's.
+ */
+export function dialogEvidenceRows(capture: string): number[] {
+  const { rows } = dialogWindow(capture);
+  const lines = capture.split('\n');
+  let inked = lines.length;
+  while (inked > 0 && (lines[inked - 1] ?? '').trim() === '') inked -= 1;
+  const first = inked - rows.length;
+  return lines.map((_, i) => {
+    const row = i >= first && i < inked ? rows[i - first] : undefined;
+    if (row === undefined) return 0;
+    return (
+      (OPT1.test(row) ? EVIDENCE_OPT1 : 0) |
+      (OPT2.test(row) ? EVIDENCE_OPT2 : 0) |
+      (HINT.test(row) || QUEST.test(row) ? EVIDENCE_HINT : 0)
+    );
+  });
+}
+
+/** The three classes `dialogEvidenceRows` answers, a bit each: a first option, a second, a hint or question. */
+export const EVIDENCE_OPT1 = 1;
+export const EVIDENCE_OPT2 = 2;
+export const EVIDENCE_HINT = 4;
 
 // ---------------------------------------------------------------------------
 // Phase 312 — the rows the verdict matched, instead of only the verdict
@@ -154,8 +188,12 @@ const OPT_ANY = /^[❯›●▶◆*>▸○◇⏵\s]{0,4}(\d{1,2})[.)]\s+(\S.*)$/
  * reading `Beta 100. Hundred`. A row a person would read as numbered is never
  * the continuation of the row above it, whatever this module can make of its
  * marker, so it closes the open option instead of joining it.
+ *
+ * PHASE 325.1's fix round reads the same rule (./own-words.ts): a line he typed
+ * never runs on into a numbered row, so one line of his cannot be spelled by a
+ * question's option rows joined. It has no `g` flag, so `.test` keeps no state.
  */
-const NUMBERED = /^[❯›●▶◆*>▸○◇⏵\s]{0,4}\d+[.)]\s/;
+export const NUMBERED = /^[❯›●▶◆*>▸○◇⏵\s]{0,4}\d+[.)]\s/;
 
 /**
  * The leading half of `BORDER`, as its own literal so the verdict's own regex

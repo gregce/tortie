@@ -441,6 +441,9 @@ export function installMainCapabilities(
       nudge: (sessionId, before) => screenWatch.nudge(sessionId, before)
     },
     noteUserInput: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),
+    // PHASE 325.1 (build/p3251/SPEC.md D3251-8, seam S3): what the keys typed
+    // goes to main's record of his words, as the desk's keys do. Never logged.
+    noteOwnWords: (sessionId, data) => pocketCore?.activity.noteOwnWords(sessionId, data),
     // PHASE 350 (build/p350/SPEC.md D9, D23): the reflow grace's clock, which
     // the verb stamps after a write of exactly one page key, so the program's
     // redraw of its own page is not read as work.
@@ -460,6 +463,8 @@ export function installMainCapabilities(
       nudge: (sessionId, before) => screenWatch.nudge(sessionId, before)
     },
     noteUserInput: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),
+    // PHASE 325.1 (D3251-8, seam S3): what the paste typed, the same way.
+    noteOwnWords: (sessionId, data) => pocketCore?.activity.noteOwnWords(sessionId, data),
     lastActs: screenLastActs
   });
   // PHASE 346 (build/p346/SPEC.md §4.13): the phone's start, built ONCE over

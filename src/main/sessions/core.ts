@@ -1235,8 +1235,12 @@ export class GmuxCore {
       // PHASE 318 (D23). The person typed at the Mac, into a session on this
       // Mac, and it was not a report the pane sent about itself: the phone's
       // question id moves, so a press it was shown before this types nothing.
-      onInput: (sessionId) => {
+      // PHASE 325.1 (build/p3251/SPEC.md D3251-7, seam S1). The same chunk then
+      // goes to main's record of what he typed and nowhere else, so a numbered
+      // list his own words draw is never read as the agent asking. Never logged.
+      onInput: (sessionId, data) => {
         replyTurns.bump(sessionId, 'desk');
+        this.activity.noteOwnWords(sessionId, data);
       }
     });
     this.control = new tmux.TmuxControlClient();
@@ -2145,6 +2149,12 @@ export class GmuxCore {
       // `info` is unreachable on the failed arm, which is what makes dropping
       // the stage results a compile error rather than a silent regression.
       const { info } = outcome;
+      // PHASE 325.1 (build/p3251/SPEC.md D3251-10, seam S2). The restore just
+      // printed this session's saved screen into the new pane, so a question
+      // that screen showed is Tortie's text, not the agent asking now: its last
+      // rows go to main's record before the first tick can read the session,
+      // with nothing awaited between here and the live id below.
+      if (outcome.kind !== 'shell_only' && outcome.replayedTail !== undefined) this.activity.noteReplayedScreen(rec.id, outcome.replayedTail);
 
       // PHASE 119. THE DURABLE FLIP, and it is written only here.
       //

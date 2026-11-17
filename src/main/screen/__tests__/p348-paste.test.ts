@@ -12,8 +12,10 @@
  *
  *  - D50's order, as events: the text rule; the gate; the gap; the buffer
  *    loaded from standard input; ONE fresh read; the final check; the bump and
- *    the seam; ONE spawned list, `copy-mode -q -t %N ; paste-buffer -p -d -b
- *    <name> -t %N`, never an Enter, never `-S`, never over the control client;
+ *    the seam; ONE spawned list, `copy-mode -q -t %N ; display-message -p -t
+ *    %N #{bracket_paste_flag} ; paste-buffer -p -d -b <name> -t %N` (the
+ *    display, Phase 325.1's second ruled round, types nothing), never an
+ *    Enter, never `-S`, never over the control client;
  *    then the funnel once and the nudge;
  *  - the text rule and the gate refuse with NOTHING run, another machine
  *    before the buffer;
@@ -22,7 +24,16 @@
  *    with no funnel; a list that landed leaves the buffer to `-d`;
  *  - the one refusal both ways (the question id, the window mark);
  *  - ONE last-act store with the keys verb (D57): a keys write and a paste on
- *    one session at least 50 ms apart whichever came first.
+ *    one session at least 50 ms apart whichever came first;
+ *  - Phase 325.1 (build/p3251/SPEC.md D3251-8): main's record of what he typed
+ *    handed a paste that landed, once, after the funnel, as the pane received
+ *    it: every line break a carriage return (the fix round), between the two
+ *    paste markers when the program asked for bracketed paste, which the act's
+ *    own list reads from tmux's `#{bracket_paste_flag}` just before its
+ *    `paste-buffer -p` (his second ruled round), so a paste into an agent's
+ *    input row is recorded whole and a line the paste sent to a program that
+ *    did not ask is never kept unsent; nothing after a refusal or a failed
+ *    list.
  */
 
 import { readFileSync } from 'node:fs';
@@ -40,6 +51,7 @@ import {
   SCREEN_QUESTION_MOVED
 } from '@shared/screen-copy';
 import type { Session, SessionStatus } from '@shared/types';
+import { freshOwnWords, noteOwnWordsOn } from '../../activity/own-words';
 import type { PocketPasteInput, PocketPasteOutcome } from '../../pocket/routes';
 import { createQuestionIds, type QuestionIds } from '../../reply/question-id';
 import { composeScreen } from '../compose';
@@ -85,8 +97,13 @@ interface Rig {
     fail(match: (args: readonly string[]) => boolean): void;
     read(answer: 'unreachable' | null): void;
     duringRead(fn: () => void): void;
+    /** What a run that succeeds prints: tmux's own output for that argv. */
+    output(of: (args: readonly string[]) => string): void;
   };
 }
+
+/** What the act's list prints: the pane's `#{bracket_paste_flag}` line, as tmux 3.7b answers it. */
+const FLAG = (flag: string) => (args: readonly string[]): string => (args.includes('display-message') ? flag : '');
 
 function rig(lastActs: ScreenLastActs = createScreenLastActs()): Rig {
   const turns = createQuestionIds('0123456789abcdef');
@@ -101,6 +118,7 @@ function rig(lastActs: ScreenLastActs = createScreenLastActs()): Rig {
   let row: Session | undefined = rowOf('idle');
   let tmuxId: string | null = '$3';
   let fail: (args: readonly string[]) => boolean = () => false;
+  let output: (args: readonly string[]) => string = () => '';
   let readAnswer: 'unreachable' | null | undefined;
   let duringRead: (() => void) | null = null;
   const core = {
@@ -141,7 +159,7 @@ function rig(lastActs: ScreenLastActs = createScreenLastActs()): Rig {
     run: (args, options) => {
       events.push(`run:${args[0] ?? ''}`);
       runs.push({ args: [...args], stdin: options?.stdin === undefined ? null : options.stdin.toString('utf8') });
-      return fail(args) ? Promise.reject(new Error('tmux refused')) : Promise.resolve('');
+      return fail(args) ? Promise.reject(new Error('tmux refused')) : Promise.resolve(output(args));
     },
     onLastCheck: () => events.push('last-check'),
     now: () => clock.at,
@@ -180,6 +198,9 @@ function rig(lastActs: ScreenLastActs = createScreenLastActs()): Rig {
       },
       duringRead: (fn) => {
         duringRead = fn;
+      },
+      output: (of) => {
+        output = of;
       }
     }
   };
@@ -216,7 +237,7 @@ beforeEach(() => {
 });
 
 describe('the act (D50, D52, D58)', () => {
-  it('loads the words from standard input BEFORE the read, then ONE spawned list: copy-mode -q, then paste-buffer -p -d, no Enter', async () => {
+  it('loads the words from standard input BEFORE the read, then ONE spawned list: copy-mode -q, the bracketed-paste flag read, then paste-buffer -p -d, no Enter', async () => {
     const verb = createScreenPaste(r.deps);
     const text = `line one${ch(0x0a)}line two${ch(0x09)}tab`;
     const n0 = r.turns.current(ID).n;
@@ -225,7 +246,12 @@ describe('the act (D50, D52, D58)', () => {
     expect(name).toMatch(/^tortie-paste-[0-9a-f]{32}$/);
     expect(r.runs).toEqual([
       { args: ['load-buffer', '-b', name, '-'], stdin: text },
-      { args: ['copy-mode', '-q', '-t', PANE, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', PANE], stdin: null }
+      // Phase 325.1's second ruled round: the pane's bracketed-paste flag read
+      // in the same list, just before the paste, for main's record; it types nothing.
+      {
+        args: ['copy-mode', '-q', '-t', PANE, ';', 'display-message', '-p', '-t', PANE, '#{bracket_paste_flag}', ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', PANE],
+        stdin: null
+      }
     ]);
     // D50's order: the buffer, the read, the last check, the act, the funnel, the nudge.
     expect(r.events).toEqual(['run:load-buffer', 'read@1000', 'last-check', 'run:copy-mode', 'funnel', 'nudge']);
@@ -469,6 +495,131 @@ describe('ONE last-act store with the keys verb (D57)', () => {
   });
 });
 
+describe("main's record of what he typed (Phase 325.1)", () => {
+  /** The rig's verb, with the record's writer recorded beside the rig's own events. */
+  function recording(): { verb: ReturnType<typeof createScreenPaste>; handed: Array<[string, string]> } {
+    const handed: Array<[string, string]> = [];
+    const verb = createScreenPaste({
+      ...r.deps,
+      noteOwnWords: (id, data) => {
+        r.events.push('words');
+        handed.push([id, data]);
+      }
+    });
+    return { verb, handed };
+  }
+
+  /** What the record keeps of each handed paste, its lines joined by a line feed. */
+  const keptOf = (handed: ReadonlyArray<[string, string]>): string[] =>
+    handed.map(([, data]) => {
+      const words = freshOwnWords();
+      noteOwnWordsOn(words, data);
+      return words.lines.map((l) => l.join('')).join(ch(0x0a));
+    });
+
+  it('the record is handed the paste', async () => {
+    // A program that asked for bracketed paste, as an agent's input row does:
+    // tmux 3.7b's #{bracket_paste_flag} prints 1.
+    r.set.output(FLAG('1\n'));
+    const { verb, handed } = recording();
+    const text = `1. to cancel${ch(0x0a)}2. x${ch(0x09)}é ${ch(0x1f600)}`;
+    expect(await verb.paste(input(text, pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    // As the pane received it (his second ruled round): between the paste's
+    // two markers, every other character as it came, each line break a
+    // carriage return, which inside a paste the record reads as a new line.
+    expect(handed).toEqual([[ID, `${ch(0x1b)}[200~1. to cancel${ch(0x0d)}2. x${ch(0x09)}é ${ch(0x1f600)}${ch(0x1b)}[201~`]]);
+    // Once, after the act and the funnel, before the nudge.
+    expect(r.events).toEqual(['run:load-buffer', 'read@1000', 'last-check', 'run:copy-mode', 'funnel', 'words', 'nudge']);
+  });
+
+  it('a paste into a program that asked for bracketed paste is recorded whole, exactly as the same words pasted at the desk', async () => {
+    r.set.output(FLAG('1\n'));
+    const { verb, handed } = recording();
+    const text = `Do you want me to proceed?${ch(0x0a)}${ch(0x0a)}1. Yes, go ahead${ch(0x0a)}2. No, stop`;
+    expect(await verb.paste(input(text, pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    expect(keptOf(handed)).toEqual([text]);
+    // Byte for byte what xterm sends for the same paste at the desk (its own
+    // encoding: every line break a carriage return, between the markers), so
+    // the record reads the phone's paste as it reads the desk's.
+    const desk = `${ch(0x1b)}[200~${text.replace(/\r?\n/g, ch(0x0d))}${ch(0x1b)}[201~`;
+    expect(handed).toEqual([[ID, desk]]);
+  });
+
+  it('a line the paste sent is never kept as his: what is handed leaves the record only its unsent tail', async () => {
+    // A program that did not ask for bracketed paste: each line break SENDS its line.
+    r.set.output(FLAG('0\n'));
+    const { verb, handed } = recording();
+    expect(await verb.paste(input(`2. No, not now${ch(0x0a)}`, pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    expect(await verb.paste(input(`1. to cancel${ch(0x0a)}2. x`, pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    expect(keptOf(handed)).toEqual(['', '2. x']);
+  });
+
+  it('a program that did not ask, and a tmux that cannot say (3.6a’s empty answer), keep the record of before: every line break a submit', async () => {
+    const text = `1. to cancel${ch(0x0a)}2. x`;
+    // 0: the pane did not ask; an empty line: a tmux older than 3.7, which has
+    // no such flag (build/p348/SPEC.md §2.2); nothing at all, and any other
+    // line, are not a pane that asked either.
+    for (const flag of ['0\n', '\n', '', '10\n', ' 1\n', 'x\n']) {
+      r = rig();
+      r.set.output(FLAG(flag));
+      const { verb, handed } = recording();
+      expect(await verb.paste(input(text, pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED), JSON.stringify(flag)).toEqual(DONE);
+      expect(handed, JSON.stringify(flag)).toEqual([[ID, `1. to cancel${ch(0x0d)}2. x`]]);
+      expect(keptOf(handed), JSON.stringify(flag)).toEqual(['2. x']);
+    }
+  });
+
+  it('the flag is read by the act’s own list, just before the paste, and types nothing', async () => {
+    r.set.output(FLAG('1\n'));
+    const verb = createScreenPaste(r.deps);
+    expect(await verb.paste(input('hi', pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    const list = r.runs.find((one) => one.args.includes('paste-buffer'));
+    expect(list).toBeDefined();
+    const args = list?.args ?? [];
+    // One spawn holds it: no separate read, so no second run and no other moment.
+    expect(r.runs.filter((one) => one.args.includes('display-message'))).toEqual([list]);
+    const display = args.indexOf('display-message');
+    expect(args.slice(display, display + 5)).toEqual(['display-message', '-p', '-t', PANE, '#{bracket_paste_flag}']);
+    expect(display).toBeGreaterThan(args.indexOf('copy-mode'));
+    expect(display).toBeLessThan(args.indexOf('paste-buffer'));
+  });
+
+  it('hands nothing after a refusal or a failed list', async () => {
+    const outcomes: PocketPasteOutcome['outcome'][] = [];
+    let { verb, handed } = recording();
+    outcomes.push((await verb.paste(input('', pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome);
+    outcomes.push((await verb.paste(input('his words', pictureOf(r, CODEX_PROMPT, 'idle')), () => false)).outcome);
+    const picture = pictureOf(r, CODEX_PROMPT, 'idle');
+    r.set.screen(CODEX_QUESTION);
+    outcomes.push((await verb.paste(input('1. to cancel', picture), ALLOWED)).outcome);
+    expect(handed).toEqual([]);
+    r = rig();
+    r.set.row(rowOf('running', 'm1'));
+    ({ verb, handed } = recording());
+    outcomes.push((await verb.paste(input('his words', pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome);
+    expect(handed).toEqual([]);
+    r = rig();
+    r.set.fail((args) => args[0] === 'copy-mode');
+    ({ verb, handed } = recording());
+    outcomes.push((await verb.paste(input('his words', pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome);
+    expect(handed).toEqual([]);
+    expect(outcomes).toEqual(['refused', 'refused', 'refused', 'refused', 'failed']);
+  });
+
+  it('a record that throws leaves a paste that landed answered done, its buffer left to -d', async () => {
+    const verb = createScreenPaste({
+      ...r.deps,
+      noteOwnWords: () => {
+        throw new Error('the record refused');
+      }
+    });
+    expect(await verb.paste(input('hi', pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    expect(r.runs.map((one) => one.args[0])).toEqual(['load-buffer', 'copy-mode']);
+    expect(r.inputs).toEqual([ID]);
+    expect(r.nudges).toHaveLength(1);
+  });
+});
+
 describe('what it never does, read as text', () => {
   it('logs nothing, reads no error’s text, names no status setter but noteUserInput, and no Enter', () => {
     const code = readFileSync(join(__dirname, '..', 'paste.ts'), 'utf8')
@@ -478,7 +629,13 @@ describe('what it never does, read as text', () => {
     expect(code).not.toMatch(/setStatus|noteHookEvent|\.status\s*=/);
     expect(code.match(/deps\.noteUserInput\(/g)).toHaveLength(1);
     expect(code).not.toMatch(/'Enter'|'send-keys'|'-l'|'-S'/);
-    expect(code).not.toMatch(/\.replace\(|\.trim|\.normalize\(|\.slice\(/);
+    expect(code).not.toMatch(/\.trim|\.normalize\(|\.slice\(/);
+    // PHASE 325.1's fix round: ONE .replace( on the text, the copy main's record
+    // of what he typed is handed (conformance:pocket Y15 lets exactly it
+    // through); the text the act types is his bytes exactly. His second ruled
+    // round puts the paste's markers around that copy when the program asked.
+    expect(code.match(/\.replace\(/g)).toHaveLength(1);
+    expect(code).toContain("deps.noteOwnWords?.(id, `${opens}${input.text.replace(LINE_FEED, '\\r')}${closes}`)");
     expect(code.match(/bump\(/g)).toHaveLength(1);
     expect(code).not.toMatch(/'load-buffer'|'delete-buffer'/);
   });

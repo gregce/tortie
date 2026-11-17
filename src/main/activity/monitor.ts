@@ -47,6 +47,8 @@ import { claudeVerdict } from './oracles';
 // PHASE 312 mechanism 6. The one composer for the question field, so the hook's
 // answer and the screen's reading are never chosen between twice.
 import { composeQuestion } from './question';
+// PHASE 325.1. The record of what he typed: written here, read by the verdict.
+import { noteOwnWordsOn, noteReplayedOn } from './own-words';
 import { readPaneFacts, type PaneFacts } from './panes';
 import type { ScrollbackSample } from '../scrollback/watch';
 import {
@@ -553,6 +555,33 @@ export class SessionActivityMonitor {
     const st = this.states.get(sessionId);
     if (st === undefined) return;
     st.reflowUntil = this.now() + REFLOW_GRACE_MS;
+  }
+
+  /**
+   * PHASE 325.1 (build/p3251/SPEC.md D3251-1, D3251-7, D3251-8). Bytes HE sent
+   * this session, from his keyboard through the attach host's tap or from his
+   * phone's keys and paste, read into the record of what he has typed and not
+   * sent (./own-words.ts), so the verdict can tell a dialog his own words drew
+   * from the agent's question by what he typed.
+   *
+   * It commits nothing, captures nothing, reads no `ps`, and raises and
+   * releases nothing; it names no log call. A note for a session with no state
+   * yet is HELD (through `ensureState`): what he types before the first tick is
+   * on the screen that tick reads. The record goes when the state goes.
+   */
+  noteOwnWords(sessionId: string, data: string): void {
+    noteOwnWordsOn(this.ensureState(sessionId).ownWords, data);
+  }
+
+  /**
+   * PHASE 325.1 (D3251-10). A restore printed the session's old screen into
+   * its pane: the replayed text is read into the same record as a paste of
+   * his, so a question that old screen ended on is not read as the agent
+   * asking again. Held for a session with no state yet, because the restore
+   * notes it before the first tick; it commits, captures and logs nothing.
+   */
+  noteReplayedScreen(sessionId: string, text: string): void {
+    noteReplayedOn(this.ensureState(sessionId).ownWords, text);
   }
 
   /**

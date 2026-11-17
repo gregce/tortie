@@ -47,6 +47,15 @@
  *                                 lives `seconds`, pid recorded
  *   { op: 'input', on }           echo what is typed into the agent's own input
  *                                 row, above its footer, and redraw; never submit
+ *   { op: 'input', on, submit, bracketed }
+ *                                 PHASE 325.1 (build/p3251/SPEC.md §4.9). With
+ *                                 `submit`, a carriage return outside a bracketed
+ *                                 paste SUBMITS: the input row is emptied, as an
+ *                                 agent's is when he sends what he typed; without
+ *                                 it a carriage return stays a new line, as
+ *                                 above. `bracketed` writes `ESC [ ? 2004 h` once,
+ *                                 as every real agent's input row does, so the
+ *                                 terminal sends a paste inside its markers
  *   { op: 'clear-input' }         empty the input row and redraw
  *   { op: 'modes', everyMs }      PHASE 353 (328): write the 15 bytes agy 1.2.7
  *                                 writes at rest, `ESC [ ? 2004 h ESC [ > 4 ; 2 m`,
@@ -61,9 +70,28 @@
  *   { op: 'exit' }                leave
  * A `screen` is `{ fixture: '<name>.txt' }` or `{ window: '<source>-<agent>.jsonl', id }`.
  *
- * WHAT IT NEVER DOES. It never submits what is typed (Enter is a new line in
- * its input row), never writes anything but its screens and, on `modes`, two
- * terminal modes, reads nothing outside this checkout's committed screens and
+ * THE INPUT ROW IS A LINE EDITOR (PHASE 325.1), and only while `input` is on.
+ * Printable text goes in at the cursor; a line feed, and Alt-Enter (ESC then a
+ * carriage return or a line feed), break the line at the cursor; Backspace and
+ * DEL take back the character before the cursor and, at a line's start, join
+ * the line to the one above; Left and Right move one character, Home and End
+ * to the line's ends, Delete takes the character at the cursor, each in every
+ * spelling tmux and a terminal send (CSI and SS3, `1~` `7~` `4~` `8~`, `3~`);
+ * Ctrl-U empties the row as before; a bracketed paste is followed ACROSS
+ * CHUNKS, its markers dropped, a carriage return, a line feed or the two
+ * together inside it one new line and a tab a space; every other escape
+ * sequence, report and control byte changes nothing. The cursor lives in the
+ * last line, as main's record of his words keeps it (D3251-2), so the row it
+ * draws after a mid-line fix is the row an agent's editor draws. With nothing
+ * but printable text, line feeds and carriage returns, which is all
+ * `probe:p321` and `probe:p353:status` type, it draws exactly what it drew
+ * before. The editor is `freshEcho` and `editInput` below, pure and exported,
+ * so a probe proves it without starting anything.
+ *
+ * WHAT IT NEVER DOES. It never submits what is typed unless `submit` is on
+ * (Enter is otherwise a new line in its input row), never writes anything but
+ * its screens and, on `modes` and `bracketed`, terminal modes, reads nothing
+ * outside this checkout's committed screens and
  * its own directory, and runs no program but `/bin/sleep`, `/usr/bin/script`
  * around one, and `/bin/ps` to find that sleep by its parent's pid at the end.
  * Its helpers and tools are ENDED BY PID in its `finally`
@@ -81,6 +109,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -267,10 +296,214 @@ export function parentDetectDialog(capture) {
 }
 
 // ---------------------------------------------------------------------------
-// The stand-in itself, run only when this file is the entry point
+// PHASE 325.1 (build/p3251/SPEC.md §4.9): the input row as a line editor.
+// Pure, so the probe proves it without starting anything. It mirrors the
+// keys main's record of his words reads as edits (D3251-2), in the spellings
+// the stand-in is handed after tmux has read them: Home and End arrive as
+// `ESC [ 1 ~` and `ESC [ 4 ~` whatever the terminal sent
+// (build/fixtures/screen/keys-encoding.json, 3.7b normal mode), so every
+// spelling D3251-2 names is read here too.
 // ---------------------------------------------------------------------------
 
 const ESC = '\u001b';
+/** A sequence cut at a chunk's end is held for the next chunk, up to this many characters, then dropped. */
+const PENDING_MAX = 256;
+
+/** An empty input row: nothing typed, the cursor at its start, no paste open, nothing half read. */
+export function freshEcho(submit = false) {
+  return { typed: [], col: 0, inPaste: false, crInPaste: false, pending: '', submit: submit === true };
+}
+
+const isControlChar = (cp) => cp < 0x20 || cp === 0x7f || (cp >= 0x80 && cp <= 0x9f);
+const lastLineOf = (e) => [...(e.typed[e.typed.length - 1] ?? '')];
+function putLast(e, chars) {
+  e.typed[e.typed.length - 1] = chars.join('');
+}
+function insertChar(e, ch) {
+  if (e.typed.length === 0) e.typed = [''];
+  const line = lastLineOf(e);
+  line.splice(e.col, 0, ch);
+  putLast(e, line);
+  e.col += 1;
+}
+function breakLine(e) {
+  if (e.typed.length === 0) e.typed = [''];
+  const line = lastLineOf(e);
+  const after = line.splice(e.col);
+  putLast(e, line);
+  e.typed.push(after.join(''));
+  e.col = 0;
+}
+function eraseBack(e) {
+  if (e.typed.length === 0) return;
+  const line = lastLineOf(e);
+  if (e.col > 0) {
+    line.splice(e.col - 1, 1);
+    putLast(e, line);
+    e.col -= 1;
+    return;
+  }
+  if (e.typed.length > 1) {
+    e.typed.pop();
+    const above = lastLineOf(e);
+    e.col = above.length;
+    putLast(e, [...above, ...line]);
+  }
+}
+/** A cursor key, by the shape D3251-2 reads it in: one character, a line's ends, or the character at the cursor. */
+function cursorKeyOf(params, final, ss3) {
+  if (ss3 || params === '' || params === '1') {
+    if (final === 'D') return 'left';
+    if (final === 'C') return 'right';
+    if (final === 'H') return 'home';
+    if (final === 'F') return 'end';
+  }
+  if (!ss3 && final === '~') {
+    if (params === '1' || params === '7') return 'home';
+    if (params === '4' || params === '8') return 'end';
+    if (params === '3') return 'delete';
+  }
+  return null;
+}
+function moveCursor(e, how) {
+  if (e.typed.length === 0) return;
+  const line = lastLineOf(e);
+  if (how === 'left') e.col = Math.max(0, e.col - 1);
+  else if (how === 'right') e.col = Math.min(line.length, e.col + 1);
+  else if (how === 'home') e.col = 0;
+  else if (how === 'end') e.col = line.length;
+  else if (e.col < line.length) {
+    line.splice(e.col, 1);
+    putLast(e, line);
+  }
+}
+const holdPending = (rest) => (rest.length <= PENDING_MAX ? rest.join('') : '');
+
+/**
+ * What one chunk of keys does to the input row. `e` is `freshEcho()`'s shape,
+ * changed in place. A chunk always leaves at least one line, as the echo
+ * before this phase did, so the row is drawn with the agent's own prefix.
+ */
+export function editInput(e, text) {
+  const cps = [...`${e.pending}${String(text)}`];
+  e.pending = '';
+  if (e.typed.length === 0) e.typed = [''];
+  let i = 0;
+  while (i < cps.length) {
+    const ch = cps[i];
+    if (ch === ESC) {
+      const next = cps[i + 1];
+      if (next === undefined) {
+        e.pending = holdPending(cps.slice(i));
+        break;
+      }
+      if (next === '[') {
+        // CSI: parameters and intermediates (0x20 to 0x3f), then one final (0x40 to 0x7e).
+        let j = i + 2;
+        let params = '';
+        while (j < cps.length && cps[j] >= ' ' && cps[j] <= '?') {
+          params += cps[j];
+          j += 1;
+        }
+        if (j >= cps.length) {
+          e.pending = holdPending(cps.slice(i));
+          break;
+        }
+        const final = cps[j];
+        if (!(final >= '@' && final <= '~')) {
+          i = j;
+          continue;
+        }
+        if (final === 'M' && params === '') {
+          // An X10 mouse report: three raw bytes follow, and none is text.
+          if (j + 3 >= cps.length) {
+            e.pending = holdPending(cps.slice(i));
+            break;
+          }
+          i = j + 4;
+          continue;
+        }
+        if (final === '~' && params === '200') {
+          e.inPaste = true;
+          e.crInPaste = false;
+        } else if (final === '~' && params === '201') {
+          e.inPaste = false;
+        } else if (!e.inPaste) {
+          const how = cursorKeyOf(params, final, false);
+          if (how !== null) moveCursor(e, how);
+        }
+        i = j + 1;
+        continue;
+      }
+      if (next === 'O') {
+        const final = cps[i + 2];
+        if (final === undefined) {
+          e.pending = holdPending(cps.slice(i));
+          break;
+        }
+        if (!e.inPaste) {
+          const how = cursorKeyOf('', final, true);
+          if (how !== null) moveCursor(e, how);
+        }
+        i += 3;
+        continue;
+      }
+      if (next === ']' || next === 'P' || next === 'X' || next === '^' || next === '_') {
+        // OSC, DCS, SOS, PM, APC: to BEL or ST, and none of it is text.
+        let end = -1;
+        for (let j = i + 2; j < cps.length; j += 1) {
+          if (cps[j] === '\u0007') {
+            end = j + 1;
+            break;
+          }
+          if (cps[j] === ESC && cps[j + 1] === '\\') {
+            end = j + 2;
+            break;
+          }
+        }
+        if (end === -1) {
+          e.pending = holdPending(cps.slice(i));
+          break;
+        }
+        i = end;
+        continue;
+      }
+      // Alt-Enter breaks the line, in a paste or out of one; Alt and any other key is nothing.
+      if (next === '\r' || next === '\n') breakLine(e);
+      i += 2;
+      continue;
+    }
+    const cp = ch.codePointAt(0) ?? 0;
+    if (e.inPaste) {
+      if (ch === '\r' || ch === '\n') {
+        if (!(ch === '\n' && e.crInPaste)) breakLine(e);
+        e.crInPaste = ch === '\r';
+      } else {
+        e.crInPaste = false;
+        if (ch === '\t') insertChar(e, ' ');
+        else if (!isControlChar(cp)) insertChar(e, ch);
+      }
+      i += 1;
+      continue;
+    }
+    if (ch === '\r') {
+      if (e.submit) {
+        e.typed = [];
+        e.col = 0;
+      } else breakLine(e);
+    } else if (ch === '\n') breakLine(e);
+    else if (ch === '\u007f' || ch === '\b') eraseBack(e);
+    else if (ch === '\u0015') {
+      e.typed = [''];
+      e.col = 0;
+    } else if (!isControlChar(cp)) insertChar(e, ch);
+    i += 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The stand-in itself, run only when this file is the entry point
+// ---------------------------------------------------------------------------
 
 /** Cells a code point takes: the wide emoji and CJK ranges, as a terminal counts them. */
 function cellWidth(cp) {
@@ -320,7 +553,10 @@ async function standIn() {
   const timers = new Set();
   let screen = [];
   let screenName = 'nothing';
-  let typed = [];
+  // PHASE 325.1: the input row and its line editor (`freshEcho`, `editInput`),
+  // and the decoder that keeps a character split across two reads whole.
+  let input = freshEcho();
+  let decoder = new StringDecoder('utf8');
   let echo = false;
   let seq = 0;
   let narrow = false;
@@ -357,7 +593,12 @@ async function standIn() {
           widest,
           screen: screenName,
           echo,
-          typedLines: typed.length,
+          typedLines: input.typed.length,
+          // PHASE 325.1, counts only and never a character of what was typed.
+          typedChars: input.typed.reduce((n, line) => n + [...line].length, 0),
+          submit: input.submit,
+          pasting: input.inPaste,
+          cursor: input.col,
           helpers: kids.filter((k) => k.kind === 'helper').map((k) => ({ pid: k.child.pid, live: live(k) })),
           tools: kids.filter((k) => k.kind === 'tool').map((k) => ({ pid: k.child.pid, live: live(k) })),
           terminals: kids.filter((k) => k.kind === 'terminal').map((k) => ({ pid: k.child.pid, live: live(k) })),
@@ -371,7 +612,7 @@ async function standIn() {
 
   /** The current screen, with anything typed in its input row, in ONE write. */
   function paint() {
-    const rows = echo ? composeInput(agent, screen, typed) : screen;
+    const rows = echo ? composeInput(agent, screen, input.typed) : screen;
     const cols = process.stdout.columns ?? 80;
     widest = rows.reduce((n, r) => Math.max(n, widthOf(r)), 0);
     narrow = widest > cols || rows.length > (process.stdout.rows ?? 24);
@@ -484,14 +725,23 @@ async function standIn() {
       later(Math.max(0, Number(op.afterMs) || 0), () => startDetached('tool', Number(op.seconds) || 5));
     } else if (op?.op === 'input') {
       echo = op.on === true;
-      if (!echo) typed = [];
+      if (!echo) input = freshEcho();
+      else {
+        // PHASE 325.1. What was typed stays, as before; the cursor goes to its
+        // end, no paste is open and nothing is half read. `submit` and
+        // `bracketed` are read only here, so an op without them is the echo
+        // `probe:p321` and `probe:p353:status` have always driven.
+        input = { ...freshEcho(op.submit === true), typed: input.typed, col: [...(input.typed[input.typed.length - 1] ?? '')].length };
+        if (op.bracketed === true) process.stdout.write(`${ESC}[?2004h`);
+      }
+      decoder = new StringDecoder('utf8');
       paint();
     } else if (op?.op === 'modes') {
       setModes(Number(op.everyMs) || 0);
     } else if (op?.op === 'terminal-tool') {
       later(Math.max(0, Number(op.afterMs) || 0), () => startTerminalTool(Number(op.seconds) || 5));
     } else if (op?.op === 'clear-input') {
-      typed = [];
+      input = freshEcho(input.submit);
       paint();
     } else if (op?.op === 'exit') {
       done();
@@ -499,21 +749,14 @@ async function standIn() {
   }
 
   /**
-   * What is typed. Printable text goes into the input row, Enter and a line
-   * feed start a new line in it (never a submit), Backspace takes one back,
-   * Ctrl-U empties it, and every escape sequence (the bracketed paste marks
-   * among them) is dropped.
+   * What is typed, read by the line editor (`editInput`, PHASE 325.1): text
+   * at the cursor, a line feed a new line, Enter a new line or, with `submit`,
+   * a submit, Backspace and the cursor keys as edits, Ctrl-U empties the row,
+   * and a bracketed paste followed across chunks with its markers dropped.
    */
   function onKeys(chunk) {
     if (!echo) return;
-    const text = chunk.toString('utf8').replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '').replace(/\u001b./g, '');
-    if (typed.length === 0) typed = [''];
-    for (const ch of text) {
-      if (ch === '\r' || ch === '\n') typed.push('');
-      else if (ch === '\u007f' || ch === '\b') typed[typed.length - 1] = typed[typed.length - 1].slice(0, -1);
-      else if (ch === '\u0015') typed = [''];
-      else if (ch >= ' ') typed[typed.length - 1] += ch;
-    }
+    editInput(input, typeof chunk === 'string' ? chunk : decoder.write(chunk));
     paint();
     writeState();
   }

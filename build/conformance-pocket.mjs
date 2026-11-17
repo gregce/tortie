@@ -307,6 +307,26 @@
  * exitWhenWritten, which exits once stdout and stderr have handed on every
  * byte.
  *
+ * PHASE 325.1 KNOWS HIS OWN WORDS BY WHAT HE TYPED (build/p3251/SPEC.md
+ * D3251-8, D3251-15). What the phone types and pastes is his, so the keys and
+ * paste verbs hand it to main's record of what he typed (`noteOwnWords`),
+ * which never leaves main and is never logged (`conformance:ownwords` O4). Z7
+ * is widened on purpose, by one road a verb and no more: a paste's text
+ * reaches `noteOwnWords(` ONCE, after the act; a text item's `.t` is pushed
+ * only inside `ownBytesOf`, ONCE, and `ownBytesOf(` is handed to
+ * `noteOwnWords(` and nothing else. A `.t` pushed anywhere else is refused,
+ * which also closes an argv built by `push(`, a road the rule could not see
+ * before. No rule is added. ITS FIX ROUND hands the record the paste with
+ * every line break a carriage return (a program that asked for no brackets
+ * SENDS each line), so Y15 lets exactly that one `.replace(` through, the
+ * second argument of `noteOwnWords(` in paste.ts, which is never typed. HIS
+ * SECOND RULED ROUND (2026-11-16) records a paste from the phone in full when
+ * the program asked for bracketed paste: the act's one list reads tmux's
+ * `#{bracket_paste_flag}` just before its `paste-buffer -p` (PS4's argv gains
+ * that `display-message -p`, which types nothing), and the record's copy is
+ * put between the paste's two markers in a template, which Y15 lets through
+ * inside that one argument and nowhere else.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -450,7 +470,7 @@ const RULES = [
   ['Y12', 'build/p318/SPEC.md §3 row 20; build/p337/SPEC.md §6.1', 'G1 OVER THE REPLY AND THE SCREEN: no log argument in src/main/reply, src/main/screen or remote-screen.ts names a message, a screen, a mark, a marker or any of G1’s words'],
   ['Y13', 'build/p318/SPEC.md D6, D7, §5.3, §Revision R2, R16; build/p337/SPEC.md D21; build/p348/SPEC.md §4.7', 'WHO MOVES THE QUESTION ID: replyTurns.hook( twice in core.ts (onEvent, onSessionEnd), replyTurns.bump( in core.ts with desk, choice-${kind} and status (the last guarded by !== needs_input), writer.ts’s phone bump twice, src/main/screen/keys.ts’s phone bump once, src/main/screen/paste.ts’s phone bump once (Phase 348), and nowhere else; the prefix randomBytes(8) once; the id composed as a string'],
   ['Y14', 'build/p318/SPEC.md D13, D18, §5.4.2, §5.2', 'THE READER READS ONE WAY: reader.ts calls detectDialogRows( and choiceMarkOf( and none of detectDialog(, detectShapes(, noteForeground(, foregroundToRead(, agentHoldsTerminal(; routes.ts composes reply field by field, in one place, with a fresh pressable array'],
-  ['Y15', 'build/p318/SPEC.md D15, §5.5; build/p348/SPEC.md §4.6 step 8', 'NOTHING STRIPS A MESSAGE OR A PASTE: text-rules.ts, writer.ts and (Phase 348) src/main/screen/paste.ts call no .replace(, .trim, .normalize( or .slice( on the text; REPLY_TEXT_MAX_BYTES and POCKET_PASTE_MAX_TEXT_BYTES are each declared once'],
+  ['Y15', 'build/p318/SPEC.md D15, §5.5; build/p348/SPEC.md §4.6 step 8', 'NOTHING STRIPS A MESSAGE OR A PASTE: text-rules.ts, writer.ts and (Phase 348) src/main/screen/paste.ts call no .replace(, .trim, .normalize( or .slice( on the text, but (Phase 325.1’s fix round) the one .replace( that is the second argument of noteOwnWords( in paste.ts (since its second ruled round, inside the template that brackets it), main’s record of what he typed, which is never typed; REPLY_TEXT_MAX_BYTES and POCKET_PASTE_MAX_TEXT_BYTES are each declared once'],
   ['Y16', 'build/p318/SPEC.md §5.2', 'THE OPTIONAL FIELDS: PocketFacts.replyOffer and PocketSessionDetail.reply are optional; POCKET_NO_REPLY is frozen, its pressable a frozen empty array'],
   ['Y17', 'build/p318/SPEC.md D23, §Revision R14', 'PANE REPORTS MOVE NOTHING: attach-host.ts calls onInput?.( once, after client.pty.write(, under req.machine === undefined and !isPaneReport( of the same chunk; isPaneReport, isFocusReport, isColorReport and isDeviceReport are declared once each, in src/shared/pane-report.ts'],
   ['Y18', 'build/p318/SPEC.md D14, §Revision R15; his ruling of 2026-10-02', 'ONLY WHEN IDLE AT ITS PROMPT: no working or busy literal in gate.ts, reader.ts or writer.ts, and the reply compares the native reading’s .state with idle'],
@@ -479,7 +499,7 @@ const RULES = [
   ['Z4', 'build/p337/SPEC.md §5.4, D19, D21; build/p348/SPEC.md D50', 'THE KEYS VERB’S ORDER: the text rule, the gate, ONE awaited readFresh(, then the final check’s still(, bump(, onLastCheck?.( and the act, with nothing awaited from still( to the act, and the act’s lines written in ONE statement over the control client; and (Phase 348) the paste verb in src/main/screen/paste.ts holds the same order, its one act a spawned list, PS4 its whole'],
   ['Z5', 'build/p337/SPEC.md D16, D21, D22', 'THE ONE REFUSAL: asking is the status needs_input OR detectDialogRows( .atChoice in one function the verb asks; while asking, or when the body’s dialog is not null, the verb compares the turn with turns.current( and the dialog with the fresh one and refuses changed with SCREEN_QUESTION_MOVED; hashScreen(readBackWindowOf( is spelled once, in windowMarkOf, which the verb calls'],
   ['Z6', 'build/p337/SPEC.md D18, D19, D20', 'THE ACT’S ARGV: locally only copy-mode -q -t <pane>, send-keys -t <pane> -H <hex> and send-keys -t <pane> <name>; never -l; never send-keys without -t; hex as two lowercase digits; on another machine only typePhoneKeys(, handed in by capabilities.ts as typeRemote'],
-  ['Z7', 'build/p337/SPEC.md D18, D41; build/p348/SPEC.md D50, D52', 'NO TEXT IN AN ARGV, NO .message, NO LOG: a text item reaches tmux only as its bytes, and (Phase 348) a paste’s text reaches pasteRefusal( and loadWords( alone and no argv paste.ts composes; nothing in src/main/screen or remote-screen.ts reads an error’s .message or logs'],
+  ['Z7', 'build/p337/SPEC.md D18, D41; build/p348/SPEC.md D50, D52; build/p3251/SPEC.md D3251-8, D3251-15', 'NO TEXT IN AN ARGV, NO .message, NO LOG: a text item reaches tmux only as its bytes, and (Phase 348) a paste’s text reaches pasteRefusal( and loadWords( alone and no argv paste.ts composes; and (Phase 325.1) main’s record of what he typed by ONE more road each: a paste’s text reaches noteOwnWords( ONCE, after the act, and a text item’s .t is push(ed only inside ownBytesOf, ONCE, whose answer reaches noteOwnWords( and nothing else; nothing in src/main/screen or remote-screen.ts reads an error’s .message or logs'],
   ['Z8', 'build/p337/SPEC.md D23; CLAUDE.md refusal 5; build/p348/SPEC.md §4.7; build/p350/SPEC.md D9, §7.2', 'ONE STATUS CALL A VERB: noteUserInput( exactly once in keys.ts and (Phase 348) exactly once in paste.ts, each after its act and after its final check, the paste’s only when its list succeeded; no other file in src/main/screen names it, no other status setter is named there, and needs_input is never written; and (Phase 350) THE GRACE BESIDE IT: noteRepaint( exactly once in src/main/screen, in keys.ts, after its one noteUserInput( and in a try of its own, inside if (result.any && isOnePage(, isOnePage declared once and DRIVEN true for a lone PPage or NPage and for nothing else'],
   ['Z9', 'build/p337/SPEC.md D5, D6, D7, §5.3.3; build/p348/SPEC.md D44, §7.1', 'THE READS: read.ts sends only display-message -p -t <x> SCREEN_FORMAT and capture-pane -p -e [-F] -t <x>, and (Phase 348) on the fallback capture-pane -p -T -N -t <x> and capture-pane -p -J -t <x>; scrollback.ts the same with the page’s -S and -E; remote-screen.ts makes ONE execOn( a read of display ; the styled capture ; [the fallback’s two ;] display, its -F or fallback chosen by marksRoadOf( alone; marksRoadOf declared once, in compose.ts; SCREEN_FORMAT declared once and equal to the spec’s; nothing this phase adds names refresh-client, resize-window, resize-pane, attach-session, new-session, switch-client, -x or -y'],
   ['Z10', 'build/p337/SPEC.md D3, §Attack A7', 'THE HOLD: SCREEN_HOLD_MS + SCREEN_TICK_MS <= ANSWER_TIMEOUT_MS - 2,000, 2 * SCREEN_TICK_MS < DOOR_STOP_JOIN_MS and the local read deadline <= the remote one, as arithmetic over the declared constants; every read raced against its deadline; a poll answered from its own timer, whose callback asks closing( and awaits nothing'],
@@ -578,7 +598,7 @@ const RULES = [
   ['PS1', 'build/p348/SPEC.md D21, D26, D29, D32; build/p349/SPEC.md §4.1', 'THE PASTE ROUTE, ITS CAP AND ITS WORDS: exactly one paste row, POST /v1/paste, signed, reads: false, not window-only, right after remove in POCKET_ROUTE_IDS and in POCKET_WRITE_ROUTE_IDS (last until Phase 349 appended rename after it), NOT in LEGACY_ALLOWED_ROUTES nor POCKET_SESSION_WRITE_IDS; WRITE_ROUTES and DoorWriteRoute name it; its cap 131,072, at or above the worst legal body THIS GATE composes (16,384 C0 bytes each escaped \\u00XX with the other four keys at their longest, 98,566 bytes); POCKET_PASTE_MAX_TEXT_BYTES is 16,384, declared once, in the contract; WRITE_CLAUSES.paste, the ledger row’s clause and POCKET_HONESTY_ADDED.paste are paste text into a session on this Mac, POCKET_FACE_CLAUSES.paste paste into a session and POCKET_NEW_ROUTE_WORDS.paste D32’s title and sentence, none naming Face ID'],
   ['PS2', 'build/p348/SPEC.md D28, §4.6 step 8', 'THE PASTE BODY: parsePasteBody compares the sorted keys with exactly dialog,session,text,turn,write (PASTE_KEYS), reads turn by isQuestionId, dialog as null or isMark, the session and the write id by their own readers, and the text as it is; and DRIVEN over a hostile corpus (an extra key, a missing dialog, a turn that is not a question id, a number, null, an array or an object for the text, bad ids) every one malformed, beside the honest body whose text comes back byte for byte'],
   ['PS3', 'build/p348/SPEC.md D27, §4.6 step 8', 'THE PASTE ANSWER: PocketPasteAnswer is exactly verb, write, outcome, reason and sentence, its verb the literal paste; PocketPasteReason exactly the nine words malformed, gone, changed, unreachable, machine, empty, long, character and stopped; pasteAnswer is exported from writes.ts and composes the five one by one'],
-  ['PS4', 'build/p348/SPEC.md D50, D22', 'THE PASTE VERB’S ORDER: createScreenPaste’s paste asks pasteRefusal( first, the machine refusal before loadWords(, loadWords( before the ONE awaited readFresh(, then still(, bump(, onLastCheck?.( and ONE run( whose argv is exactly copy-mode -q -t <pane> ; paste-buffer -p -d -b <name> -t <pane>, the buffer loadWords( answered and no send-keys, no Enter and no -S; nothing awaited from still( to the act'],
+  ['PS4', 'build/p348/SPEC.md D50, D22; build/p3251/SPEC.md §As built, his second ruled round', 'THE PASTE VERB’S ORDER: createScreenPaste’s paste asks pasteRefusal( first, the machine refusal before loadWords(, loadWords( before the ONE awaited readFresh(, then still(, bump(, onLastCheck?.( and ONE run( whose argv is exactly copy-mode -q -t <pane> ; display-message -p -t <pane> #{bracket_paste_flag} ; paste-buffer -p -d -b <name> -t <pane> (Phase 325.1’s second ruled round reads the flag, for main’s record alone, in the same list just before the paste), the buffer loadWords( answered and no send-keys, no Enter and no -S; nothing awaited from still( to the act'],
   ['PS5', 'build/p348/SPEC.md D50, D52', 'THE BUFFER’S FINALLY: paste.ts calls dropWords( only inside a finally, under a guard naming the flag the act sets when its list succeeded (!pasted), so a refused or failed paste leaves no words in the private server and a pasted one is not deleted twice'],
   ['PS6', 'build/p348/SPEC.md D30, §4.6 step 9', 'THE PASTE FLAG: paste is composed only in compose.ts’s composeScreen, from the screen being typable and the session on this Mac; routes.ts copies it only in screenBodyOf and only when its caller says the route is served, which the screen route reads from facts.pasteAllowed?.() === true; PocketFacts.pasteAllowed is optional and pasteAllowed is ONE PocketHost method answering this.routeServed(\'paste\') alone'],
   ['PS7', 'build/p348/SPEC.md D50; CLAUDE.md refusal 5', 'THE PASTE MODULE’S SILENCE: src/main/screen/paste.ts reads no .message, makes no log call, names no status setter but noteUserInput(, names no execOn( or typePhoneKeys( and no send-keys, and createScreenPaste( is built ONCE, in capabilities.ts'],
@@ -8769,7 +8789,20 @@ function replyRules() {
         if (!/^(?:replace|replaceAll|trim|trimStart|trimEnd|normalize|slice|substring|substr|toWellFormed)$/.test(m)) continue;
         const recv = c.expression.expression.getText();
         checked('Y15');
-        if (/(?:^|\.)text$|\btext\b/.test(recv)) fail('Y15', `${where(file, c)} calls .${m}( on ${J(recv)}. A message is exactly his bytes: nothing is stripped, trimmed or normalized, ever; what Tortie does not send is refused, with its sentence (§5.5)`);
+        // PHASE 325.1's fix round (build/p3251/SPEC.md §As built): main's record
+        // of what he typed is handed the paste with every line break a carriage
+        // return, as tmux types it. The record is never typed, so what the act
+        // types is still exactly his bytes. Exactly that one copy is let through:
+        // a .replace( on the paste's text that IS the second argument of a
+        // noteOwnWords( call in paste.ts, or (his second ruled round) sits in
+        // that argument only inside the template that puts the paste's two
+        // markers around it, as the pane received it.
+        let recordArg = c;
+        while (recordArg.parent !== undefined && (ts.isTemplateSpan(recordArg.parent) || ts.isTemplateExpression(recordArg.parent) || ts.isParenthesizedExpression(recordArg.parent))) recordArg = recordArg.parent;
+        const recordCall = recordArg.parent;
+        const forRecord =
+          name === 'paste' && m === 'replace' && recordCall !== undefined && ts.isCallExpression(recordCall) && calleeName(recordCall) === 'noteOwnWords' && recordCall.arguments[1] === recordArg;
+        if (/(?:^|\.)text$|\btext\b/.test(recv) && !forRecord) fail('Y15', `${where(file, c)} calls .${m}( on ${J(recv)}. A message is exactly his bytes: nothing is stripped, trimmed or normalized, ever; what Tortie does not send is refused, with its sentence (§5.5)`);
       }
     }
     const decls = [];
@@ -10318,15 +10351,38 @@ function screenRules() {
     }
     if (keysFile !== null) {
       // A text item's .t reaches the argv only as bytes, through Buffer.from.
+      // PHASE 325.1 (build/p3251/SPEC.md D3251-8, D3251-15): and main's record
+      // of what he typed by ONE more road. Inside ownBytesOf a .t is pushed
+      // onto the list that function joins, ONCE, and ownBytesOf( is handed to
+      // noteOwnWords( and nothing else. A .t pushed anywhere else is a list
+      // this rule cannot follow, an argv among them, and is refused.
+      const ownBytes = oneFunction(keysFile, 'ownBytesOf');
+      const pushedInOwn = [];
       for (const n of nodesOf(keysFile)) {
         if (!ts.isPropertyAccessExpression(n) || n.name.text !== 't') continue;
         checked('Z7');
+        if (ts.isCallExpression(n.parent) && calleeName(n.parent) === 'push' && n.parent.arguments.some((a) => a === n)) {
+          if (ownBytes !== null && inside(n, ownBytes)) pushedInOwn.push(n);
+          else fail('Z7', `${where(keysFile, n)}: a text item's characters are pushed onto a list outside ownBytesOf (${J(n.parent.getText().slice(0, 60))}); text reaches tmux only as its hex bytes, and main's record of what he typed only through ownBytesOf (build/p337/SPEC.md D18; build/p3251/SPEC.md D3251-15)`);
+          continue;
+        }
         for (let p = n.parent; p !== undefined && !ts.isStatement(p); p = p.parent) {
           if (ts.isCallExpression(p) && /^(?:from|byteLength|textRefusal)$/.test(calleeName(p) ?? '')) break;
           if (ts.isTemplateExpression(p) || ts.isArrayLiteralExpression(p) || (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.PlusToken)) {
             fail('Z7', `${where(keysFile, n)}: a text item's characters reach ${ts.isTemplateExpression(p) ? 'a command line' : ts.isArrayLiteralExpression(p) ? 'an argv' : 'a joined string'} directly; text reaches tmux only as its hex bytes (build/p337/SPEC.md D18)`);
             break;
           }
+        }
+      }
+      checked('Z7', 2);
+      if (pushedInOwn.length > 1) fail('Z7', `${rel(keysFile)}: ownBytesOf pushes a text item's characters ${String(pushedInOwn.length)} times; once, onto the list it joins for main's record (build/p3251/SPEC.md D3251-15)`);
+      const ownCalls = callsOf(keysFile).filter((c) => ts.isIdentifier(c.expression) && c.expression.text === 'ownBytesOf');
+      if (ownCalls.length > 1) fail('Z7', `${rel(keysFile)} calls ownBytesOf( ${String(ownCalls.length)} times; once, handed to noteOwnWords( (build/p3251/SPEC.md D3251-15)`);
+      for (const c of ownCalls) {
+        checked('Z7');
+        const sink = c.parent;
+        if (!(ts.isCallExpression(sink) && calleeName(sink) === 'noteOwnWords' && sink.arguments.some((a) => a === c))) {
+          fail('Z7', `${where(keysFile, c)}: what a write typed, ownBytesOf(, reaches ${J(sink.getText().slice(0, 60))}; it goes to main's record of what he typed, noteOwnWords(, and nowhere else (build/p3251/SPEC.md D3251-15)`);
         }
       }
     }
@@ -17703,9 +17759,15 @@ function psOrderRule() {
   for (const w of own.filter((n) => ts.isAwaitExpression(n) && n.getStart() > firstStill.getStart() && n.getStart() < act.getStart())) {
     fail(id, `${where(file, w)}: the paste awaits ${J(w.getText().slice(0, 50))} between its final check and its act; nothing is awaited there, because that window is the one a moved question or a Removed phone would type through (D50 step 5)`);
   }
-  // The act's argv, element for element: copy mode left, then the one paste, no Enter.
+  // The act's argv, element for element: copy mode left, the pane's
+  // bracketed-paste flag read for main's record (Phase 325.1's second ruled
+  // round: it types nothing, and paste-buffer -p still decides the bracket),
+  // then the one paste, no Enter.
   const argv = flatArgvOf(file, act.arguments[0]);
-  const want = ["'copy-mode'", "'-q'", "'-t'", 'PANE', "';'", "'paste-buffer'", "'-p'", "'-d'", "'-b'", 'NAME', "'-t'", 'PANE'];
+  const want = ["'copy-mode'", "'-q'", "'-t'", 'PANE', "';'", "'display-message'", "'-p'", "'-t'", 'PANE', "'#{bracket_paste_flag}'", "';'", "'paste-buffer'", "'-p'", "'-d'", "'-b'", 'NAME', "'-t'", 'PANE'];
+  const PANES = [3, 8, 17];
+  const FLAG_AT = 9;
+  const NAME_AT = 15;
   const nameVar = (() => {
     const load = loads[0];
     for (let p = load?.parent; p !== undefined && p !== fn; p = p.parent) {
@@ -17715,8 +17777,39 @@ function psOrderRule() {
     return null;
   })();
   checked(id, 2);
-  const shape = argv === null ? null : argv.map((e, i) => (i === 3 || i === 11 ? (argv[3] === argv[11] && !/^'/.test(e) ? 'PANE' : e) : i === 9 ? (nameVar !== null && e === nameVar ? 'NAME' : e) : e));
-  if (J(shape) !== J(want)) fail(id, `${where(file, act)}: the act's argv is ${J(argv)}; it is exactly copy-mode -q -t <pane> ; paste-buffer -p -d -b <the name loadWords( answered> -t <the same pane>: no send-keys, no Enter, no -S, one pane (D50 step 6, D58)`);
+  // A name is read as its literal (BRACKET_PASTE_FLAG) only when it is bound
+  // ONCE in the file, as a module-level const holding one string literal. A
+  // second binding of the name anywhere (a local const, a parameter, a
+  // destructured name, an import) may be the one the list reads, and the
+  // first declaration in the file is not the one in scope: the second ruled
+  // round's gate review planted a local const of the same name naming
+  // #{pane_id} inside the verb, and this rule read the module's literal and
+  // passed. Any other spelling is compared as written.
+  const BINDS = [ts.isVariableDeclaration, ts.isParameter, ts.isBindingElement, ts.isFunctionDeclaration, ts.isFunctionExpression, ts.isClassDeclaration, ts.isClassExpression, ts.isImportSpecifier, ts.isImportClause, ts.isNamespaceImport, ts.isImportEqualsDeclaration, ts.isEnumDeclaration];
+  const literalOf = (e) => {
+    if (!/^[A-Za-z_$][\w$]*$/.test(e)) return e;
+    const bound = nodesOf(file).filter((n) => ts.isIdentifier(n) && n.text === e && n.parent !== undefined && n.parent.name === n && BINDS.some((is) => is(n.parent)));
+    if (bound.length !== 1) return e;
+    const d = bound[0].parent;
+    const list = d.parent;
+    const moduleConst =
+      ts.isVariableDeclaration(d) && list !== undefined && ts.isVariableDeclarationList(list) && (list.flags & ts.NodeFlags.Const) !== 0 && list.parent !== undefined && ts.isVariableStatement(list.parent) && ts.isSourceFile(list.parent.parent);
+    const v = moduleConst && d.initializer !== undefined ? bare(d.initializer) : undefined;
+    return v !== undefined && ts.isStringLiteralLike(v) ? `'${v.text}'` : e;
+  };
+  const shape =
+    argv === null
+      ? null
+      : argv.map((e, i) =>
+          PANES.includes(i)
+            ? PANES.every((p) => argv[p] === argv[PANES[0]]) && !/^'/.test(e) ? 'PANE' : e
+            : i === NAME_AT
+              ? nameVar !== null && e === nameVar ? 'NAME' : e
+              : i === FLAG_AT
+                ? literalOf(e)
+                : e
+        );
+  if (J(shape) !== J(want)) fail(id, `${where(file, act)}: the act's argv is ${J(argv)}; it is exactly copy-mode -q -t <pane> ; display-message -p -t <the same pane> #{bracket_paste_flag} ; paste-buffer -p -d -b <the name loadWords( answered> -t <the same pane>: the flag read for main's record just before the paste, no send-keys, no Enter, no -S, one pane (D50 step 6, D58; build/p3251/SPEC.md, his second ruled round)`);
   for (const s of codeStringsOf(file)) {
     checked(id);
     if (['send-keys', 'Enter', 'C-m', 'KPEnter', '-S', '-l', '-H'].includes(s.text)) fail(id, `${where(file, s.node)}: paste.ts spells ${J(s.text)}; a paste is one paste-buffer -p -d after copy mode is left, with no Return added and no -S (D19, D58)`);
@@ -18058,7 +18151,7 @@ function p348ScreenWidenings() {
   if (file !== null && fn !== null) {
     const param = fn.parameters[0] !== undefined && ts.isIdentifier(fn.parameters[0].name) ? fn.parameters[0].name.text : null;
     const textReads = nodesOf(file).filter((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'text' && param !== null && n.expression.getText() === param);
-    const sinks = { rule: 0, load: 0 };
+    const sinks = { rule: 0, load: 0, own: [] };
     checked('Z7', 2);
     if (textReads.length === 0) fail('Z7', `${rel(file)}: the paste never reads ${String(param)}.text, so where his words go cannot be read`);
     for (const n of textReads) {
@@ -18076,14 +18169,27 @@ function p348ScreenWidenings() {
           } else if (callee === 'loadWords' && p.arguments[2] !== undefined && inside(n, p.arguments[2])) {
             ok = true;
             sinks.load += 1;
+          } else if (callee === 'noteOwnWords' && p.arguments[1] !== undefined && inside(n, p.arguments[1])) {
+            // PHASE 325.1 (build/p3251/SPEC.md D3251-8, D3251-15): main's record
+            // of what he typed, which never leaves main and is never logged
+            // (conformance:ownwords O4), handed the paste as a desk paste
+            // arrives, ONCE and after the act (both read below).
+            ok = true;
+            sinks.own.push(p);
           }
           break;
         }
       }
       checked('Z7');
-      if (!ok) fail('Z7', `${where(file, n)}: a paste's text is read as ${J(n.parent.getText().slice(0, 60))}; it reaches pasteRefusal( and loadWords(, the one buffer helper whose one sink is load-buffer's stdin, and nothing else (build/p348/SPEC.md D50, D52)`);
+      if (!ok) fail('Z7', `${where(file, n)}: a paste's text is read as ${J(n.parent.getText().slice(0, 60))}; it reaches pasteRefusal( and loadWords(, the one buffer helper whose one sink is load-buffer's stdin, and main's record of what he typed, noteOwnWords(, and nothing else (build/p348/SPEC.md D50, D52; build/p3251/SPEC.md D3251-15)`);
     }
     if (sinks.load !== 1) fail('Z7', `${rel(file)}: the paste's text reaches loadWords( ${String(sinks.load)} time(s); once (build/p348/SPEC.md D52)`);
+    checked('Z7', 2);
+    if (sinks.own.length > 1) fail('Z7', `${rel(file)}: the paste's text reaches noteOwnWords( ${String(sinks.own.length)} times; once, after the act (build/p3251/SPEC.md D3251-15)`);
+    const pasteAct = psOwn(fn).find((c) => ts.isCallExpression(c) && ts.isIdentifier(c.expression) && c.expression.text === 'run');
+    for (const c of sinks.own) {
+      if (pasteAct === undefined || c.getStart() <= pasteAct.getStart()) fail('Z7', `${where(file, c)}: the paste's text reaches noteOwnWords( before the act; main's record is handed a paste only once it landed (build/p3251/SPEC.md D3251-15)`);
+    }
     for (const arr of nodesOf(file).filter((n) => ts.isArrayLiteralExpression(n))) {
       checked('Z7');
       if (arr.elements.some((e) => /\btext\b/.test(e.getText()))) fail('Z7', `${where(file, arr)}: an argv element is derived from a paste's text (${J(arr.getText().slice(0, 70))}); a text reaches tmux only as its bytes on stdin (build/p337/SPEC.md D18; build/p348/SPEC.md D50)`);
@@ -18256,7 +18362,12 @@ const P348_SELF_TESTS = [
   { rule: 'PS2', what: 'the paste’s text trimmed in its parse', file: NS_WRITES, from: "  const text = value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];", to: "  const text = typeof value['text'] === 'string' ? value['text'].trim() : value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];" },
   { rule: 'PS2', what: 'a text that is not a string let through the parse', file: NS_WRITES, from: "|| typeof text !== 'string' || !isQuestionId(turn)", to: '|| !isQuestionId(turn)' },
   { rule: 'PS3', what: 'the machine reason taken out of PocketPasteReason', file: AR_CONTRACT, from: "'unreachable' | 'machine' | 'empty'", to: "'unreachable' | 'empty'" },
-  { rule: 'PS4', what: 'a Return sent after the paste', file: PS_PASTE, from: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];", to: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane, ';', 'send-keys', '-t', pane, 'Enter'];" },
+  { rule: 'PS4', what: 'a Return sent after the paste', file: PS_PASTE, from: "const list = ['copy-mode', '-q', '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];", to: "const list = ['copy-mode', '-q', '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane, ';', 'send-keys', '-t', pane, 'Enter'];" },
+  // PHASE 325.1's second ruled round: the flag main's record reads, read in the same list just before the paste.
+  { rule: 'PS4', what: 'the bracketed-paste flag read after the paste instead of before it', file: PS_PASTE, from: "const list = ['copy-mode', '-q', '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];", to: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG];" },
+  { rule: 'PS4', what: 'the bracketed-paste flag read of another pane', file: PS_PASTE, from: "'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG,", to: "'display-message', '-p', '-t', '%0', BRACKET_PASTE_FLAG," },
+  // The second ruled round's gate review: a local const of the flag's name, naming another format, shadows it inside the verb.
+  { rule: 'PS4', what: 'a local const of the flag’s name shadowing it inside the verb, naming another format', file: PS_PASTE, from: '    let bracketed = false;\n', to: "    let bracketed = false;\n    const BRACKET_PASTE_FLAG = '#{pane_id}';\n" },
   { rule: 'PS4', what: 'an await between the final check and the act', file: PS_PASTE, from: "      deps.turns.bump(id, 'phone');\n      deps.onLastCheck?.(id);", to: "      await Promise.resolve();\n      deps.turns.bump(id, 'phone');\n      deps.onLastCheck?.(id);" },
   { rule: 'PS5', what: 'the buffer dropped even after the paste took it', file: PS_PASTE, from: 'if (!pasted && name !== null) await dropWords(run, name);', to: 'if (name !== null) await dropWords(run, name);' },
   { rule: 'PS6', what: 'the paste flag set on a typable screen on another machine', file: PS_COMPOSE, from: 'if (extra.typable && extra.local === true) screen.paste = true;', to: 'if (extra.typable) screen.paste = true;' },

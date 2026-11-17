@@ -47,7 +47,7 @@
  * so the sentence is something the user can act on.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { loginProviderForAgent } from '@shared/logins';
 import type { TerminalSize } from '@shared/terminal-size';
@@ -85,7 +85,8 @@ import {
 import {
   buildArmedCommand,
   buildSnapshotReplayCommand,
-  shellQuoteArg
+  shellQuoteArg,
+  stripAnsi
 } from './command';
 import { resolveSnapshot } from './snapshots';
 import { postDurabilityNotice } from '../notice';
@@ -170,6 +171,15 @@ export type RestoreOutcome =
       /** Why the resume was not armed. Undefined means there was none. */
       armFailure?: string;
       /**
+       * PHASE 325.1 (build/p3251/SPEC.md D3251-10). The last rows of the
+       * scrollback this restore replayed into the pane, as plain text
+       * ({@link replayTailOf}). The session core hands them to main's record of
+       * what was typed into the session, so a question the old screen showed
+       * is not read as the agent asking now. Absent when the body could not be
+       * read back. Never stored: `restoreRecordOf` maps each field by name.
+       */
+      replayedTail?: string;
+      /**
        * PHASE 119. True when this restore honoured `withoutCapture` and armed
        * the bare agent command instead of the recorded wrapped one.
        *
@@ -203,6 +213,12 @@ export type RestoreOutcome =
        * `SessionRestore` would be where that goes.
        */
       versionDrift?: string;
+      /**
+       * PHASE 325.1 (D3251-10). As on the `transcript` arm: the last rows of
+       * the scrollback replayed before the command was armed, absent when
+       * nothing was replayed or the body could not be read back.
+       */
+      replayedTail?: string;
       /**
        * PHASE 119. True when this restore honoured `withoutCapture` and armed
        * the bare agent command instead of the recorded wrapped one.
@@ -330,6 +346,36 @@ export async function typeIntoPane(
   if (pressEnter) {
     await tmux.execTmux(['send-keys', '-t', target, 'Enter']);
   }
+}
+
+/**
+ * How many of a replayed snapshot's last lines the restore hands on (Phase
+ * 325.1, build/p3251/SPEC.md D3251-10): the needs-input verdict reads a
+ * question only in the screen's last 24 rows (`DIALOG_ROWS` in
+ * ../activity/screen.ts, the same literal), so no older line can be one.
+ */
+export const REPLAY_TAIL_ROWS = 24;
+
+/**
+ * THE REPLAY'S LAST ROWS, AS PLAIN TEXT (Phase 325.1, D3251-10): the body the
+ * replay printed, read back, its escape sequences removed, its trailing blank
+ * lines dropped, and its last {@link REPLAY_TAIL_ROWS} lines kept. The session
+ * core hands them to main's record of what was typed into the session, so a
+ * question the old screen showed is not read as the agent asking now.
+ * Undefined when the body cannot be read, and the restore then reads as it
+ * always has. It reads nothing but that body and names no log call.
+ */
+export function replayTailOf(path: string): string | undefined {
+  let body: string;
+  try {
+    body = readFileSync(path, 'utf8');
+  } catch {
+    return undefined;
+  }
+  const lines = stripAnsi(body).split('\n');
+  let end = lines.length;
+  while (end > 0 && (lines[end - 1] ?? '').trim().length === 0) end -= 1;
+  return lines.slice(Math.max(0, end - REPLAY_TAIL_ROWS), end).join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -1192,6 +1238,7 @@ export async function restoreSessionInTmux(
   // Step 2 — replay the snapshot as inert history (executed).
   let replayed = false;
   let replayFailure: string | undefined;
+  let replayedTail: string | undefined;
   const resolved = resolveSnapshot(rec.id);
   const snapshot = resolved?.path ?? null;
   if (resolved !== null && resolved.rejected > 0) {
@@ -1209,6 +1256,9 @@ export async function restoreSessionInTmux(
     try {
       await typeIntoPane(target, buildSnapshotReplayCommand(snapshot), true);
       replayed = true;
+      // PHASE 325.1 (D3251-10): only once the replay was typed, what it
+      // printed, for main's record. A body that cannot be read back is none.
+      replayedTail = replayTailOf(snapshot);
     } catch (err) {
       // A failed replay must not lose the restore itself. It must not be
       // forgotten either, which is what used to happen one line below this
@@ -1298,6 +1348,7 @@ export async function restoreSessionInTmux(
       armedCommand,
       ...(replayFailure !== undefined ? { replayFailure } : {}),
       ...(versionDrift !== undefined ? { versionDrift } : {}),
+      ...(replayedTail !== undefined ? { replayedTail } : {}),
       ...captureDeclined
     };
   }
@@ -1306,6 +1357,7 @@ export async function restoreSessionInTmux(
       kind: 'transcript',
       info,
       ...(armFailure !== undefined ? { armFailure } : {}),
+      ...(replayedTail !== undefined ? { replayedTail } : {}),
       ...captureDeclined
     };
   }

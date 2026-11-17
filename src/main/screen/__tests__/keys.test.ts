@@ -21,13 +21,17 @@
  *  - another machine: `typeRemote` is the act, `unreachable` writes nothing;
  *  - THE GAP (D42): two writes handed 0 ms apart, the second's first line 50 ms
  *    or more after the first's, the wait before the fresh read;
- *  - `nudge` handed the fresh read's window mark.
+ *  - `nudge` handed the fresh read's window mark;
+ *  - Phase 325.1 (build/p3251/SPEC.md D3251-8): main's record of what he typed
+ *    handed what an act that typed on this Mac typed, once, after the funnel
+ *    and the grace; nothing after a refusal, a failed act or another machine;
+ *    and the named-key table against build/fixtures/screen/keys-encoding.json.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { POCKET_WRITE_SENTENCES, type PocketKeyItem } from '@shared/ipc/pocket';
+import { POCKET_SCREEN_KEY_NAMES, POCKET_WRITE_SENTENCES, type PocketKeyItem } from '@shared/ipc/pocket';
 import { LIFECYCLE_SESSION_CHANGED, SESSION_NOT_FOUND } from '@shared/lifecycle-words';
 import { REPLY_FAILED, REPLY_TEXT_EMPTY, REPLY_TEXT_LONG } from '@shared/reply-copy';
 import { SCREEN_KEY_CHARACTER, SCREEN_NOT_TYPABLE, SCREEN_QUESTION_MOVED } from '@shared/screen-copy';
@@ -35,7 +39,7 @@ import type { Session, SessionStatus } from '@shared/types';
 import type { PocketKeysInput, PocketReplyOutcome } from '../../pocket/routes';
 import { createQuestionIds, type QuestionIds } from '../../reply/question-id';
 import { composeScreen, windowMarkOf } from '../compose';
-import { SCREEN_KEYS_GAP_MS, createScreenKeys, type ScreenKeysDeps } from '../keys';
+import { NAMED_KEY_BYTES, SCREEN_KEYS_GAP_MS, createScreenKeys, ownBytesOf, type ScreenKeysDeps } from '../keys';
 import type { ScreenReading } from '../read';
 
 const REPO = join(__dirname, '../../../..');
@@ -696,5 +700,172 @@ describe('THE GAP (D42)', () => {
     r.set.row(rowOf('idle'));
     expect(await verb.keys(input([{ t: 'c' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
     expect(r.events.filter((e) => e.startsWith('sleep'))).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 325.1 (build/p3251/SPEC.md D3251-8): what the phone typed is his, so
+// main's record of what he typed is handed it, as the bytes tmux typed.
+// ---------------------------------------------------------------------------
+
+describe("main's record of what he typed (Phase 325.1)", () => {
+  const ch = (cp: number): string => String.fromCodePoint(cp);
+
+  /** The rig's verb, with the record's writer recorded beside the rig's own events. */
+  function recording(extra: Partial<ScreenKeysDeps> = {}): { verb: ReturnType<typeof createScreenKeys>; handed: Array<[string, string]> } {
+    const handed: Array<[string, string]> = [];
+    const verb = createScreenKeys({
+      ...r.deps,
+      noteOwnWords: (id, data) => {
+        r.events.push('words');
+        handed.push([id, data]);
+      },
+      ...extra
+    });
+    return { verb, handed };
+  }
+
+  it('the record is handed what was typed', async () => {
+    const { verb, handed } = recording();
+    const writes: PocketKeyItem[][] = [
+      [{ t: '1. to cancel' }],
+      [{ k: 'Enter' }],
+      [{ t: 'é😀' }, { k: 'BSpace' }, { t: 'ab' }],
+      [{ k: 'Up' }],
+      [{ k: 'C-c' }]
+    ];
+    for (const keys of writes) {
+      r.clock.at += 1_000;
+      expect(await verb.keys(input(keys, pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    }
+    expect(handed).toEqual([
+      [ID, '1. to cancel'],
+      [ID, ch(0x0d)],
+      [ID, `é😀${ch(0x7f)}ab`],
+      [ID, `${ch(0x1b)}[A`],
+      [ID, ch(0x03)]
+    ]);
+    // Once a write: after its act and its funnel, before the nudge.
+    const lastWrite = r.events.slice(r.events.lastIndexOf('last-check'));
+    expect(lastWrite).toEqual(['last-check', `line@${String(r.clock.at)}`, `line@${String(r.clock.at)}`, 'funnel', 'words', 'nudge']);
+    expect(r.events.filter((e) => e === 'words')).toHaveLength(writes.length);
+  });
+
+  it('a page typed on the alternate screen is handed after the funnel and the grace', async () => {
+    const alternate = (): ScreenReading => {
+      const read = readingOf(CODEX_PROMPT);
+      return { ...read, display: { ...read.display, alternate: true } };
+    };
+    const { verb, handed } = recording({
+      watch: {
+        ...r.deps.watch,
+        readFresh: async () => {
+          r.events.push('read');
+          await Promise.resolve();
+          return alternate();
+        }
+      },
+      noteRepaint: () => r.events.push('grace')
+    });
+    expect(await verb.keys(input([{ k: 'PPage' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    expect(handed).toEqual([[ID, `${ch(0x1b)}[5~`]]);
+    expect(r.events.slice(r.events.indexOf('funnel'))).toEqual(['funnel', 'grace', 'words', 'nudge']);
+  });
+
+  it('hands nothing after a refusal, a changed, a failed act or a session on another machine', async () => {
+    const outcomes: PocketReplyOutcome['outcome'][] = [];
+    // The text rule.
+    let { verb, handed } = recording();
+    outcomes.push((await verb.keys(input([{ t: '' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome);
+    // The door's last check, asked again.
+    outcomes.push((await verb.keys(input([{ t: 'a' }], pictureOf(r, CODEX_PROMPT, 'idle')), () => false)).outcome);
+    // THE ONE REFUSAL: a question drawn since the picture.
+    const picture = pictureOf(r, CODEX_PROMPT, 'idle');
+    r.set.screen(CODEX_QUESTION);
+    outcomes.push((await verb.keys(input([{ t: '1. to cancel' }], picture), ALLOWED)).outcome);
+    expect(handed).toEqual([]);
+    // Every key line rejected: nothing typed.
+    r = rig();
+    ({ verb, handed } = recording());
+    r.set.reject((sent) => sent.startsWith('send-keys'));
+    outcomes.push((await verb.keys(input([{ t: 'his words' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome);
+    expect(handed).toEqual([]);
+    // The spawned list failed.
+    r = rig();
+    r.set.connected(false);
+    ({ verb, handed } = recording({ run: () => Promise.reject(new Error('no server')) }));
+    outcomes.push((await verb.keys(input([{ t: 'his words' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome);
+    expect(handed).toEqual([]);
+    // Another machine: the carriage typed it, and the far session never reads needs input.
+    r = rig();
+    r.set.row(rowOf('idle', 'far'));
+    ({ verb, handed } = recording());
+    outcomes.push((await verb.keys(input([{ t: 'his words' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome);
+    expect(r.inputs).toEqual([ID]);
+    r.set.remote('unreachable');
+    r.clock.at += 1_000;
+    outcomes.push((await verb.keys(input([{ t: 'his words' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome);
+    expect(handed).toEqual([]);
+    expect(outcomes).toEqual(['refused', 'refused', 'refused', 'failed', 'failed', 'done', 'refused']);
+  });
+
+  it('a write some of whose key lines typed hands what it sent, as the funnel is told', async () => {
+    r.set.reject((sent) => sent.endsWith(' BSpace'));
+    const { verb, handed } = recording();
+    expect((await verb.keys(input([{ t: 'a' }, { k: 'BSpace' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).outcome).toBe('failed');
+    expect(r.inputs).toEqual([ID]);
+    expect(handed).toEqual([[ID, `a${ch(0x7f)}`]]);
+  });
+
+  it('a record that throws leaves a write that typed answered done, and the nudge still comes', async () => {
+    const verb = createScreenKeys({
+      ...r.deps,
+      noteOwnWords: () => {
+        throw new Error('the record refused');
+      }
+    });
+    expect(await verb.keys(input([{ t: 'a' }], pictureOf(r, CODEX_PROMPT, 'idle')), ALLOWED)).toEqual(DONE);
+    expect(r.nudges).toHaveLength(1);
+  });
+
+  it('ownBytesOf spells text as it came and each name by its bytes, in order', () => {
+    expect(ownBytesOf([{ t: '1. to cancel' }, { t: '2. x' }])).toBe('1. to cancel2. x');
+    expect(ownBytesOf([{ t: 'x' }, { k: 'BSpace' }, { t: 'y' }])).toBe(`x${ch(0x7f)}y`);
+    // Nothing normalized: a decomposed é stays two code points.
+    expect(ownBytesOf([{ t: `e${ch(0x301)}` }])).toBe(`e${ch(0x301)}`);
+    expect(ownBytesOf([{ k: 'Escape' }])).toBe(ch(0x1b));
+    expect(ownBytesOf([{ k: 'NPage' }])).toBe(`${ch(0x1b)}[6~`);
+  });
+
+  it('the named-key table is keys-encoding.json’s 3.7b normal mode for the 27 names it measured, and the C0 rule for the ten it did not', () => {
+    const encoding = JSON.parse(readFileSync(join(REPO, 'build/fixtures/screen/keys-encoding.json'), 'utf8')) as {
+      modes: Record<string, Record<string, { keys: Record<string, string> }>>;
+    };
+    const normal = encoding.modes['3.7b']?.['normal']?.keys;
+    if (normal === undefined) throw new Error('keys-encoding.json has no 3.7b normal mode');
+    const c0 = (name: string): string => (name.charCodeAt(2) - 0x60).toString(16).padStart(2, '0');
+    expect(Object.isFrozen(NAMED_KEY_BYTES)).toBe(true);
+    expect(Object.keys(NAMED_KEY_BYTES).sort()).toEqual([...POCKET_SCREEN_KEY_NAMES].sort());
+    expect(Object.keys(NAMED_KEY_BYTES)).toHaveLength(37);
+    const measured: string[] = [];
+    const ruled: string[] = [];
+    for (const name of POCKET_SCREEN_KEY_NAMES) {
+      const hex = Buffer.from(NAMED_KEY_BYTES[name], 'latin1').toString('hex');
+      const want = normal[name];
+      if (want !== undefined) {
+        measured.push(name);
+        expect(hex, name).toBe(want);
+        continue;
+      }
+      ruled.push(name);
+      expect(name).toMatch(/^C-[a-z]$/);
+      expect(hex, name).toBe(c0(name));
+    }
+    expect(measured).toHaveLength(27);
+    expect(ruled.sort()).toEqual(['C-b', 'C-f', 'C-k', 'C-n', 'C-p', 'C-q', 'C-s', 'C-v', 'C-x', 'C-y']);
+    // The rule the ten stand on holds for every Ctrl and letter the fixture did measure.
+    const ctrl = Object.entries(normal).filter(([name]) => /^C-[a-z]$/.test(name));
+    expect(ctrl.length).toBeGreaterThanOrEqual(16);
+    for (const [name, hex] of ctrl) expect(hex, name).toBe(c0(name));
   });
 });

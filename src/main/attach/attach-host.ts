@@ -194,11 +194,13 @@ export interface AttachHostOptions {
    * question's hook words for good (`isPaneReport`, src/shared/pane-report.ts).
    * NEVER FOR A REMOTE CLIENT, whose session the phone never types into.
    *
-   * Phase 325 plans its tap on this same seam; whichever of 318 and 325 lands
-   * second shares it, filter included. It never sets a status and nothing here
-   * reads what was typed.
+   * PHASE 325.1 (build/p3251/SPEC.md D3251-7) shares this call, filter
+   * included, and hands it `data`, the chunk just written, byte for byte. The
+   * session core gives it to main's record of what he typed, so his own words
+   * on the screen are never read as the agent's question. This host keeps
+   * nothing of it and logs nothing, and the call never sets a status.
    */
-  onInput?: (sessionId: string) => void;
+  onInput?: (sessionId: string, data: string) => void;
 }
 
 export interface AttachRequest {
@@ -340,9 +342,10 @@ export class AttachHost {
         }
         client.pty.write(data);
         // PHASE 318. The person typed at the Mac: a local client, and not a
-        // report the pane sent about itself. See `onInput`.
+        // report the pane sent about itself. See `onInput`. PHASE 325.1: the
+        // chunk goes with it, to main's record of what he typed.
         if (req.machine === undefined && !isPaneReport(data)) {
-          this.opts.onInput?.(req.sessionId);
+          this.opts.onInput?.(req.sessionId, data);
         }
       }
     };

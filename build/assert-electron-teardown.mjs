@@ -660,13 +660,23 @@ const HELPER = 'electron-run.mjs';
  * but the claude and codex stand-ins hidden before every launch, and research
  * 145's redacted recordings replayed by build/p368/stand-in.mjs, so no agent
  * runs and no token is spent.
+ * PHASE 325.1 RAISED IT BY ONE (184 TO 185 at its parent, 187 TO 188 once
+ * rebased on Phase 365, and 190 TO 191 once rebased on Phase 368), for
+ * build/p3251/probe-p3251.mjs
+ * (`probe:p3251`), his own words known by what he typed: Electrons through the
+ * helper ONE AT A TIME, the parent's (`P3251_PARENT_CHECKOUT`, required) FIRST,
+ * each build on its own scratch profile and HOME with HISTFILE=/dev/null, every
+ * launch on the socket gmux-p3251… named as its `tmuxSocket` (his ruling of
+ * 2026-11-02), two launches a build when its restore arm runs, every probed
+ * registry row but its seven stand-ins hidden before every launch, his made-up
+ * words through the pane's own xterm, and every stand-in pid ended in its `finally`.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 190;
+const HELPER_USER_FLOOR = 191;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

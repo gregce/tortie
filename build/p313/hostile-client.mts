@@ -3905,9 +3905,11 @@ try {
         const load = ran.find((r) => r.args[0] === 'load-buffer');
         const list = ran.find((r) => r.args.includes('paste-buffer'));
         const name = load?.args[2] ?? '';
-        const wantList = ['copy-mode', '-q', '-t', '%7', ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', '%7'];
+        // Phase 325.1's second ruled round: the pane's bracketed-paste flag read
+        // in the same list just before the paste, for main's record; it types nothing.
+        const wantList = ['copy-mode', '-q', '-t', '%7', ';', 'display-message', '-p', '-t', '%7', '#{bracket_paste_flag}', ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', '%7'];
         const shape = `${String(ran.length)}-${load?.stdin?.toString('utf8') === psText ? 'exact-stdin' : 'WRONG-STDIN'}-${name.startsWith('tortie-paste-') && name.length === 'tortie-paste-'.length + 32 ? 'own-name' : `NAME ${name}`}-${JSON.stringify(list?.args ?? null) === JSON.stringify(wantList) ? 'one-list' : `LIST ${JSON.stringify(list?.args ?? null)}`}-${ran.some((r) => r.args.includes('Enter') || r.args.includes('send-keys')) ? 'A-RETURN' : 'no-return'}-noted${String(notedInput)}`;
-        record('PSH1', 'an honest paste into a session on this Mac', '200:done-2-exact-stdin-own-name-one-list-no-return-noted1', `${said(psHonest)}-${shape}`, 'D50, D52: the words reach tmux only on load-buffer’s stdin, under a name the helper mints, then ONE copy-mode -q ; paste-buffer -p -d, and no Enter.');
+        record('PSH1', 'an honest paste into a session on this Mac', '200:done-2-exact-stdin-own-name-one-list-no-return-noted1', `${said(psHonest)}-${shape}`, 'D50, D52: the words reach tmux only on load-buffer’s stdin, under a name the helper mints, then ONE copy-mode -q ; display-message -p #{bracket_paste_flag} ; paste-buffer -p -d, the flag read for main’s record (Phase 325.1), and no Enter.');
         const b = bodyOf(psHonest);
         record('PSH1b', 'its answer is the five fields, echoing the write id', `paste-${psId}-5-null-null`, `${String(b['verb'])}-${String(b['write'])}-${String(Object.keys(b).length)}-${String(b['reason'])}-${String(b['sentence'])}`, 'D27: the paste’s own shape.');
       }

@@ -632,6 +632,44 @@ describe('say: the message', () => {
   });
 });
 
+describe("say: main's record of what he typed (Phase 325.1's fix round)", () => {
+  /** A world whose core records what the message hands main's record. */
+  function recorded(w: World): Array<[string, string]> {
+    const handed: Array<[string, string]> = [];
+    w.core.activity.noteOwnWords = (id: string, data: string) => {
+      w.events.push({ kind: 'native' });
+      handed.push([id, data]);
+    };
+    return handed;
+  }
+
+  it('a message that landed hands the record its closing Enter alone, never his words, after the paste', async () => {
+    const w = sayWorld();
+    const handed = recorded(w);
+    expect(await createReplyVerbs(depsOf(w)).say({ sessionId: SID, text: '2. No, not now' }, ALLOWED)).toEqual({ outcome: 'done' });
+    expect(handed).toEqual([[SID, '\r']]);
+    // After the paste list, the last thing the message does.
+    expect(w.events.at(-1)?.kind).toBe('native');
+    expect(w.events.at(-2)?.kind).toBe('run');
+  });
+
+  it('a message refused or failed hands the record nothing, and a record that throws leaves it done', async () => {
+    const refused = world({ session: session({ status: 'needs_input' }) });
+    const none = recorded(refused);
+    expect((await createReplyVerbs(depsOf(refused)).say({ sessionId: SID, text: 'hi' }, ALLOWED)).outcome).toBe('refused');
+    const failing = sayWorld();
+    failing.failVerb.add('copy-mode');
+    const none2 = recorded(failing);
+    expect((await createReplyVerbs(depsOf(failing)).say({ sessionId: SID, text: 'hi' }, ALLOWED)).outcome).toBe('failed');
+    expect([none, none2]).toEqual([[], []]);
+    const throwing = sayWorld();
+    throwing.core.activity.noteOwnWords = () => {
+      throw new Error('the record refused');
+    };
+    expect(await createReplyVerbs(depsOf(throwing)).say({ sessionId: SID, text: 'hi' }, ALLOWED)).toEqual({ outcome: 'done' });
+  });
+});
+
 describe('the offer through the writer', () => {
   it('delegates to the reader over the core it was built with, and reads the empty offer with no core', async () => {
     const w = sayWorld();

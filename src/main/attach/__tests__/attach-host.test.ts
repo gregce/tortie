@@ -675,3 +675,110 @@ describe('AttachHost onInput (Phase 318)', () => {
     expect(spawnedPtys[0]!.write).toHaveBeenCalledWith('ls\r');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 325.1: the same call hands the chunk, for main's record of what he
+// typed (build/p3251/SPEC.md D3251-7). The host keeps nothing of it.
+// ---------------------------------------------------------------------------
+
+describe('AttachHost onInput hands the chunk it wrote (Phase 325.1)', () => {
+  const ESC = String.fromCharCode(0x1b);
+  type HostOptions = NonNullable<ConstructorParameters<typeof AttachHost>[0]>;
+
+  function hostWithChunks(chunks: Array<[string, string]>, extra: Partial<HostOptions> = {}) {
+    return new AttachHost({
+      tmuxBin: '/opt/fake/tmux',
+      confPath: '/opt/fake/gmux-tmux.conf',
+      socketName: 'gmux-attach-test',
+      onInput: (id, data) => {
+        chunks.push([id, data]);
+      },
+      ...extra
+    });
+  }
+
+  it('the chunk handed is the chunk written, byte for byte: a key, a bracketed paste, a report beside a key', () => {
+    const chunks: Array<[string, string]> = [];
+    const sender = makeSender();
+    attach(hostWithChunks(chunks), sender);
+    const pty = spawnedPtys[0]!;
+    const sent = [
+      '1',
+      'é😀中',
+      `${ESC}[200~1. to cancel${String.fromCharCode(0x0d)}2. x${ESC}[201~`,
+      `${ESC}[I1`,
+      `x${ESC}[?1;2c`,
+      `${ESC}[A`,
+      String.fromCharCode(0x7f),
+      `ls${String.fromCharCode(0x0d)}`
+    ];
+    for (const chunk of sent) fire(termInputChannel(SID), sender, chunk);
+    const written = pty.write.mock.calls.map((c) => c[0] as string);
+    expect(written).toEqual(sent);
+    expect(chunks).toEqual(sent.map((chunk) => [SID, chunk]));
+    // The very chunk, not a copy that was cut, joined or decoded on the way.
+    for (const [i, [, data]] of chunks.entries()) expect(data).toBe(written[i]);
+  });
+
+  it('hands it right after the write, in the same turn, once per chunk', () => {
+    const order: string[] = [];
+    const sender = makeSender();
+    attach(
+      new AttachHost({
+        tmuxBin: '/opt/fake/tmux',
+        confPath: '/opt/fake/gmux-tmux.conf',
+        socketName: 'gmux-attach-test',
+        onInput: (_id, data) => order.push(`onInput:${data}`)
+      }),
+      sender
+    );
+    spawnedPtys[0]!.write.mockImplementation((data: string) => order.push(`write:${data}`));
+    fire(termInputChannel(SID), sender, 'a');
+    fire(termInputChannel(SID), sender, 'b');
+    expect(order).toEqual(['write:a', 'onInput:a', 'write:b', 'onInput:b']);
+  });
+
+  it('hands nothing for a report alone, which is still written', () => {
+    const chunks: Array<[string, string]> = [];
+    const sender = makeSender();
+    attach(hostWithChunks(chunks), sender);
+    const reports = [`${ESC}[I`, `${ESC}[O`, `${ESC}]11;rgb:1313/1414/1717${ESC}\\`, `${ESC}[?1;2c`, `${ESC}[>0;276;0c`];
+    for (const report of reports) fire(termInputChannel(SID), sender, report);
+    expect(chunks).toEqual([]);
+    expect(spawnedPtys[0]!.write.mock.calls.map((c) => c[0])).toEqual(reports);
+  });
+
+  it('hands nothing for a remote client, whether the key went down the attach or the router took it', () => {
+    const chunks: Array<[string, string]> = [];
+    const routed: string[] = [];
+    let route = false;
+    const sender = makeSender();
+    const h = hostWithChunks(chunks, {
+      routeRemoteInput: (_id: string, data: string) => {
+        routed.push(data);
+        return route;
+      }
+    });
+    h.attach({ sessionId: SID, tmuxName: 'proj--one', sender: sender as never, machine: MACHINE });
+    const pty = spawnedPtys[0]!;
+    fire(termInputChannel(SID), sender, 'ls');
+    route = true;
+    fire(termInputChannel(SID), sender, 'pwd');
+    expect(pty.write.mock.calls.map((c) => c[0])).toEqual(['ls']);
+    expect(routed).toEqual(['ls', 'pwd']);
+    expect(chunks).toEqual([]);
+  });
+
+  it('hands nothing for another sender, an empty chunk or a cleaned client', () => {
+    const chunks: Array<[string, string]> = [];
+    const sender = makeSender();
+    const h = hostWithChunks(chunks);
+    attach(h, sender);
+    fire(termInputChannel(SID), makeSender(), 'his words');
+    fire(termInputChannel(SID), sender, '');
+    const listener = (ipcListeners.get(termInputChannel(SID)) ?? [])[0];
+    h.detach(SID);
+    listener?.({ sender }, 'late');
+    expect(chunks).toEqual([]);
+  });
+});

@@ -40,7 +40,9 @@
  * line a write gets is the door's); and it sets no status. The one call that
  * touches one is `noteUserInput`, the desk's own funnel, after a read-back that
  * saw the question answered, with no hook since the press and no choice on the
- * read-back screen (D16 as the fix round amended it, §Revision R11).
+ * read-back screen (D16 as the fix round amended it, §Revision R11). Since
+ * Phase 325.1's fix round a message that landed hands main's record of what he
+ * typed its closing Enter alone (`noteOwnWords`), which sets no status.
  */
 
 import { POCKET_NO_REPLY, POCKET_WRITE_SENTENCES, type PocketReplyOffer } from '@shared/ipc/pocket';
@@ -100,6 +102,12 @@ export interface ReplyCore {
   readonly control: { readonly connected: boolean; sendCommand(command: string): Promise<string[]> };
   readonly activity: {
     noteUserInput(sessionId: string): void;
+    /**
+     * Main's record of what he typed (Phase 325.1, src/main/activity/own-words.ts),
+     * handed only the message's Enter, a submit (the fix round). Optional, so a
+     * core built without it says the same and hands nothing.
+     */
+    noteOwnWords?(sessionId: string, data: string): void;
     nativeReadingOf(
       sessionId: string,
       agent: string,
@@ -340,6 +348,15 @@ export function createReplyVerbs(
         'send-keys', '-t', pane, 'Enter'
       ]);
       pasted = true;
+      // PHASE 325.1's fix round: the message ended with Enter, a submit, so
+      // the row it was typed into was sent with it. Main's record of what he
+      // typed is handed that Enter and nothing else, never his words, and
+      // forgets as his own Enter at the desk makes it forget; in its own try.
+      try {
+        core.activity.noteOwnWords?.(id, '\r');
+      } catch {
+        // The record is main's; a message that landed stays landed.
+      }
       // 8. It reached the session as a paste at the desk would (D17).
       return DONE;
     } catch {

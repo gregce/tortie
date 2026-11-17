@@ -19,6 +19,7 @@ import {
 } from '../agents/registry';
 import type { ClaudeSessionEntry } from './claude-registry';
 import { claudeVerdict, codexTitleVerdict, shellVerdict } from './oracles';
+import { dialogIsHisWords, freshOwnWords, type OwnWords } from './own-words';
 import type { PaneFacts } from './panes';
 import {
   CPU_BUSY_PERCENT,
@@ -194,6 +195,21 @@ export interface SessionState {
    * ticks the parent probed it. 0 for every other agent, which never sets it.
    */
   lastOutputAt: number;
+  /**
+   * PHASE 325.1 (build/p3251/SPEC.md D3251-1). What HE has typed or pasted
+   * into this session and not sent: the lines and the cursor, read from the
+   * bytes his keyboard, his paste, his phone or a restore's replay put on the
+   * pane (./own-words.ts). The verdict asks it beside the dialog line so a
+   * numbered dialog his own words drew is never read as the agent's question
+   * (CLAUDE.md's UI rule), and by content, never by time.
+   *
+   * IT NEVER LEAVES MAIN. It is held here and nowhere else, cleared on submit,
+   * on Ctrl-C and at its cap, and it goes with this state when the session is
+   * forgotten (End, a dead pane, a release, leaving the list, or claude's
+   * `SessionEnd` hook, whose `forget(…, true)` builds a fresh state). Nothing
+   * logs it, writes it down or sends it to the renderer, the phone or a push.
+   */
+  ownWords: OwnWords;
 }
 
 /**
@@ -238,7 +254,8 @@ export function freshState(now: number): SessionState {
     leftAt: 0,
     leftCommand: '',
     foreground: null,
-    lastOutputAt: 0
+    lastOutputAt: 0,
+    ownWords: freshOwnWords()
   };
 }
 
@@ -399,6 +416,15 @@ export function inferredVerdict(
     agentHoldsTerminal(pane, st, ctx.proc) &&
     detectShapes(screen, profile.dialogs ?? NO_SHAPES);
   const dialog = numbered || shaped;
+  // PHASE 325.1 (build/p3251/SPEC.md D3251-6). CLAUDE.md's UI rule: needs
+  // input only from the session's behaviour, never from his own input to it.
+  // A numbered dialog is HIS when his own unsent words drew the rows that make
+  // it one (./own-words.ts), decided by what he typed and never by when, so a
+  // question the agent draws just after his last key is the agent's. Asked of
+  // the numbered verdict only (Phase 321's shapes refuse his words themselves),
+  // never while blocked (his words cannot release a raised question), and read
+  // once, by the dialog arm, so it can only withhold a count.
+  const own = numbered && !shaped && st.state !== 'needs_input' && screen !== null && dialogIsHisWords(screen, st.ownWords);
 
   // Strong evidence: the pane is producing output right now, burning CPU, or
   // waiting on a tool it setsid'd. An agent doing any of those is not blocked
@@ -434,7 +460,7 @@ export function inferredVerdict(
   // memory window (measured 6 s to needs_input instead of 4 s). The detector
   // is the far stronger predicate — 57/57 recall, 0/386 false positives,
   // including on working screens.
-  if (dialog) {
+  if (dialog && !own) {
     st.clearTicks = 0;
     st.dialogTicks++;
     if (st.dialogTicks >= DIALOG_CONFIRM_TICKS) {

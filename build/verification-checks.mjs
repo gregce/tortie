@@ -1062,6 +1062,22 @@ export const CHECKS = [
   // copies with its rule broken, every one of which must read red. About 1.5 s
   // now.
   pure('conformance:choices'),
+  // PHASE 325.1 (build/p3251/SPEC.md §4.6, D3251-12): his own words are known
+  // by what he typed, not by when. build/conformance-ownwords.mjs reads the
+  // record (src/main/activity/own-words.ts), the `own` line beside the dialog
+  // line in state-machine.ts, the monitor's two writers, the attach host's tap,
+  // core.ts's and capabilities.ts's wiring, the phone verbs' writers and the
+  // restore's replayed rows with the TypeScript parser (a module, not a
+  // process) and asserts ten clauses, O1 to O10: the four writers and no other,
+  // no clock in the rule, the record never logged and never named outside main,
+  // cleared on submit, on Ctrl-C and at its cap, whole lines only, the
+  // numbered verdict asked again and never a shape, and every caller of the
+  // desk's funnel handing the record or exempt by name. Each is asked again
+  // over in-memory copies with its rule broken, every one of which must read
+  // red, beside an unedited control. It SPAWNS NOTHING, starts no Electron and
+  // no tmux, and reads nothing under the person's home. About 1 s.
+  // `ablation:p3251` is the attack beside it.
+  pure('conformance:ownwords'),
   // PHASE 323. End ends only what the hang-up was aimed at and outlived it.
   // build/conformance-endtree.mjs reads src/main/proc/session-tree.ts,
   // killSessionAdmitted and its two helpers in core.ts, the mutation ledger,
@@ -1724,6 +1740,21 @@ export const CHECKS = [
   // out/ and the tools and starts nothing; `--grader-self-test` grades
   // recorded fixtures and starts nothing.
   remote('probe:p353:starts'),
+  // PHASE 325.1 (build/p3251/SPEC.md §8, D3251-16): his own words known by what
+  // he typed, inside the real app. Electrons through build/electron-run.mjs ONE
+  // AT A TIME, the parent's (`P3251_PARENT_CHECKOUT`, required) FIRST, each
+  // build on its own scratch profile and HOME with HISTFILE=/dev/null and the
+  // socket gmux-p3251… named as its `tmuxSocket`, two launches a build when its
+  // restore arm runs. The sessions are the real registry rows cursor, qwen,
+  // opencode, antigravity, claude, grok and pi under their bare names, each
+  // resolving to build/p321/stand-in.mjs drawing committed screens (refused,
+  // exit 2, unless each does), every other probed row hidden by
+  // build/hidden-agents.mjs before every launch and `agents:list` read back.
+  // His MADE-UP words go through the pane's own xterm, never `send-keys`; the
+  // report holds counts and lengths only. Every stand-in pid is ended in its
+  // `finally`. No vendor process runs and no token is spent.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  electron('probe:p3251'),
   // PHASE 357 (build/p357/SPEC.md §8): a session list that goes bad while
   // Tortie runs, at the parent and at HEAD. Electrons through
   // build/electron-run.mjs ONE AT A TIME and never at once, the parent's
@@ -3081,6 +3112,19 @@ export const CHECKS = [
   // each red on its own row, an unedited control green, every file restored by
   // sha256. No Electron, no tmux, no agent, no token.
   pure('ablation:p328', NEEDS.vitest),
+  // PHASE 325.1's attack (build/p3251/SPEC.md §4.7, D3251-13): each clause of
+  // the record, the match, the rule and the writers taken out of the SHIPPING
+  // source one at a time over a `cp -Rc` clone of src/ under `P3251_SCRATCH`
+  // (required, never under /private/tmp; its configs copied, node_modules
+  // symlinked), vitest, `conformance:ownwords` and `conformance:phonecopy` run
+  // there: a time window put back, time instead of content, the record logged,
+  // not cleared on submit, the match loosened to a substring of one row, the
+  // counterfactual dropped, the mark loosened, asked while blocked, a shape
+  // withheld, the cap removed, and each writer removed or a fifth added. Each
+  // red on the row or clause that owns it, an unedited control green first and
+  // last, every file restored by sha256. No Electron, no tmux, no agent, no
+  // token.
+  pure('ablation:p3251', NEEDS.vitest),
   // PHASE 331's attack on its own clauses (build/p331/SPEC.md §2.10): seventeen
   // arms over a `cp -Rc` clone of src/, resources/ and build/ (build/vendor
   // symlinked), one clause each broken in the SHIPPING source: the scrollback

@@ -36,25 +36,33 @@
  *      and the window's mark now must both be the ones the phone echoed, or
  *      nothing is typed;
  *   6. the question id moves, the measuring seam, then the act in ONE
- *      statement: `copy-mode -q -t <%pane> ; paste-buffer -p -d -b <name> -t
- *      <%pane>`, a spawned list as say's and never over the control client,
- *      with NO Enter. `paste-buffer -p` brackets where the program asked for
+ *      statement: `copy-mode -q -t <%pane> ; display-message -p -t <%pane>
+ *      #{bracket_paste_flag} ; paste-buffer -p -d -b <name> -t <%pane>`, a
+ *      spawned list as say's and never over the control client, with NO
+ *      Enter. `paste-buffer -p` brackets where the program asked for
  *      bracketed paste, decided by the server from the pane's own mode, and
  *      sends a line feed as a carriage return, as a paste at the desk does;
  *      no `-S` (3.6a has none, and the text rule refuses every byte the two
- *      builds send differently, D58);
- *   7. `noteUserInput` once when the list succeeded, the watcher's nudge with
- *      the fresh read's window mark, and the session's last-act time; and in
- *      a `finally`, the buffer deleted on every path the paste did not take
- *      it (MEASURED, §2.2: a list aimed at a pane whose program exited fails
- *      and LEAVES the buffer on the server).
+ *      builds send differently, D58). The display types nothing: it reads
+ *      that mode for main's record (Phase 325.1, his second ruled round);
+ *   7. `noteUserInput` once when the list succeeded, then (Phase 325.1,
+ *      build/p3251/SPEC.md D3251-8, its fix round and his second ruled round)
+ *      the text as the pane received it, every line break a carriage return,
+ *      between the paste's two markers when the program asked for brackets,
+ *      to main's record of what he typed (`noteOwnWords`), so his own words on
+ *      the screen are never read as the agent's question and a line a program
+ *      sent is never kept as unsent;
+ *      the watcher's nudge with the fresh read's window mark, and the
+ *      session's last-act time; and in a `finally`, the buffer deleted on
+ *      every path the paste did not take it (MEASURED, §2.2: a list aimed at a
+ *      pane whose program exited fails and LEAVES the buffer on the server).
  *
  * WHAT IT NEVER DOES. It logs nothing (the one log line a write gets is the
  * door's), reads no error's text (a failed tmux command's text holds its
  * argv), derives no argv element from the text (its one sink is the load's
- * standard input), trims, replaces or normalizes nothing, holds nothing on
- * disk, retries nothing, and names no status setter but `noteUserInput`, the
- * desk's own funnel, which never raises `needs_input`.
+ * standard input), trims, replaces or normalizes nothing it types, holds
+ * nothing on disk, retries nothing, and names no status setter but
+ * `noteUserInput`, the desk's own funnel, which never raises `needs_input`.
  */
 
 import { POCKET_SCREEN_MAX_COLS, POCKET_SCREEN_MAX_ROWS, POCKET_WRITE_SENTENCES } from '@shared/ipc/pocket';
@@ -86,6 +94,17 @@ export interface ScreenPasteDeps {
   watch: Pick<ScreenWatch, 'readFresh' | 'nudge'>;
   /** The desk's own funnel: `core.activity.noteUserInput`. */
   noteUserInput(sessionId: string): void;
+  /**
+   * MAIN'S RECORD OF WHAT HE TYPED (Phase 325.1, build/p3251/SPEC.md D3251-8):
+   * `core.activity.noteOwnWords`, handed a paste that landed as the pane
+   * received it: every line break a carriage return (`LINE_FEED`, the fix
+   * round), between `ESC [ 200 ~` and `ESC [ 201 ~` when the act's own list
+   * read `#{bracket_paste_flag}` as 1 (his second ruled round), with no
+   * markers otherwise. Production hands it
+   * (src/main/capabilities.ts); a verb built without it pastes the same and
+   * hands nothing.
+   */
+  noteOwnWords?(sessionId: string, data: string): void;
   /** THE ONE LAST-ACT STORE the keys verb holds too (D57). */
   lastActs: ScreenLastActs;
   /** The spawned runner, the load's standard input its one sink for the text. Production: `execTmux`. */
@@ -104,6 +123,38 @@ function refused(reason: PocketPasteRefusal, sentence: string): PocketPasteOutco
 }
 
 const FAILED: PocketPasteOutcome = Object.freeze({ outcome: 'failed', sentence: PASTE_FAILED });
+
+/**
+ * WHAT A PASTE LEAVES UNSENT, as main's record must read it (Phase 325.1's fix
+ * round and his second ruled round). `paste-buffer -p` brackets the text only
+ * for a program that asked for bracketed paste, and types every line break as
+ * a carriage return either way; to a program that did not ask, each of those
+ * SENDS its line. So the record is handed the paste AS THE PANE RECEIVED IT:
+ * the text with every line break a carriage return, between the two paste
+ * markers when the program asked for brackets (`BRACKET_PASTE_FLAG`), where
+ * it keeps every line unsent as the screen does; and with no markers when it
+ * did not, or when the tmux in use cannot say, where the record reads each
+ * carriage return as a submit, so no line a program sent is ever kept as his.
+ * Only the record is handed this; the act types the buffer as it always has.
+ */
+const LINE_FEED = /\n/g;
+
+/**
+ * WHETHER THE PROGRAM ASKED FOR BRACKETED PASTE (Phase 325.1, his second ruled
+ * round of 2026-11-16, "325.1 a": "It will also record a paste from the phone
+ * in full"): tmux's own `#{bracket_paste_flag}`, read by the act's own list
+ * just before its `paste-buffer -p`, so it is the mode that paste was typed
+ * under. tmux 3.7 answers `1` when the pane asked and `0` when it did not; a
+ * tmux older than 3.7 has no such flag and answers an empty line (Homebrew's
+ * 3.6a, build/p348/SPEC.md §2.2), which reads as not asked. Read for main's
+ * record alone: the bracket is still the server's to put on, never Tortie's.
+ */
+const BRACKET_PASTE_FLAG = '#{bracket_paste_flag}';
+/** The line `BRACKET_PASTE_FLAG` prints for a pane that asked, alone on it; anything else is not asked. */
+const ASKED_FOR_BRACKETS = /^1$/m;
+/** The two markers `paste-buffer -p` puts around a paste for a program that asked, as xterm sends them for one at the desk. */
+const PASTE_OPENS = '\u001b[200~';
+const PASTE_CLOSES = '\u001b[201~';
 
 /** The production sleep. */
 function wait(ms: number): Promise<void> {
@@ -158,6 +209,9 @@ export function createScreenPaste(deps: ScreenPasteDeps): {
     if (core === null) return FAILED;
     let name: string | null = null;
     let pasted = false;
+    // Whether the program asked for bracketed paste, read by the act's own
+    // list (`BRACKET_PASTE_FLAG`), for main's record alone.
+    let bracketed = false;
     try {
       // 2. THE GATE, over the row and the `$`-id as they are now.
       const row = rowOf(core, id);
@@ -190,7 +244,9 @@ export function createScreenPaste(deps: ScreenPasteDeps): {
       const mark = windowMarkOf(plain);
       const pane = fresh.display.paneId;
       if (!PANE_ID.test(pane)) return refused('unreachable', SCREEN_NOT_TYPABLE);
-      const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];
+      // The act's one list: copy mode left, the pane's bracketed-paste flag
+      // read for main's record (it types nothing), then the one paste.
+      const list = ['copy-mode', '-q', '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];
       // 5. THE FINAL CHECK, synchronous: nothing is awaited from here to the act.
       if (!still()) return refused('stopped', POCKET_WRITE_SENTENCES.stopped);
       const current = rowOf(core, id);
@@ -212,7 +268,11 @@ export function createScreenPaste(deps: ScreenPasteDeps): {
       deps.turns.bump(id, 'phone');
       deps.onLastCheck?.(id);
       const act: Promise<boolean> = run(list).then(
-        () => true,
+        (answer) => {
+          // The list's one line of output: the flag, read just before the paste.
+          bracketed = ASKED_FOR_BRACKETS.test(answer);
+          return true;
+        },
         // A list that failed may have stopped part way; nothing is claimed
         // pasted, so the status funnel is not asked and the buffer is dropped.
         () => false
@@ -229,6 +289,15 @@ export function createScreenPaste(deps: ScreenPasteDeps): {
           deps.noteUserInput(id);
         } catch {
           // The funnel is the desk's; a paste that landed stays landed.
+        }
+        // PHASE 325.1 (D3251-8): what landed, to main's record of what he
+        // typed, after the funnel and in its own try, read as LINE_FEED says:
+        // as the pane received it, bracketed when the program asked.
+        const [opens, closes] = bracketed ? [PASTE_OPENS, PASTE_CLOSES] : ['', ''];
+        try {
+          deps.noteOwnWords?.(id, `${opens}${input.text.replace(LINE_FEED, '\r')}${closes}`);
+        } catch {
+          // The record is main's; a paste that landed stays landed.
         }
       }
       try {

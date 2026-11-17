@@ -332,6 +332,24 @@
  * and `Z7x`, `Z8x` and `Z9h` make them log, set a status and name a size,
  * which Z7, Z8 and Z9 read since the move. No earlier arm named either file,
  * so none moved.
+ * PHASE 325.1 ADDED FIVE (build/p3251/SPEC.md D3251-15), 823 entries in all,
+ * at the end of the table, one for each clause of Z7's one more road a verb,
+ * main's record of what he typed: `Z7t` the paste's text handed to the record
+ * a second time (the SPEC calls it Z7w, a name Phase 348's arm already
+ * holds, and Z7x, which Phase 368's width arm took first), `Z7y` handed to it before the act, `Z7z` what a keys write typed
+ * handed to the measuring seam as well, `Z7v` a text item pushed onto an
+ * argv, a road the rule could not see before, and `Z7u` ownBytesOf pushing a
+ * text item twice. No earlier arm moved. ITS FIX ROUND added one, 824 in all:
+ * `Y15x`, the paste's typed text given the record's line breaks, red on Y15,
+ * which lets exactly the record's copy through; `Z7t` and `Z7y` follow the
+ * record's copy to its new spelling. Rebased on Phase 368, 831 in all.
+ * HIS SECOND RULED ROUND (2026-11-16) added two, 833 in all: `PS4f`, the
+ * bracketed-paste flag the act's list reads for main's record read after
+ * the paste instead of just before it, red on PS4 and the hostile client;
+ * and `Y15t`, the typed text's line breaks changed inside a template, red
+ * on Y15, which lets that template through around the record's copy alone.
+ * `PS4a`, `Z7t` and `Z7y` follow the list and the record's copy to their
+ * new spellings.
  *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
@@ -398,6 +416,8 @@
  *   P313_ONLY=RN1a,RN2b,RN5a,RN6c,RN9b,RN10a,X4r,G1r,RNHw node build/ablation-p313.mjs  some of Phase 349's
  *   P313_ONLY=Z3p,Z3q,Z3r,Z3s,Z3t,Z8p,Z8q,Z8r,Z8s,Z11p,Z11q,Z11r,Z31a,Z31b,Z31c,Z31d,Z31e,Z31f,Z31g,Z11s,Z32a,Z32b,Z32c,PK4a,PK5a node build/ablation-p313.mjs  Phase 350's twenty-five (Z31f, Z31g and Z11s its fix round's)
  *   P313_ONLY=Z12a,Z12b,Z12c,Z12d,Z12e,Z12f,Z12g,Z12h,Z12i,Z12j,Z12k,Z7x,Z8x,Z9h node build/ablation-p313.mjs  every Z12 arm and Phase 368's seven
+ *   P313_ONLY=Z7t,Z7y,Z7z,Z7v,Z7u,Y15x node build/ablation-p313.mjs  Phase 325.1's six
+ *   P313_ONLY=PS4a,PS4f,Y15t node build/ablation-p313.mjs  the arms its second ruled round moved or added
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
  *   P313_SCRATCH=/private/var/tmp/<dir> node build/ablation-p313.mjs  the clone under that directory
  */
@@ -7529,8 +7549,8 @@ const ABLATIONS = [
     name: 'a Return after the paste',
     why: 'his ruling of 2026-10-18: a paste lands as a paste at the desk does, with NO Return added; a Return after it runs what he pasted into a shell before he looked at it.',
     file: SCREEN_PASTE,
-    from: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];",
-    to: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane, ';', 'send-keys', '-t', pane, 'Enter'];",
+    from: "const list = ['copy-mode', '-q', '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];",
+    to: "const list = ['copy-mode', '-q', '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane, ';', 'send-keys', '-t', pane, 'Enter'];",
     needs: ['gate', 'hostile']
   },
   {
@@ -9178,6 +9198,98 @@ const ABLATIONS = [
     file: SHARED_CELLS,
     from: "const TAB = '\\t';",
     to: "const TAB = '\\t';\nexport const P368_SIZE = ['resize-window', '-x', '80'];",
+    needs: ['gate']
+  },
+  // PHASE 325.1 (build/p3251/SPEC.md D3251-8, D3251-15): Z7's one more road a
+  // verb, main's record of what he typed, each clause of it broken once.
+  {
+    n: 'Z7t',
+    rule: 'Z7',
+    name: 'the paste’s text handed to the record a second time',
+    why: 'D3251-15: a paste’s text reaches main’s record of what he typed ONCE, after the act; a second read of it is a second road for his words.',
+    file: SCREEN_PASTE,
+    from: "          deps.noteOwnWords?.(id, `${opens}${input.text.replace(LINE_FEED, '\\r')}${closes}`);\n",
+    to: "          deps.noteOwnWords?.(id, `${opens}${input.text.replace(LINE_FEED, '\\r')}${closes}`);\n          deps.noteOwnWords?.(id, input.text);\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Z7y',
+    rule: 'Z7',
+    name: 'the paste’s text handed to the record before the act',
+    why: 'D3251-15: the record is handed a paste only once it landed; handed before the act, a paste tmux then failed would still sit on the record as his words.',
+    file: SCREEN_PASTE,
+    // The writer's block (its markers chosen first, since his second ruled round) moved from after the
+    // funnel to before the bump: still once, now before run(.
+    from: /(      deps\.turns\.bump\(id, 'phone'\);\n)([\s\S]*?)(        \/\/ PHASE 325\.1 \(D3251-8\): what landed[^\n]*\n[^\n]*\n[^\n]*\n        const \[opens, closes\][^\n]*\n        try \{\n          deps\.noteOwnWords\?\.\(id, `\$\{opens\}\$\{input\.text\.replace\(LINE_FEED, '\\r'\)\}\$\{closes\}`\);\n        \} catch \{\n[^\n]*\n        \}\n)/,
+    to: (_m, bump, between) => `      deps.noteOwnWords?.(id, input.text.replace(LINE_FEED, '\\r'));\n${bump}${between}`,
+    needs: ['gate']
+  },
+  {
+    n: 'Z7z',
+    rule: 'Z7',
+    name: 'what a keys write typed handed to the measuring seam as well',
+    why: 'D3251-15: ownBytesOf’s answer goes to main’s record of what he typed and nowhere else; the seam is a probe’s, and his words are not.',
+    file: SCREEN_KEYS,
+    from: '      deps.onLastCheck?.(id);',
+    to: '      deps.onLastCheck?.(id + ownBytesOf(input.keys));',
+    needs: ['gate']
+  },
+  {
+    n: 'Z7v',
+    rule: 'Z7',
+    name: 'a text item’s characters pushed onto an argv',
+    why: 'D18, D3251-15: a text item reaches tmux only as its hex bytes; an argv built by push( was a road the rule could not see, and a .t is now pushed only inside ownBytesOf, for main’s record.',
+    file: SCREEN_KEYS,
+    from: "    const bytes = Buffer.from(item.t, 'utf8');",
+    to: "    const typed: string[] = ['send-keys', '-t', pane];\n    typed.push(item.t);\n    out.push(typed);\n    const bytes = Buffer.from(item.t, 'utf8');",
+    needs: ['gate']
+  },
+  {
+    n: 'Z7u',
+    rule: 'Z7',
+    name: 'ownBytesOf pushing a text item’s characters twice',
+    why: 'D3251-15: a text item’s .t reaches main’s record ONCE; a second push is a second copy of his words.',
+    file: SCREEN_KEYS,
+    from: '    else out.push(item.t);',
+    to: '    else {\n      out.push(item.t);\n      out.push(item.t);\n    }',
+    needs: ['gate']
+  },
+  // PHASE 325.1's fix round (build/p3251/SPEC.md §As built): Y15 lets through
+  // ONE .replace( on a paste's text, the record's copy; the text the act types
+  // is still his bytes exactly.
+  {
+    n: 'Y15x',
+    rule: 'Y15',
+    name: 'the paste’s typed text given the record’s line breaks',
+    why: 'Phase 325.1’s fix round lets one .replace( on a paste’s text through Y15, the copy main’s record of what he typed is handed, which is never typed; the text the act types is his bytes exactly, so a paste whose line breaks became carriage returns before it was loaded is refused.',
+    file: SCREEN_PASTE,
+    from: '      name = await loadWords(run, PASTE_BUFFER_PREFIX, input.text);',
+    to: "      name = await loadWords(run, PASTE_BUFFER_PREFIX, input.text.replace(LINE_FEED, '\\r'));",
+    needs: ['gate']
+  },
+  // PHASE 325.1's SECOND RULED ROUND (build/p3251/SPEC.md §As built, 2026-11-16):
+  // the phone's paste is recorded whole when the program asked for bracketed
+  // paste, read from tmux's #{bracket_paste_flag} by the act's own list just
+  // before its paste-buffer -p, and the record's copy bracketed in a template.
+  {
+    n: 'PS4f',
+    rule: 'PS4',
+    alsoRed: ['hostile'],
+    name: 'the bracketed-paste flag read after the paste instead of before it',
+    why: 'His second ruled round reads the flag in the act’s own list just before paste-buffer -p, so it is the mode that paste was typed under and a list that fails there types nothing; read after the paste it reads the mode the program set once it had the paste.',
+    file: SCREEN_PASTE,
+    from: "const list = ['copy-mode', '-q', '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];",
+    to: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane, ';', 'display-message', '-p', '-t', pane, BRACKET_PASTE_FLAG];",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'Y15t',
+    rule: 'Y15',
+    name: 'the paste’s typed text given the record’s line breaks inside a template',
+    why: 'His second ruled round lets the record’s one .replace( through inside the template that brackets it, as the second argument of noteOwnWords(; the same template around the text the act loads is still a paste whose line breaks were changed before it was typed.',
+    file: SCREEN_PASTE,
+    from: '      name = await loadWords(run, PASTE_BUFFER_PREFIX, input.text);',
+    to: "      name = await loadWords(run, PASTE_BUFFER_PREFIX, `${input.text.replace(LINE_FEED, '\\r')}`);",
     needs: ['gate']
   }
 ];

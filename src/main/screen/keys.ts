@@ -39,8 +39,12 @@
  *      build/p350/SPEC.md D9) when the act typed AND the write is exactly one
  *      `PPage` or `NPage`, the reflow grace's clock (`noteRepaint`, the clock
  *      `noteGeometryChange` stamps), so the program's redraw of its own page
- *      is not read as work; the watcher's nudge with the fresh read's window
- *      mark (D4), and the session's last-act time for 2a.
+ *      is not read as work; then (Phase 325.1, build/p3251/SPEC.md D3251-8),
+ *      for a session on this Mac, what the act typed to main's record of what
+ *      he typed (`noteOwnWords`, the bytes `ownBytesOf` spells), so his own
+ *      words on the screen are never read as the agent's question; the
+ *      watcher's nudge with the fresh read's window mark (D4), and the
+ *      session's last-act time for 2a.
  *
  * THE ACT, on this Mac (D18, D19): `copy-mode -q -t <%pane>` (typing returns
  * the pane to live output first, as the desk does), then per item either
@@ -86,7 +90,8 @@ import {
   POCKET_SCREEN_MAX_COLS,
   POCKET_SCREEN_MAX_ROWS,
   POCKET_WRITE_SENTENCES,
-  type PocketKeyItem
+  type PocketKeyItem,
+  type PocketScreenKeyName
 } from '@shared/ipc/pocket';
 import { LIFECYCLE_SESSION_CHANGED, SESSION_NOT_FOUND } from '@shared/lifecycle-words';
 import { REPLY_FAILED, REPLY_TEXT_EMPTY, REPLY_TEXT_LONG } from '@shared/reply-copy';
@@ -177,6 +182,15 @@ export interface ScreenKeysDeps {
    * same keys and discounts nothing.
    */
   noteRepaint?(sessionId: string): void;
+  /**
+   * MAIN'S RECORD OF WHAT HE TYPED (Phase 325.1, build/p3251/SPEC.md D3251-8):
+   * `core.activity.noteOwnWords`, handed what an act that typed on this Mac
+   * typed, as the bytes tmux typed it (`ownBytesOf`), so his own words on the
+   * screen are never read as the agent's question. Production hands it
+   * (src/main/capabilities.ts); a verb built without it types the same keys
+   * and hands nothing.
+   */
+  noteOwnWords?(sessionId: string, data: string): void;
   /** The carriage's one phone writer for a session on another machine: `typePhoneKeys`. */
   typeRemote?: (sessionId: string, keys: readonly PocketKeyItem[]) => 'carriage' | 'unreachable';
   /** The spawned fallback when the control client is down. Production: `execTmux`. Tests inject. */
@@ -231,6 +245,72 @@ function isOnePage(keys: readonly PocketKeyItem[]): boolean {
   if (keys.length !== 1) return false;
   const only = keys[0];
   return only !== undefined && 'k' in only && (only.k === 'PPage' || only.k === 'NPage');
+}
+
+/**
+ * THE BYTES EACH NAMED KEY SENDS (Phase 325.1, build/p3251/SPEC.md D3251-8),
+ * keyed by the contract's 37 names, as tmux 3.7b sends each in the normal
+ * mode: the 27 names build/fixtures/screen/keys-encoding.json measured, and
+ * for the ten it did not (`C-b`, `C-f`, `C-k`, `C-n`, `C-p`, `C-q`, `C-s`,
+ * `C-v`, `C-x`, `C-y`) the rule it measured for every other Ctrl and a letter,
+ * the letter's code less 0x60. Read only by {@link ownBytesOf}, for main's
+ * record of what he typed; the act names a key by its name and never by these.
+ */
+export const NAMED_KEY_BYTES: Readonly<Record<PocketScreenKeyName, string>> = Object.freeze({
+  Escape: '\u001b',
+  Tab: '\u0009',
+  BTab: '\u001b[Z',
+  Enter: '\u000d',
+  BSpace: '\u007f',
+  Up: '\u001b[A',
+  Down: '\u001b[B',
+  Left: '\u001b[D',
+  Right: '\u001b[C',
+  'C-a': '\u0001',
+  'C-b': '\u0002',
+  'C-c': '\u0003',
+  'C-d': '\u0004',
+  'C-e': '\u0005',
+  'C-f': '\u0006',
+  'C-g': '\u0007',
+  'C-h': '\u0008',
+  'C-i': '\u0009',
+  'C-j': '\u000a',
+  'C-k': '\u000b',
+  'C-l': '\u000c',
+  'C-m': '\u000d',
+  'C-n': '\u000e',
+  'C-o': '\u000f',
+  'C-p': '\u0010',
+  'C-q': '\u0011',
+  'C-r': '\u0012',
+  'C-s': '\u0013',
+  'C-t': '\u0014',
+  'C-u': '\u0015',
+  'C-v': '\u0016',
+  'C-w': '\u0017',
+  'C-x': '\u0018',
+  'C-y': '\u0019',
+  'C-z': '\u001a',
+  PPage: '\u001b[5~',
+  NPage: '\u001b[6~'
+});
+
+/**
+ * WHAT A WRITE TYPED, AS THE BYTES IT TYPED (Phase 325.1, D3251-8): each text
+ * item's characters as they came, and each named key as
+ * {@link NAMED_KEY_BYTES} spells it, in order. Main's record of what he typed
+ * reads them as it reads the desk's own keys. Each `.t` is read once, onto the
+ * list joined here, and the result goes to that record and nowhere else
+ * (`conformance:pocket` Z7).
+ */
+export function ownBytesOf(keys: readonly PocketKeyItem[]): string {
+  const out: string[] = [];
+  for (const item of keys) {
+    if ('k' in item) out.push(NAMED_KEY_BYTES[item.k]);
+    else out.push(item.t);
+  }
+  return out.join('');
 }
 
 /**
@@ -438,6 +518,16 @@ export function createScreenKeys(deps: ScreenKeysDeps): {
           deps.noteRepaint?.(id);
         } catch {
           // The clock is the desk's; a page typed stays typed.
+        }
+      }
+      // PHASE 325.1 (D3251-8): what the act typed, to main's record of what he
+      // typed, after the funnel and the grace and in its own try. Only on this
+      // Mac: a session on another machine never reads needs input.
+      if (result.any && machine === null) {
+        try {
+          deps.noteOwnWords?.(id, ownBytesOf(input.keys));
+        } catch {
+          // The record is main's; a key typed stays typed.
         }
       }
       try {
