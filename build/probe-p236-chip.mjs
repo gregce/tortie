@@ -316,6 +316,71 @@ async function mainEval(cdp, expression, ms = 20000) {
   return r.result?.result?.value;
 }
 
+// K-b's main-process half: save, copy, put back (Phase 369). Electron 44
+// replaced the clipboard module, so this follows src/main/harness/shot.ts's
+// rules for its GMUX_SHOT_CLIPBOARD save. Every flavour clipboard.read() lists
+// is read BEFORE the copy, because an item's bytes are fetched when getType is
+// asked, from whatever the pasteboard holds then; a refused read throws before
+// the copy, so the pasteboard is left alone and the run fails. The put back is
+// ONE write of a new item: the standard flavours when not empty, the raw ones
+// byte for byte even when empty, one leading meta tag taken off the HTML
+// because Chromium's writer adds it again, and a clear only for a pasteboard
+// that listed nothing. Names and sizes come back, never a byte.
+const COPY_AND_PUT_BACK = `(async () => {
+  const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
+  const { BrowserWindow, clipboard, ClipboardItem } = load('electron');
+  const win = BrowserWindow.getAllWindows()[0];
+  const RAW = 'electron application/osclipboard;format="';
+  const STANDARD = ['text/plain', 'text/html', 'text/rtf', 'text/uri-list', 'image/png'];
+  const MARK = "<meta charset='utf-8'>";
+  const keep = async () => {
+    const types = [];
+    const kept = [];
+    for (const item of await clipboard.read()) {
+      for (const type of item.types) {
+        if (types.includes(type)) continue;
+        types.push(type);
+        if (!STANDARD.includes(type) && !type.startsWith(RAW)) continue;
+        try {
+          const blob = await item.getType(type);
+          if (blob instanceof Blob) kept.push({ type, blob });
+        } catch { /* unreadable, so lost to the copy */ }
+      }
+    }
+    return { types, kept };
+  };
+  const sizes = (board) => board.types.map((type) => [type, board.kept.find((one) => one.type === type)?.blob.size ?? null]);
+  const prior = await keep();
+  const priorText = await clipboard.readText();
+  let landed = false;
+  let answer = null;
+  try {
+    win.webContents.copy();
+    for (let i = 0; i < 40; i += 1) {
+      await new Promise((r) => setTimeout(r, 100));
+      if ((await clipboard.readText()) !== priorText) { landed = true; break; }
+    }
+    answer = { text: await clipboard.readText(), landed, priorFormats: prior.types };
+  } finally {
+    if (landed) {
+      const entries = {};
+      for (const { type, blob } of prior.kept) {
+        if (!type.startsWith(RAW) && blob.size === 0) continue;
+        if (type === 'text/html') {
+          const html = await blob.text();
+          entries[type] = html.startsWith(MARK) ? html.slice(MARK.length) : html;
+        } else {
+          entries[type] = blob;
+        }
+      }
+      if (Object.keys(entries).length > 0) await clipboard.write([new ClipboardItem(entries)]);
+      else if (prior.types.every((type) => type === 'electron application/findtext')) clipboard.clear();
+    }
+  }
+  answer.putBack = { before: sizes(prior), after: landed ? sizes(await keep()) : null };
+  return JSON.stringify(answer);
+})()`;
+
 const until = async (cdp, expr, ms) => { const s = Date.now(); for (;;) { if ((await cdpEval(cdp, expr, 10000)) === true) return true; if (Date.now() - s > ms) return false; await sleep(80); } };
 const untilDisk = async (rel, pred, ms) => { const s = Date.now(); for (;;) { let d = ''; try { d = disk(rel); } catch { d = ''; } if (pred(d)) return true; if (Date.now() - s > ms) return false; await sleep(80); } };
 const drive = (cdp, spec) => cdpEval(cdp, `window.__gmuxShotDrive(${JSON.stringify(spec)}).then(() => true)`, 60000);
@@ -545,34 +610,10 @@ await withElectron(
       // flavour Electron can read and put back in a `finally`, and the restore
       // is SKIPPED when the copy never landed, so a failed copy leaves it
       // exactly as it was rather than rewriting it with a lossy round trip.
-      const copied = await mainEval(main, `(async () => {
-        const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
-        const { BrowserWindow, clipboard } = load('electron');
-        const win = BrowserWindow.getAllWindows()[0];
-        const prior = { formats: clipboard.availableFormats(), text: clipboard.readText(), html: clipboard.readHTML(), rtf: clipboard.readRTF(), image: clipboard.readImage() };
-        let landed = false;
-        try {
-          win.webContents.copy();
-          for (let i = 0; i < 40; i += 1) {
-            await new Promise((r) => setTimeout(r, 100));
-            if (clipboard.readText() !== prior.text) { landed = true; break; }
-          }
-          return JSON.stringify({ text: clipboard.readText(), landed, priorFormats: prior.formats });
-        } finally {
-          if (landed) {
-            const has = (needle) => prior.formats.some((one) => one.toLowerCase().includes(needle));
-            const data = {};
-            if (prior.text !== '') data.text = prior.text;
-            if (has('html') && prior.html !== '') data.html = prior.html.replace(/^<meta charset='utf-8'>/, '');
-            if (has('rtf') && prior.rtf !== '') data.rtf = prior.rtf;
-            if (has('image/') && !prior.image.isEmpty()) data.image = prior.image;
-            if (Object.keys(data).length > 0) clipboard.write(data);
-            else if (prior.formats.length === 0) clipboard.clear();
-          }
-        }
-      })()`, 40000);
+      // Phase 369 moved it to Electron 44's clipboard: COPY_AND_PUT_BACK.
+      const copied = await mainEval(main, COPY_AND_PUT_BACK, 40000);
       const clip = JSON.parse(copied ?? '{}');
-      readings.clipboard = { length: (clip.text ?? '').length, landed: clip.landed, priorFormats: clip.priorFormats };
+      readings.clipboard = { length: (clip.text ?? '').length, landed: clip.landed, priorFormats: clip.priorFormats, putBack: clip.putBack };
       const clipText = clip.landed === true ? (clip.text ?? '') : null;
       check('K0b', 'the window\'s own Copy command really reached the pasteboard', clip.landed === true, `landed=${String(clip.landed)}`);
       if (clipText !== null) {
@@ -582,6 +623,7 @@ await withElectron(
         check('K4', 'the clipboard is the working file, byte for byte', clipText === disk('notes.txt'), `clip ${clipText.length} bytes, file ${disk('notes.txt').length} bytes, equal=${clipText === disk('notes.txt')}`);
       }
       note('K5', 'what the chip said while the copy was taken', JSON.stringify(chipTextNow));
+      note('K6', 'the person’s own pasteboard, names and sizes before the copy and after the put back', JSON.stringify(clip.putBack ?? null));
       await cdpEval(cdp, `(() => { window.getSelection().removeAllRanges(); return true; })()`);
 
       // -------------------------------------------------------------------

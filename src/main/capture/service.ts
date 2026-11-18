@@ -21,7 +21,7 @@
 
 import { basename, dirname, join } from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import { app, clipboard, dialog, nativeImage } from 'electron';
+import { app, clipboard, ClipboardItem, dialog, nativeImage } from 'electron';
 import type { BrowserWindow } from 'electron';
 import type {
   CaptureImageInput,
@@ -66,10 +66,23 @@ function defaultFileName(suggestedName: string): string {
   return `tortie-${safe.length > 0 ? safe : 'terminal'}-${timestamp()}.png`;
 }
 
-function remember(png: Buffer, suggestedName: string): CaptureResult {
+/**
+ * PHASE 369. Electron 44 removed `clipboard.writeImage` (electron#52508), so
+ * the image goes on as ONE `image/png` item. Electron decodes it at scale 1.0
+ * with the helper `nativeImage.createFromBuffer` uses and hands the bitmap to
+ * the same system writer, so a paste receives what it did. The write is a
+ * promise and is awaited: a capture answers once the image is on the
+ * clipboard, and a write that fails reaches the handler's refusal.
+ */
+async function remember(
+  png: Buffer,
+  suggestedName: string
+): Promise<CaptureResult> {
   lastCapture = { png, suggestedName };
   const image = nativeImage.createFromBuffer(png);
-  clipboard.writeImage(image);
+  await clipboard.write([
+    new ClipboardItem({ 'image/png': new Blob([png], { type: 'image/png' }) })
+  ]);
   const size = image.getSize();
   return { width: size.width, height: size.height, bytes: png.byteLength };
 }
@@ -97,7 +110,9 @@ export async function captureViewport(
 }
 
 /** Take PNG bytes the renderer rasterized and put them on the clipboard. */
-export function captureImage(input: CaptureImageInput): CaptureResult {
+export async function captureImage(
+  input: CaptureImageInput
+): Promise<CaptureResult> {
   const png = Buffer.from(
     input.png.buffer,
     input.png.byteOffset,
@@ -219,13 +234,21 @@ async function captureHistoryRange(
  * Copy / Copy as HTML: both flavors in one write. An empty `html` means
  * text-only — writing an empty HTML flavor would blank the rich paste in
  * every app that prefers it.
+ *
+ * PHASE 369. Since Electron 44 the one write is ONE item, whose types go on
+ * together through the same system writer the object form used. It is a
+ * promise, awaited by its handler.
  */
-export function writeRichClipboard(input: ClipboardRichInput): void {
-  clipboard.write(
-    input.html.length > 0
-      ? { text: input.text, html: input.html }
-      : { text: input.text }
-  );
+export async function writeRichClipboard(
+  input: ClipboardRichInput
+): Promise<void> {
+  await clipboard.write([
+    new ClipboardItem(
+      input.html.length > 0
+        ? { 'text/plain': input.text, 'text/html': input.html }
+        : { 'text/plain': input.text }
+    )
+  ]);
 }
 
 /** Clear: drop the server-side history so "last N lines" agrees with it. */

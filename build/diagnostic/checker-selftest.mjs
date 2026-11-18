@@ -376,7 +376,11 @@ function build(ctx, name, variant, defines = []) {
     try {
       const prior = JSON.parse(readFileSync(json, 'utf8'));
       const node = join(out, 'build', 'Release', 'better_sqlite3.node');
-      const same = prior.variant === variant && J(prior.defines) === J(defines) && (variant === 'plain' || prior.checkerSha256 === checkerSha);
+      // Phase 369's probe review: a build made against ANOTHER Electron's headers is never reused,
+      // or `--reuse` over an --out built before an Electron move skips the one step that builds
+      // against the installed version's headers and every row reads green over the old build.
+      const electron = JSON.parse(readFileSync(join(ROOT, 'node_modules', 'electron', 'package.json'), 'utf8')).version;
+      const same = prior.variant === variant && J(prior.defines) === J(defines) && prior.electron === electron && (variant === 'plain' || prior.checkerSha256 === checkerSha);
       if (same && existsSync(node) && sha256(readFileSync(node)) === prior.sha256) {
         process.stdout.write(`build ${name}: reused (${prior.sha256})\n`);
         return { ok: true, out, line: prior, reused: true };

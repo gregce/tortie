@@ -10,12 +10,13 @@
  * the window offline over CDP before the drive runs (Phase 166).
  * GMUX_SHOT_CLIPBOARD runs the window's own Copy command and prints what the
  * system clipboard then holds, having saved what it held before and put that
- * back (Phase 191). Its value is either `1`, for one copy of whatever the
- * drive left selected, or a JSON array of expressions, each evaluated in the
- * driven window to set up ONE selection before its own copy.
+ * back (Phase 191; every flavour since Phase 369). Its value is either `1`,
+ * for one copy of whatever the drive left selected, or a JSON array of
+ * expressions, each evaluated in the driven window to set up ONE selection
+ * before its own copy.
  */
 
-import { app, BrowserWindow, clipboard } from 'electron';
+import { app, BrowserWindow, clipboard, ClipboardItem } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { saveLastCaptureTo } from '../capture';
 import { openSettingsWindow } from '../settings';
@@ -82,6 +83,177 @@ export async function exitShot(code: number): Promise<void> {
     return;
   }
   app.exit(code);
+}
+
+/*
+ * THE PERSON'S PASTEBOARD, READ AND PUT BACK BY GMUX_SHOT_CLIPBOARD (Phase
+ * 369). Shot mode only: nothing outside that knob reaches any of it.
+ *
+ * Electron 44 replaced the clipboard module (#52508). `availableFormats`,
+ * `readHTML`, `readRTF`, `readImage` and the object form of `write` are gone.
+ * `read()` answers one item listing every flavour the pasteboard holds: the
+ * standard ones by MIME type, and every other one RAW, as
+ * `electron application/osclipboard;format="<name>"`, whose bytes are read
+ * and written back exactly. Under Electron 43 every flavour but text, HTML,
+ * RTF and one image was lost to the copy. Under 45 far less is, among it a
+ * picture's SVG (its `getType` answers from the PNG) and any flavour whose
+ * name is not ASCII, which Chromium never lists; and, as under 43, a picture
+ * comes back re-encoded, and RTF with no HTML beside it comes back with HTML
+ * converted from it, because Chromium lists `text/html` for RTF. Read from
+ * Electron's source at v45.3.4 (shell/browser/api/electron_api_clipboard.cc
+ * and electron_api_clipboard_item.cc, byte-identical to v45.3.2's), its
+ * clipboard documentation and Chromium's ui/base/clipboard/clipboard_mac.mm
+ * at 156.0.8078.100, not yet from a run.
+ *
+ * Two facts in that source decide the shape. A flavour's bytes are fetched
+ * when `getType` is asked, from whatever the pasteboard holds THEN, so every
+ * flavour is read into memory before the copy and never after it. And four
+ * kinds of listed name are never written back, each named with its reason in
+ * the record: the find text (another pasteboard, which no copy touches), the
+ * bookmark (derived from the URL flavours, which are kept raw), a `web ` name
+ * (the twin of the raw `org.w3.web-custom-format.*` flavours, which are kept)
+ * and any `image/*` but `image/png` (its `getType` answers from the PNG).
+ */
+
+/** A standard flavour: written back only when its read answered bytes. */
+const STANDARD_FLAVOURS: ReadonlySet<string> = new Set([
+  'text/plain',
+  'text/html',
+  'text/rtf',
+  'text/uri-list',
+  'image/png'
+]);
+
+/** The prefix of a raw flavour: written back byte for byte, even empty. */
+const RAW_FLAVOUR = 'electron application/osclipboard;format="';
+
+/** The find pasteboard's text, which `read()` lists beside the pasteboard's. */
+const FIND_TEXT = 'electron application/findtext';
+
+/** What Chromium's HTML writer puts in front of the markup it is handed. */
+const CHROMIUM_HTML_MARK = "<meta charset='utf-8'>";
+
+interface KeptFlavour {
+  readonly type: string;
+  /** The bytes, held in memory for the run and never printed. */
+  readonly blob: Blob;
+}
+
+type KeptPasteboard =
+  | {
+      readonly ok: true;
+      /** Every name `read()` listed, in its order. */
+      readonly types: readonly string[];
+      readonly kept: readonly KeptFlavour[];
+      /** Each listed name that is not kept, with the reason. */
+      readonly left: Readonly<Record<string, string>>;
+    }
+  | { readonly ok: false; readonly why: string };
+
+/** Why a listed name is never written back, or null when it is kept. */
+function notKept(type: string): string | null {
+  if (STANDARD_FLAVOURS.has(type) || type.startsWith(RAW_FLAVOUR)) return null;
+  if (type === FIND_TEXT) return 'another pasteboard';
+  if (type.startsWith('image/')) return 'read as png';
+  if (type === 'electron application/bookmark' || type.startsWith('web ')) {
+    return 'derived';
+  }
+  return 'unknown';
+}
+
+/**
+ * Every flavour the pasteboard holds, read now. It never rejects: a refused
+ * `read()` answers `ok: false`, and the caller then copies nothing. A flavour
+ * whose own read is refused is named `unreadable` and is lost to the copy,
+ * as every flavour without a reader was under Electron 43.
+ *
+ * Only a LISTED name is ever read, because a read can invent a flavour.
+ * Measured on 2026-09-01 against a pasteboard holding 44 bytes of plain text
+ * and nothing else: Electron 43's `readHTML()` answered 66 bytes, being
+ * `<meta charset='utf-8'>` and those same 44 bytes, and writing that back
+ * left the pasteboard carrying an HTML flavour it never had.
+ */
+async function keepPasteboard(): Promise<KeptPasteboard> {
+  let items: Awaited<ReturnType<typeof clipboard.read>>;
+  try {
+    items = await clipboard.read();
+  } catch (err) {
+    return { ok: false, why: err instanceof Error ? err.message : String(err) };
+  }
+  const types: string[] = [];
+  const kept: KeptFlavour[] = [];
+  const left: Record<string, string> = {};
+  for (const item of items) {
+    for (const type of item.types) {
+      if (types.includes(type)) continue;
+      types.push(type);
+      const reason = notKept(type);
+      if (reason !== null) {
+        left[type] = reason;
+        continue;
+      }
+      try {
+        const blob = await item.getType(type);
+        if (blob instanceof Blob) kept.push({ type, blob });
+        else left[type] = 'unreadable';
+      } catch {
+        left[type] = 'unreadable';
+      }
+    }
+  }
+  return { ok: true, types, kept, left };
+}
+
+/**
+ * The entries of the ONE write that puts the kept flavours back, or null when
+ * none has anything to write.
+ *
+ * A standard flavour whose read answered no bytes is not written, as under
+ * Electron 43. A raw one is written even empty, because an empty raw flavour
+ * says something: the `org.nspasteboard.ConcealedType` and `TransientType`
+ * markers a password manager writes beside a password are empty by
+ * convention (Chromium writes its own confidentiality marker with no data),
+ * and a password put back without its marker is no longer marked concealed.
+ *
+ * `text/html` goes back through Chromium's HTML writer, `WriteHTML(text, "")`,
+ * the same call Electron 43's `write({ html })` made, and that writer PREPENDS
+ * `<meta charset='utf-8'>` to whatever it is handed (`ClipboardMac::WriteHTML`
+ * at Chromium 156.0.8078.100, Electron 45's, still does). Measured on
+ * 2026-09-01 against a pasteboard whose HTML a browser had written: 619 bytes
+ * before a run, 641 after, the flavour then beginning with the tag twice. So
+ * the one leading tag the write is about to add again is taken off first.
+ * Markup that never began with the tag still gains one, which is the writer's
+ * own doing.
+ */
+async function putBackEntries(
+  kept: readonly KeptFlavour[]
+): Promise<Record<string, string | Blob> | null> {
+  const entries: Record<string, string | Blob> = {};
+  for (const { type, blob } of kept) {
+    if (!type.startsWith(RAW_FLAVOUR) && blob.size === 0) continue;
+    if (type === 'text/html') {
+      const html = await blob.text();
+      entries[type] = html.startsWith(CHROMIUM_HTML_MARK)
+        ? html.slice(CHROMIUM_HTML_MARK.length)
+        : html;
+    } else {
+      entries[type] = blob;
+    }
+  }
+  return Object.keys(entries).length > 0 ? entries : null;
+}
+
+/** Names and sizes, never a byte: `[name, bytes]`, or `[name, reason]`. */
+function pasteboardRecord(
+  board: KeptPasteboard
+): Array<[string, number | string]> | string {
+  if (!board.ok) return board.why;
+  return board.types.map((type): [string, number | string] => [
+    type,
+    board.kept.find((one) => one.type === type)?.blob.size ??
+      board.left[type] ??
+      'unknown'
+  ]);
 }
 
 export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
@@ -261,9 +433,11 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
   /**
    * WHAT THE PERSON'S PASTEBOARD HELD BEFORE THIS RUN, in every flavour
    * Electron can read, because putting back only the text is not putting it
-   * back. Two things were wrong with the first version of this and both are
-   * fixed here.
+   * back. It is read HERE, before the drive, as it always was, so a drive that
+   * writes the pasteboard itself is never mistaken for what was there. The
+   * copy below waits for this read, and copies nothing if it was refused.
    *
+   * Two things were wrong with the first version of this and both stay fixed.
    * The first is that `clipboard.clear()` was the answer for "there was no
    * text". Clear empties EVERY flavour, so somebody holding an image or a
    * file reference with no text alongside it lost it to a harness run.
@@ -280,55 +454,31 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
    * was there, to clear ONLY if the pasteboard was empty of every flavour. A
    * pasteboard that held something unreadable is left alone rather than
    * emptied, because emptying it is a second loss on top of the first.
-   *
-   * Shot mode only. Nothing outside GMUX_SHOT_CLIPBOARD reaches any of it.
    */
-  const priorClipboard =
-    clipboardSteps === null
-      ? null
-      : {
-          formats: clipboard.availableFormats(),
-          text: clipboard.readText(),
-          html: clipboard.readHTML(),
-          rtf: clipboard.readRTF(),
-          image: clipboard.readImage()
-        };
-  const restoreClipboard = (): void => {
-    if (priorClipboard === null) return;
-    // EVERY FLAVOUR IS GATED ON `availableFormats`, not on whether the read
-    // came back non-empty, because a read can INVENT one. Measured on
-    // 2026-09-01 against a pasteboard holding 44 bytes of plain text and
-    // nothing else: `readHTML()` returned 66 bytes, being `<meta
-    // charset='utf-8'>` and those same 44 bytes, which Chromium synthesises
-    // from the text. Writing that back left the pasteboard carrying an HTML
-    // flavour it never had, which is a change rather than a restore. The
-    // format names are matched loosely on purpose: a name this does not
-    // recognise means that flavour is not put back, which is exactly the
-    // behaviour before any of this existed.
-    const has = (needle: string): boolean =>
-      priorClipboard.formats.some((one) => one.toLowerCase().includes(needle));
-    const data: Parameters<typeof clipboard.write>[0] = {};
-    if (priorClipboard.text !== '') data.text = priorClipboard.text;
-    // `clipboard.write({ html })` PREPENDS `<meta charset='utf-8'>` to whatever
-    // it is given, so putting back the bytes `readHTML()` returned grows the
-    // flavour by 22 bytes on every run. Measured on 2026-09-01 against a
-    // pasteboard whose HTML a browser had written: 619 bytes before the run,
-    // 641 after, and the flavour then began with the tag twice. Stripping
-    // the one leading tag the write is about to add again gives back the
-    // bytes that were there. A flavour that never began with the tag still
-    // gains one, which is the write's own doing and cannot be helped here.
-    if (has('html') && priorClipboard.html !== '') {
-      data.html = priorClipboard.html.replace(/^<meta charset='utf-8'>/, '');
+  const priorClipboard: Promise<KeptPasteboard> | null =
+    clipboardSteps === null ? null : keepPasteboard();
+  /**
+   * Puts back what `priorClipboard` read, in ONE awaited write of a new item
+   * (Electron refuses to write an item `read()` answered), then prints the
+   * names and sizes before and after. A refused save writes nothing, because
+   * nothing was copied over it.
+   */
+  const restoreClipboard = async (): Promise<void> => {
+    const kept = priorClipboard === null ? null : await priorClipboard;
+    if (kept === null || !kept.ok) return;
+    const entries = await putBackEntries(kept.kept);
+    if (entries !== null) {
+      await clipboard.write([new ClipboardItem(entries)]);
+    } else if (kept.types.every((type) => type === FIND_TEXT)) {
+      clipboard.clear();
     }
-    if (has('rtf') && priorClipboard.rtf !== '') data.rtf = priorClipboard.rtf;
-    if (has('image/') && !priorClipboard.image.isEmpty()) {
-      data.image = priorClipboard.image;
-    }
-    if (Object.keys(data).length > 0) {
-      clipboard.write(data);
-      return;
-    }
-    if (priorClipboard.formats.length === 0) clipboard.clear();
+    const after = await keepPasteboard();
+    console.log(
+      `[gmux-shot] clipboard-put-back ${JSON.stringify({
+        before: pasteboardRecord(kept),
+        after: pasteboardRecord(after)
+      })}`
+    );
   };
   mainWindow.webContents.once('did-finish-load', () => {
     setTimeout(async () => {
@@ -421,6 +571,17 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
         // a `finally`, whatever happened. Shot mode only. No product
         // behavior.
         if (clipboardSteps !== null) {
+          // NOTHING IS COPIED OVER A PASTEBOARD THAT WAS NOT SAVED FIRST (Phase
+          // 369). A refused read means there is nothing to put back, so the
+          // run fails here, before `wc.copy()`, and leaves the pasteboard as
+          // it was.
+          const kept = priorClipboard === null ? null : await priorClipboard;
+          if (kept === null || !kept.ok) {
+            throw new Error(
+              'the pasteboard could not be read first, so nothing was copied: ' +
+                (kept === null ? 'no read' : kept.why)
+            );
+          }
           // THE RESTORE IS IN A `finally`, and that is the whole shape of this
           // block. Everything from here to the end of the drive used to sit in
           // one `try` whose `catch` only logs and exits, so a throw in the
@@ -454,16 +615,17 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
               }
               wc.copy();
               await new Promise((r) => setTimeout(r, 600));
-              taken.push({ setup: answer, text: clipboard.readText() });
+              taken.push({ setup: answer, text: await clipboard.readText() });
             }
             console.log(`[gmux-shot] clipboard ${JSON.stringify(taken)}`);
             // The flavour NAMES only, never their contents, so a probe can
-            // check that the pasteboard came back with what it had.
+            // check that the pasteboard came back with what it had. The sizes
+            // are on the `clipboard-put-back` line the restore prints.
             console.log(
-              `[gmux-shot] clipboard-formats ${JSON.stringify(priorClipboard?.formats ?? [])}`
+              `[gmux-shot] clipboard-formats ${JSON.stringify(kept.types)}`
             );
           } finally {
-            restoreClipboard();
+            await restoreClipboard();
           }
         }
         // GMUX_SHOT_JS: one expression, evaluated in the DRIVEN window, its

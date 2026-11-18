@@ -999,6 +999,10 @@ const cpuProfiles = (process.env['P167_CPU_PROFILES'] ?? 'c')
   .filter((one) => one !== '');
 const outDir = resolve((process.env['P167_OUT_DIR'] ?? '').trim() || join(REPO, 'out', 'p167'));
 mkdirSync(outDir, { recursive: true });
+// Phase 369's probe review: a run that stops partway (the app crashed, a call threw) leaves
+// through the `finally` below and writes no report, so an earlier run's report.json must not be
+// left here to be read as this run's PASS. Its exit code (1) was already right.
+rmSync(join(outDir, 'report.json'), { force: true });
 mkdirSync(join(harnessDir, 'p167'), { recursive: true });
 const root = realpathSync(join(harnessDir, 'p167'));
 const home = join(root, 'home');

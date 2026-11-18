@@ -418,6 +418,66 @@ async function mainEval(cdp, expression, ms = 20000) {
   return r.result?.result?.value;
 }
 
+// THE PERSON'S PASTEBOARD, saved before the one copy and put back after it
+// (Phase 369). Electron 44 replaced the clipboard module, so this follows
+// src/main/harness/shot.ts's rules for its GMUX_SHOT_CLIPBOARD save. The save
+// reads every flavour clipboard.read() lists, because an item's bytes are
+// fetched when getType is asked, from whatever the pasteboard holds then, and
+// it KEEPS THEM IN MAIN: no byte of the pasteboard ever reaches this process,
+// only names and sizes. The put back is ONE write of a new item: the standard
+// flavours when not empty, the raw ones byte for byte even when empty, one
+// leading meta tag taken off the HTML because Chromium's writer adds it
+// again, and a clear only for a pasteboard the save found empty. With no
+// save, it touches nothing.
+const PASTEBOARD_KEEP = `async (clipboard) => {
+  const RAW = 'electron application/osclipboard;format="';
+  const STANDARD = ['text/plain', 'text/html', 'text/rtf', 'text/uri-list', 'image/png'];
+  const types = [];
+  const kept = [];
+  for (const item of await clipboard.read()) {
+    for (const type of item.types) {
+      if (types.includes(type)) continue;
+      types.push(type);
+      if (!STANDARD.includes(type) && !type.startsWith(RAW)) continue;
+      try {
+        const blob = await item.getType(type);
+        if (blob instanceof Blob) kept.push({ type, blob });
+      } catch { /* unreadable, so lost to the copy */ }
+    }
+  }
+  return { types, kept, sizes: types.map((type) => [type, kept.find((one) => one.type === type)?.blob.size ?? null]) };
+}`;
+const PASTEBOARD_SAVE = `(async () => {
+  const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
+  const { clipboard } = load('electron');
+  const keep = ${PASTEBOARD_KEEP};
+  const board = await keep(clipboard);
+  globalThis.__p239Pasteboard = board;
+  return JSON.stringify(board.sizes);
+})()`;
+const PASTEBOARD_PUT_BACK = `(async () => {
+  const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
+  const { clipboard, ClipboardItem } = load('electron');
+  const board = globalThis.__p239Pasteboard;
+  if (board === undefined) return JSON.stringify(null);
+  const MARK = "<meta charset='utf-8'>";
+  const entries = {};
+  for (const { type, blob } of board.kept) {
+    if (!type.startsWith('electron application/osclipboard;format="') && blob.size === 0) continue;
+    if (type === 'text/html') {
+      const html = await blob.text();
+      entries[type] = html.startsWith(MARK) ? html.slice(MARK.length) : html;
+    } else {
+      entries[type] = blob;
+    }
+  }
+  if (Object.keys(entries).length > 0) await clipboard.write([new ClipboardItem(entries)]);
+  else if (board.types.every((type) => type === 'electron application/findtext')) clipboard.clear();
+  delete globalThis.__p239Pasteboard;
+  const keep = ${PASTEBOARD_KEEP};
+  return JSON.stringify((await keep(clipboard)).sizes);
+})()`;
+
 const until = async (cdp, expr, ms) => { const s = Date.now(); for (;;) { if ((await cdpEval(cdp, expr, 10000)) === true) return true; if (Date.now() - s > ms) return false; await sleep(80); } };
 const untilDisk = async (rel, pred, ms) => { const s = Date.now(); for (;;) { let d = ''; try { d = disk(rel); } catch { d = ''; } if (pred(d)) return true; if (Date.now() - s > ms) return false; await sleep(80); } };
 const drive = (cdp, spec) => cdpEval(cdp, `window.__gmuxShotDrive(${JSON.stringify(spec)}).then(() => true)`, 60000);
@@ -790,37 +850,32 @@ await withElectron(
       await press(cdp, ALT_DOWN); await sleep(400);
       const fBeforeCopy = await face(cdp);
       check('C0', 'the controls are drawn while the copy is taken', fBeforeCopy.chip !== null, '');
-      const SAVE = `(async () => {
-        const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
-        const { clipboard } = load('electron');
-        const out = {};
-        for (const f of clipboard.availableFormats()) { try { out[f] = clipboard.readBuffer(f).toString('base64'); } catch { /* skip */ } }
-        return JSON.stringify(out);
-      })()`;
-      const saved = await mainEval(main, SAVE);
+      // The save throws before the copy when the pasteboard cannot be read,
+      // so a refused read leaves it alone and fails the run, and nothing is
+      // put back (or cleared) unless this save succeeded (Phase 369).
+      const saved = await mainEval(main, PASTEBOARD_SAVE);
+      readings.pasteboard = { before: JSON.parse(saved ?? 'null'), after: null };
       restorePasteboard = async () => {
-        await mainEval(main, `(() => {
-          const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
-          const { clipboard } = load('electron');
-          const saved = JSON.parse(${JSON.stringify(saved)});
-          clipboard.clear();
-          for (const [f, b64] of Object.entries(saved)) { try { clipboard.writeBuffer(f, Buffer.from(b64, 'base64')); } catch { /* skip */ } }
-          return true;
-        })()`);
+        readings.pasteboard.after = JSON.parse((await mainEval(main, PASTEBOARD_PUT_BACK)) ?? 'null');
       };
       await cdpEval(cdp, `(() => { const d = document.querySelector('.ed-redline-doc'); const s = window.getSelection(); const r = document.createRange(); r.selectNodeContents(d); s.removeAllRanges(); s.addRange(r); return s.toString().length; })()`, 20000);
       await sleep(200);
       await mainEval(main, `(() => { const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule); const { BrowserWindow } = load('electron'); BrowserWindow.getAllWindows()[0].webContents.copy(); return true; })()`);
       await sleep(700);
-      const pasted = await mainEval(main, `(() => { const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule); const { clipboard } = load('electron'); return clipboard.readText(); })()`);
-      readings.clipboard = pasted;
+      const pasted = await mainEval(main, `(async () => { const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule); const { clipboard } = load('electron'); return await clipboard.readText(); })()`);
+      // Phase 369's probe review. The readings keep a length and one answer, never the text: when
+      // the copy did not land, readText() answered the person's own pasteboard, and the readings
+      // file is written to disk. A reading that is not a string is never a pass.
+      const onDisk = disk('notes.txt');
+      const pastedRead = typeof pasted === 'string';
+      readings.clipboard = { read: pastedRead, length: pastedRead ? pasted.length : null, isTheFile: pasted === onDisk };
       const controlWords = ['Rewind', 'Undo', '⌥↓', '⌥↑', '⌥⌫', '⌥⇧⌫'];
       const leaked = controlWords.filter((w) => String(pasted).includes(w));
-      check('C1', 'NO CONTROL TEXT reaches the clipboard with the controls drawn', leaked.length === 0, leaked.length === 0 ? `${String(String(pasted).length)} chars pasted` : `leaked ${JSON.stringify(leaked)}`);
-      const onDisk = disk('notes.txt');
+      check('C1', 'NO CONTROL TEXT reaches the clipboard with the controls drawn', pastedRead && leaked.length === 0, !pastedRead ? `the pasteboard's text was not read (${typeof pasted})` : leaked.length === 0 ? `${String(pasted.length)} chars pasted` : `leaked ${JSON.stringify(leaked)}`);
       check('C2', 'and what it did paste is the working file, byte for byte', String(pasted) === onDisk, `${String(String(pasted).length)} chars against the file's ${String(onDisk.length)}`);
       await restorePasteboard();
       restorePasteboard = null;
+      note('C3', 'the person’s own pasteboard, names and sizes before the copy and after the put back', JSON.stringify(readings.pasteboard));
 
       // -----------------------------------------------------------------
       // V. Press every control and read the file, or the baseline, back.

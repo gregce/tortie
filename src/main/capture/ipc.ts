@@ -60,9 +60,12 @@ export function registerCaptureIpc(ipc: IpcMain): void {
     }
   });
 
-  handle(ipc, 'capture:image', (_event, input) => {
+  // PHASE 369. Awaited INSIDE the try: since Electron 44 the clipboard write
+  // is a promise, and a refusal that left the try unawaited would reach the
+  // renderer without these words.
+  handle(ipc, 'capture:image', async (_event, input) => {
     try {
-      return captureImage(input);
+      return await captureImage(input);
     } catch (err) {
       throw gmuxError(
         'UNKNOWN',
@@ -112,8 +115,11 @@ export function registerCaptureIpc(ipc: IpcMain): void {
     }
   });
 
-  handle(ipc, 'clipboard:writeRich', (_event, input) => {
-    writeRichClipboard(input);
+  // PHASE 369. Awaited, so the Copy answers once the text is on the clipboard
+  // and a failed write rejects it, as a write that threw did before Electron
+  // 44, rather than going unheard in main.
+  handle(ipc, 'clipboard:writeRich', async (_event, input) => {
+    await writeRichClipboard(input);
   });
 
   // Deliberately the browser paste command, not a clipboard read: it lands on
