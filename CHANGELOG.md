@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Changed
 
-- Tortie now needs macOS 13 or later
+- Tortie now needs macOS 13 or later ([`d96eaf76`](https://github.com/gregce/tortie/commit/d96eaf76))
 
 ## 0.115.0 (2026-11-17)
 
