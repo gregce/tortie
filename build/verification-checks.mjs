@@ -1909,6 +1909,24 @@ export const CHECKS = [
     'probe:p368',
     `${NEEDS.electron}; a built parent checkout (P368_PARENT_CHECKOUT) and Homebrew's tmux 3.6a for arm d's second launch (P368_TMUX_36A); an arm whose input is absent reads UNREADABLE`
   ),
+  // PHASE 370 (build/p370/SPEC.md §8): how many `git check-ignore` children the
+  // file tree holds at once, at the parent and at HEAD. Electrons through
+  // build/electron-run.mjs ONE AT A TIME and never at once, the parent first
+  // (P370_PARENT_CHECKOUT, a built 3aae4f89, required), each launch on its own
+  // scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null and SHELL=/bin/sh
+  // and the socket gmux-p370…, over scratch repositories it made. The git first
+  // on the app's PATH is build/p370/stand-in.zsh, which logs each call from
+  // outside the app, sleeps for the hold with no child and no CPU and answers
+  // the held cells from the fixture's own rules; /usr/bin/git answers the rest,
+  // with HOME in scratch and neither git config file of his read. At 520 held
+  // children it ends that launch. No session and no agent is started: every
+  // probed registry row is hidden through build/hidden-agents.mjs and
+  // `agents:list` read back. `--grader-self-test` grades build/p370/fixtures/
+  // and starts nothing; `--preflight` and `--list-graders` start nothing.
+  electron(
+    'probe:p370',
+    `${NEEDS.electron}; a built parent checkout (P370_PARENT_CHECKOUT); an arm whose input is absent reads UNREADABLE`
+  ),
   // PHASE 364 (build/p364/SPEC.md §8): the diagnostic Tortie he will run as his
   // everyday app, beside the normal app it must leave unchanged. Electrons
   // through build/electron-run.mjs ONE AT A TIME and never at once, each launch

@@ -275,6 +275,8 @@ describe('staleness', () => {
 
     fail = false;
     asks = [];
+    // PHASE 370. Not by the very next listing: a tick delivers one per folder.
+    vi.advanceTimersByTime(1_000);
     await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     expect(asks).toEqual([['src/', 'dist/']]);
     expect(shown()).toEqual(['dist/']);

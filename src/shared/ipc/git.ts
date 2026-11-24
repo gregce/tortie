@@ -337,8 +337,9 @@ export interface GitCheckIgnoreInput {
 export interface GitIgnoreInvokeChannelMap {
   /**
    * The subset of `paths` the repository ignores, echoed back byte for byte
-   * as they were asked. A non-repo folder, a failed read and "none ignored"
-   * all resolve to `[]` — the same friendly-read discipline as `git:status`.
+   * as they were asked. A non-repo folder and "none ignored" resolve to `[]`.
+   * A git that did not answer REJECTS (Phase 370), and so does a call that a
+   * newer one for the same repository displaced before it started.
    */
   'git:checkIgnore': { req: [input: GitCheckIgnoreInput]; res: string[] };
 }

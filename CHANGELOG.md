@@ -10,6 +10,10 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 - Tortie now needs macOS 13 or later ([`d96eaf76`](https://github.com/gregce/tortie/commit/d96eaf76))
 
+### Fixed
+
+- The Explorer now asks git which files are ignored one question at a time. With many folders open it used to start hundreds of git processes at once, when a project was shown and each time a file changed, which could slow the whole Mac
+
 ## 0.115.0 (2026-11-17)
 
 This release is about the terminal, after Jack Shaw's report in issue 44. A long agent reply no longer draws over itself, copying gives you what you see, and links an agent prints open in your browser. Words you type no longer turn a session amber, and starting a session or quitting Tortie now holds up when its session list goes bad.

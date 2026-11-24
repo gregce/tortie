@@ -167,7 +167,7 @@ function runProbe(fixture, gitDir) {
 }
 
 /**
- * A copy of the five shipping modules the walk is made of, under a temp
+ * A copy of the six shipping modules the walk is made of, under a temp
  * `main/` so the relative imports resolve, with `edit` applied to one file.
  * The copy must differ from the tree at exactly the place the edit names, or
  * the ablation did not happen and the gate would be proving the wrong thing.
@@ -177,8 +177,9 @@ function ablatedCopy(root, edit) {
   mkdirSync(join(dir, 'git'), { recursive: true });
   // Phase 199 added search-args.ts, the module the walk composes its
   // filter argv from; the copy must carry it or the import fails before
-  // any ablation is judged.
-  for (const f of ['service.ts', 'exec.ts', 'graph-parse.ts', 'parse.ts', 'search-args.ts']) {
+  // any ablation is judged. Phase 370 added ignore-line.ts, which service.ts
+  // imports, for the same reason.
+  for (const f of ['service.ts', 'exec.ts', 'graph-parse.ts', 'parse.ts', 'search-args.ts', 'ignore-line.ts']) {
     cpSync(join(repoRoot, 'src/main/git', f), join(dir, 'git', f));
   }
   cpSync(join(repoRoot, 'src/main/errors.ts'), join(dir, 'errors.ts'));

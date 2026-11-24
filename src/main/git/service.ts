@@ -35,6 +35,7 @@ import type {
 } from '@shared/types';
 import { gmuxError } from '../errors';
 import { runGit, runGitOrThrow } from './exec';
+import { checkIgnoreLine } from './ignore-line';
 import {
   CHANGE_SEARCH_TIMEOUT_MS,
   normalizeSearch,
@@ -703,9 +704,18 @@ export class GitService {
    * Which of `paths` this repository ignores (Phase 47). One spawn, the paths
    * on stdin, the answers echoed back byte for byte.
    *
-   * Friendly read, like status() and branches(): a non-repo folder, a git
-   * that could not start, and "none of these are ignored" all resolve to the
-   * empty array. Nothing here can make the file tree fail to browse.
+   * A non-repo folder and "none of these are ignored" answer the empty array.
+   *
+   * A GIT THAT DID NOT ANSWER REJECTS (Phase 370). Exit 0, 1 and 128 are
+   * answers. A git that could not start, was stopped at the timeout, was ended
+   * by a signal, or left with any other code said nothing about these paths.
+   * Until this phase all four answered `[]`, which a revalidation reads as
+   * "nothing is ignored" and undims the whole tree by. The tree's store
+   * catches the rejection and keeps what it shows.
+   *
+   * ONE CHILD AT A TIME FOR THIS REPOSITORY (Phase 370). The spawn is inside
+   * `checkIgnoreLine`, whose header carries the rule. A call that a newer one
+   * displaced before it started rejects too.
    *
    * Three properties this method depends on, each measured against git 2.50.1
    * rather than assumed:
@@ -725,19 +735,23 @@ export class GitService {
     }
     if (asked.length === 0) return [];
 
-    let result;
-    try {
-      result = await runGit(this.repoPath, ['check-ignore', '-z', '--stdin'], {
+    const result = await checkIgnoreLine.run(this.repoPath, () =>
+      runGit(this.repoPath, ['check-ignore', '-z', '--stdin'], {
         stdin: asked.join('\0') + '\0'
-      });
-    } catch {
-      return [];
+      })
+    );
+    if (result.code === 0) {
+      return result.stdout
+        .toString('utf8')
+        .split('\0')
+        .filter((path) => path.length > 0);
     }
-    if (result.code !== 0) return [];
-    return result.stdout
-      .toString('utf8')
-      .split('\0')
-      .filter((path) => path.length > 0);
+    if (result.code === 1 || result.code === 128) return [];
+    throw gmuxError(
+      'GIT_FAILED',
+      'Git could not say which files are ignored.',
+      `git check-ignore -z --stdin ended with ${String(result.code)}`
+    );
   }
 
   // -------------------------------------------------------------------------

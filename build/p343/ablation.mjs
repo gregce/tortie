@@ -562,13 +562,13 @@ export const ABLATIONS = [
     n: 'a-ig3', check: 'tree', owner: /KEEPS all eight across a revalidation/, file: IGNORED,
     name: 'the revalidation arm asked without the links',
     why: "the revalidation REPLACES the set, so a watcher tick past the 10 s floor would undim node_modules and every ignored folder (A4).",
-    from: '        ? pathsToAsk(paths, NONE, NONE, linkFolders)', to: '        ? pathsToAsk(paths, NONE, NONE, new Set())'
+    from: '      ? pathsToAsk(paths, NONE, NONE, linkFolders)', to: '      ? pathsToAsk(paths, NONE, NONE, new Set())'
   },
   {
     n: 'a-ig4', check: 'tree', owner: /dims all eight on the ordinary sync/, file: IGNORED,
     name: 'a hit left in leaf spelling',
     why: 'an ignored link drawn as a folder would not dim the rows under it.',
-    from: '        ).map((path) => canonicalAnswer(path, linkFolders));', to: '        );'
+    from: '      .then((raw) => raw.map((path) => canonicalAnswer(path, linkFolders)))', to: '      .then((raw) => raw)'
   },
   {
     n: 'a-gl1', check: 'tree', owner: /keys git's file row for a link onto the folder row/, file: DECO,

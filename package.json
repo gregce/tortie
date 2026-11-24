@@ -143,6 +143,7 @@
     "probe:p365": "node build/harness-socket.mjs --fresh gmux-p365 'node build/p365/probe-p365.mjs'",
     "probe:p364": "node build/harness-socket.mjs --fresh gmux-p364 'node build/p364/probe-p364.mjs'",
     "probe:p368": "node build/harness-socket.mjs --fresh gmux-p368 'node build/p368/probe-p368.mjs'",
+    "probe:p370": "node build/harness-socket.mjs --fresh gmux-p370 'node build/p370/probe-p370.mjs'",
     "measure:p337": "node build/p337/measure-screen.mjs",
     "measure:p342": "node build/p342/measure-p342.mjs",
     "measure:p3471": "node build/p3471/corpora.mjs",

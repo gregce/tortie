@@ -684,13 +684,22 @@ const HELPER = 'electron-run.mjs';
  * harness-only seam, a held sqlite3 write lock on the scratch manifest), and
  * its own loopback machine from build/scratch-machine.mjs with the quiet shell
  * and the scratch far home, never build/with-scratch-machine.mjs.
+ * PHASE 370 RAISED IT BY ONE (192 TO 193), for build/p370/probe-p370.mjs
+ * (`probe:p370`), the file tree asking git what is ignored one call at a time:
+ * Electrons through the helper ONE AT A TIME, the parent's
+ * (`P370_PARENT_CHECKOUT`, required) FIRST, each launch on its own scratch
+ * profile, HOME and ZDOTDIR with HISTFILE=/dev/null and the socket gmux-p370…
+ * named as its `tmuxSocket` (his ruling of 2026-11-02), a counting git first on
+ * the app's PATH, every probed registry row hidden before every launch and
+ * `agents:list` read back, no session and no agent started, and every writer,
+ * stand-in and app ended by pid in its `finally`.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 192;
+const HELPER_USER_FLOOR = 193;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.
