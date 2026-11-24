@@ -64,6 +64,10 @@ out. A person on API-key billing gets an honest `No subscription plan — API ke
 
 ### The other six, briefly
 
+**Superseded for Gemini and Antigravity by research 146 (2026-11-24, its §15).** The two lines below were read out of
+orca's source on 2026-08-30 and are out of date: Google stopped serving personal sign-ins in the Gemini CLI on
+2026-06-18 and says no in writing to a program that sends its stored token to the quota endpoint.
+
 gemini (`POST https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota`, per-model buckets
 with `remainingFraction`, credentials from `~/.gemini/oauth_creds.json`, opt-in only because the
 fallback sources live in other apps' data folders); grok
