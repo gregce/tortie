@@ -12,7 +12,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- The Explorer now asks git which files are ignored one question at a time. With many folders open it used to start hundreds of git processes at once, when a project was shown and each time a file changed, which could slow the whole Mac
+- The Explorer now asks git which files are ignored one question at a time. With many folders open it used to start hundreds of git processes at once, when a project was shown and each time a file changed, which could slow the whole Mac ([`67be1895`](https://github.com/gregce/tortie/commit/67be1895))
 
 ## 0.115.0 (2026-11-17)
 
