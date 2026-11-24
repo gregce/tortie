@@ -644,3 +644,34 @@ Code Assist deprecations (2026-10-09). support.google.com/gemini/answer/16275805
 203369, 203779. github.com/google-antigravity/antigravity-cli issues 397, 490, 709, 1045, 1629, 1688, 1701.
 github.com/google-gemini/gemini-cli issues 28912, 29101, 29425, 30320. github.com/steipete/CodexBar PR 3139 and issue
 5129.
+
+---
+
+## 16. The second reading, the same evening (added by the main session, 24 November 2026)
+
+He asked: "when i run agy through tortie its already signed in? can you confirm if running from the comand line does
+something different?" Five starts of agy 1.5.16 in a scratch repository, two one-word turns, no `/usage`, no `-p`, no
+sign-in or sign-out, the updater off. With section 11's launch that is six starts and three turns. All RAN, one account,
+one evening. This answers most of section 12.2 and its SpecStory question.
+
+| Question | Reading |
+| --- | --- |
+| Is the command line different from Tortie? | No. A launch with a terminal's ordinary environment and one with Tortie's pane variables (`GMUX_MANAGED`, `GMUX_SESSION_ID`, inside tmux 3.7b) were both signed in, drew the same screens row for row and answered the turn. Both drew "Sign-in update needed" at the first turn. This reproduces Tortie's pane by hand; the app itself did not launch them. |
+| Is the notice a sign-out? | No. It is drawn while signed in, beside the answer. It also appears on a resumed conversation with no new turn. |
+| Are his Tortie sessions wrapped by SpecStory? | Not the three running: each `agy` is a direct child of Tortie's own tmux. |
+| Inline JSON to `--settings` | Accepted. No settings file is needed. |
+| The pane with and without the setting | Equal row for row at 120 by 40, idle and after a turn, with the command's output empty. 80 by 24 was not read. |
+| Quota timing | First in run 4, 0.9 s after run 1, before any turn. |
+| Resume: `--conversation <id> --settings <inline>` | The command runs, 8 runs in the first 12 s, quota in the fourth. |
+| A script that exits 1 | One key gave 2 runs at once and none in the next 28 s, so it does not loop. Each failure draws a "Statusline Error" block that stays in the conversation. |
+| A tracked file edited while idle | 0 runs in 20 s. "Old while idle" is the copy. |
+| An unknown top level key | agy exits 1 at once. |
+| An unknown key inside `statusLine` | agy starts. |
+| Saved settings | The file grew by 53 bytes when the folder was trusted and never moved for `--settings`. |
+
+**One new fact for the design.** Within seconds of a launch the same bucket alternates between two server values
+(0.9477 and 0.9461 for five hours, 0.9826 and 0.9791 for the week, back and forth on the resume). The difference is at
+most 0.4 of a point, so the drawn percent can step by one at launch. The build says which it keeps and never reads the
+step as use.
+
+Left by agy, and his to remove: two more conversations and one more trusted entry for a removed scratch folder.
