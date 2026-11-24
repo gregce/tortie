@@ -45454,7 +45454,7 @@ It starts after Phases 360 and 325.1 land or are set aside, because it changes t
 9. Report upstream to Anthropic and OpenAI: on his word.
 10. A person's own window drag reaching tmux as one size when it stops: only if measured no worse than today (default).
 
-## Phase 370 — "we need to resolve this issue" — the file tree asks git what is ignored one call at a time (operator, 2026-11-23; measured by his runstory session on his own Tortie) QUEUED 2026-11-23
+## Phase 370 — "we need to resolve this issue" — the file tree asks git what is ignored one call at a time (operator, 2026-11-23; measured by his runstory session on his own Tortie) ✅ LANDED `67be1895`, 2026-11-24
 
 **Subject.** `fix(tree): ask git what is ignored one call at a time`
 
@@ -45500,6 +45500,113 @@ It starts after Phases 360 and 325.1 land or are set aside, because it changes t
 - No change to what is dimmed, to the 10 s floor, to the 20,000 cap, to RULE 6 or to a remote tab asking nothing.
 - No new setting, surface, sentence or menu row.
 - No release. 0.116.0 is cut on his word once this has landed.
+
+## Phase 371 — "what's the simplest set of changes that can make the biggest performance / user impact?" — History is read when git's own data moves, not when a file is saved (operator, 2026-11-24; measured by Phase 370's audit) QUEUED 2026-11-24
+
+**Subject.** `perf(scm): read history only when git's own data moves`
+
+**First body line.** `Phase 371: a saved file no longer re-reads history, branches and remotes`
+
+**Semver.** Patch, with one CHANGELOG item under Fixed. No release: that waits for his word.
+
+**Tier 3.** It decides when processes start, it claims that nothing a person can see gets staler, and his standing rule is no regression against today; the parent measurement is mandatory because the number came from his report of 2026-11-23 (Phase 370) through its audit.
+
+**Charter.** His words of 2026-11-24: "whats the simplest set of changes that can make the biggest performance / user impact?", then "OK lets do each", to the two changes put to him (this one and Phase 372). `build/p370/SPEC.md` §2.4 is the measurement: over 30 s of a writer (74 to 75 changes) the History store starts 296 `for-each-ref`, 222 `remote`, about 208 each of `rev-parse` and `symbolic-ref` and about 120 `log` with Source Control looked at and a diff tab open, about 14 a change; with the project opened and only the Explorer shown, about 9 a change (222, 148, 123, 123, 49). Under a git held 10 s it holds 355 and 227 children at once, 45 under a git held 1 s. A saved file can change none of what those commands answer. The rules it must keep: Phase 151's (a dropped batch re-reads, because nothing is known about what was in it), Phase 163's (a drop is counted and never a number on a surface), Phase 199's (a change search on screen is never re-run by a repository change), Phase 198's (a file's history is re-read on the same beat as the log), Phase 365's D9 (a watch that waited re-reads once), and `src/renderer/state/repo-changed.ts`'s header (one debounce, every surface woken in the same tick).
+
+### What the tree says (read 2026-11-24 at `8b1794cc`)
+
+- **Two streams, one message.** `RepoWatcher` (`src/main/watcher/repo-watcher.ts`) holds a worktree subscription and a `.git` subscription. `handleWorktreeEvents` (`:484-492`) and `handleDotgitEvents` (`:500-517`) both end in `scheduleFlush()` (`:549-571`), whose one callback is `onChange(repoPath)`: which stream spoke is known there and dropped. `isRelevantDotGitPath` (`:118-140`) is the `.git` filter: HEAD, ORIG_HEAD, MERGE_HEAD, CHERRY_PICK_HEAD, REVERT_HEAD, REBASE_HEAD, FETCH_HEAD, packed-refs, index, refs/, rebase-merge/, rebase-apply/, sequencer/. `config` is not in it.
+- **The way to the window.** `emitRepoChanged` (`src/main/watcher/bus.ts:52`) to `broadcastGitChanged` (`src/main/git/ipc.ts`, `EVT_GIT_CHANGED`, payload `[repoPath]`, `src/shared/ipc/base.ts:97`), to `createRepoChangeBus` (150 ms per repository, the timer reset by each event), to its listeners. Main's other listeners on the same bus are quick open's index, the symbols index, Architecture's watch and the Actions service; the renderer's are the tree, Changes, the editor, Runs, History, and Search on the raw event.
+- **History's answer.** `src/renderer/scm/depth.ts:411-423`: every file history window is re-read (`fetchFile`) and, when the History UI has ever ensured the repository, `refresh` (`:703-719`) starts `fetchLog`, `fetchBranches`, `fetchRemoteBranches` and `fetchRemotes`, none waited for. `state/git.ts:208-217` also calls `refreshLog` when its own log has been loaded.
+- **Two things an unrelated save refreshes today, by accident, and this must not lose:** a remote added, renamed or repointed in a terminal (`.git/config`, which the filter does not name), and, in a LINKED WORKTREE, a branch or a remote-tracking ref moved anywhere in the repository, because `resolveDotgitDir` (`:664-688`) watches the worktree's own git directory and the refs live in the common one. There may be more (reftable, a `.git` file pointing elsewhere, a submodule, `core.worktree`, alternates, `commondir`): the spec step finds them by running git, not by reading.
+
+### The mechanism
+
+1. **The change carries what moved.** The watcher's flush says whether git's own data may have moved: true when a relevant `.git` event arrived in the window, true for any dropped batch, for Phase 365's one re-read after a long wait, and for anything the watcher cannot tell. It is carried through main's bus, the event and the renderer's debounce, where two messages in one window join as OR. A consumer that does not ask is woken exactly as today.
+2. **History answers only those.** `depth.ts`'s subscriber and `state/git.ts`'s `refreshLog` re-read only when git's data may have moved. A person's own refresh, a Tortie commit, checkout, fetch, pull or push, opening a section and a scope change re-read exactly as today.
+3. **Nothing goes staler.** `.git/config` joins the relevance filter. A repository whose refs are not all under the watched git directory (a linked worktree, and whatever else the spec step finds) either gains a watch of the rest, inside the kernel-exclusion and watcher-process rules of `conformance:watcher`, or keeps today's behaviour, every change re-reading. The spec step picks the smaller one and says why.
+4. **One running and one behind it.** For the changes that do move git's data (a rebase, a fetch of many refs), each of the four reads has at most one call in flight per repository and one behind it, the rule Phase 370 and `state/git.ts`'s status already keep. A walk Phase 199's queue ends is still ended. A failed read keeps what is on screen and starts nothing by itself.
+5. **The rule is pinned.** Each item has a vitest row that goes red without it. `probe:p371` is the app run. The contract baseline moves by the event's payload alone, in the same commit, with the body saying so.
+
+### The proof, run rather than read
+
+- **Method 1, the parent.** `build/p370/`'s counting git and its audit writer, at both builds: every git subcommand started per change and the most alive at once, with git at its own speed, held 1 s and held 10 s; with the Explorer alone, and with Source Control looked at and a diff tab open. HEAD must start none of the five for a change that moved no git data, and no subcommand more often than the parent anywhere.
+- **Method 2, nothing staler, a row per way git's data moves.** Beside the parent, driven from a terminal outside the app: commit, amend, reset, checkout, branch made, renamed and deleted, tag, merge, rebase over 200 commits, cherry-pick, stash, fetch, push, remote add, rename, set-url and remove, an upstream set and unset, `git gc` and `pack-refs`, `git init` in an open folder, a config include; each in an ordinary repository, a linked worktree (moved from inside and from another worktree), a submodule and a reftable repository. Read when History, Branches and the remotes panel show it at each build. HEAD must never be later than the parent by more than the machine's noise where the parent showed it BECAUSE OF the move; where the parent showed it only because an unrelated file was saved, HEAD must still show it.
+- **The attack.** A dropped batch carrying a ref move; a ref move inside the same window as a thousand file writes; a move while the window is reloading, while the project's tab is in the background and while the Mac sleeps; the watcher process replaced (Phase 365) between the move and the flush; and the 150 ms join losing the flag.
+- **No regression.** Changes, the tree, the editor, Runs, quick open, Architecture and Search wake exactly as today.
+
+### What is NOT in this phase
+
+- No limit inside `runGit`, and no change to `git status`, `check-ignore`, the editor's `git show` or the tree's own status.
+- No change to what History, Branches or the remotes panel draw, to paging or to search.
+- No new setting, surface, sentence or menu row.
+- No re-read of only the changed folders, and no change to the two debounce windows.
+
+## Phase 372 — "OK lets do each" — one Explorer refresh writes the tree once (operator, 2026-11-24; measured by Phase 370's audit) QUEUED 2026-11-24, runs after 371
+
+**Subject.** `perf(tree): write one refresh to the tree once`
+
+**First body line.** `Phase 372: a refresh of many open folders redraws the Explorer once`
+
+**Semver.** Patch, with one CHANGELOG item under Fixed only if the measurement finds a difference a person could notice; otherwise none. No release.
+
+**Tier 2.** A rendered surface with no new state, and it starts nothing. The parent measurement is mandatory: the phase exists for a number.
+
+**Charter.** His words of 2026-11-24, "OK lets do each". `build/p370/SPEC.md` §2.3 and N10: 502 store writes a change at 500 folders opened, and 215 to 227 ms of the window's own thread a change before Phase 370, about 137 ms at `67be1895` against about 197 at its parent in the fix round's reading. He was told the saving is not yet measured. It keeps Phase 155's rule (a Refresh, and a watcher tick, re-read every cached folder, forced, and a forced read is never answered by one that began before it was asked), Phase 343's D4 (a link main did not answer for in time keeps its last kind), Phase 90.3's (a machine's tree is one call) and Phase 370's (an ignore store that is handed each listing).
+
+### What the tree says (read 2026-11-24 at `8b1794cc`)
+
+- `refreshLoaded` (`src/renderer/tree/store.ts:559-611`) starts `listInto(d, seq, true)` for the root and every cached folder at once. `readInto` (`:258-285`) answers each with a `set` of its own that makes a new `entriesByDir`, whether or not anything in that folder changed. `use-tree-model.ts:371-374` derives the tree's input from `entriesByDir`, so each is a model pass and a call into the ignore store.
+
+### The mechanism
+
+1. **A listing equal to the one held writes nothing.** Equality is over every field the tree, the decorations, the ignore store or the menus read, after `prepare` and `carryLinkTargets`, and the spec step lists them from the tree.
+2. **One refresh lands as one write.** The listings a refresh asked for are collected and written together, the folders that vanished with them. A slow folder must not hold the rest: what has answered is written by the end of a short bound measured in the spec, and what is late is written when it lands.
+3. **Order and truth are kept.** A listing is never replaced by one read earlier; a folder removed, renamed or forgotten (`forgetUnder`) while a refresh collects is not brought back; a switch of project writes nothing of the old one; a person's expand, `relist` and the create, rename and trash paths write at once as today.
+4. **It lands only if it is faster.** At 10, 100 and 500 folders the window's thread a change must read no higher than the parent's in every cell and lower at 100 and 500, or the part that does not help is dropped and the phase says so.
+
+### The proof, run rather than read
+
+- The parent and HEAD, alternated: the window's thread a change, store writes a change, model passes a change, and the longest task, at 10, 100 and 500 open folders, with nothing changed, one file added, and a branch switch that changes half the folders.
+- The latency of one new file in a small tree and a large one, no later than the parent, and with one folder's read held for 5 s.
+- An independent oracle: thousands of seeded interleavings of refresh, expand, collapse, relist, forget, project switch and late or failed reads over a fake file system, the end state equal to a fresh read, and never a frame that shows a row the disk never held.
+- The Explorer's own tests, unedited or each edit named.
+
+### What is NOT in this phase
+
+- No re-read of only the changed folders and no change to when a folder is re-read.
+- No change to a machine's tree, to what is drawn, dimmed or badged, or to a menu.
+
+## Phase 373 — "similar to the codex and claude code, plan features, I would like to do it for antigravity and gemini subscriptions" — how a Gemini and an Antigravity plan's usage can be read (operator, 2026-11-24) RESEARCH ONLY, RUNNING
+
+**Subject.** `docs(research): how a Gemini and an Antigravity plan's usage can be read`
+
+**First body line.** `Phase 373: research 146, the Gemini and Antigravity usage meters`
+
+**Semver.** None. It ships `docs/research/146-gemini-and-antigravity-usage.md` and changes no shipping byte. The phase that builds it is written from the document and queued by the main session once the document lands.
+
+**Tier 3.** The domain reads a person's credentials and sends them to their issuer, and a wrong answer here can cost him an account.
+
+**Charter.** His words of 2026-11-24, beside a screenshot of the meter's two rows (Claude 36% wk, Codex 99% wk): "similar to the codex and claude code, plan featuers, I would like to do it for antigravity and gemini subscriptions. Can we research how to do so any get that queued as a phase?" Research 72 is the standing authority (§3 "The other six, briefly", §4's disciplines, §5's ruling: read only, never a token refresh, never a PTY probe, off until switched on, a credential to its own issuer and nowhere else) and its §7 names this as Phase C. Research 72's Gemini and Antigravity lines were read out of orca's source on 2026-08-30 and nothing was called. Research 126 is what it costs to read the wrong keychain item.
+
+### The questions
+
+1. **What the plans are today.** Which Google plans give Gemini CLI and Antigravity a quota on 2026-11-24, whether the two share one pool or account, what windows each has (five hours, a day, a week, per model, credits), and whether the Gemini CLI still serves a personal Google sign-in at all.
+2. **Where the number is served.** Every source, for each: an endpoint and its exact request and answer, a local service the running agent holds, a file the agent writes, a status line or hook payload, a JSON or ACP protocol call, telemetry. Which of them needs no credential read by Tortie.
+3. **Where the credential is.** A file, a keychain item (its service and ACCOUNT names), an encrypted store, the Antigravity app's own storage; what expires and how fast; what refresh would do; whether an expired token is the ordinary case, and so whether a meter that never refreshes would usually be blank.
+4. **What Google allows.** The terms that cover another program using that sign-in or that endpoint, what Google has done about it (accounts limited or suspended, clients refused), and what the same act costs under each source in question 2. A source that could cost him an account is named as that in one sentence.
+5. **How it fits the meter.** `UsageProviderId`, the five hour and seven day windows and the scoped row against what Google serves; the face, the card, Settings, the logins and switching of Phase 202, the credential and login conformance gates; what two rows become with four; what each state word says.
+6. **What cannot be known without his sign-in.** The exact one-time reading that settles it, as a script he may allow or run himself, which prints shapes and never a token, an address, an id or a value that names him.
+
+### The proof
+
+Four investigators on disjoint questions, each attacked by an adversary told to refute it with sources and bytes of its own; a judge; one document. Every claim carries its source and its date, every program is read at the version it names, and what was not measured says so. `gemini` and `agy` are read as files on this Mac and are NEVER RUN, not even for a version; nothing under `~/.gemini`, no Antigravity profile, no keychain and no other credential or conversation store is opened, listed or stat'ed; no request carries a credential and no Google quota or sign-in endpoint is called at all.
+
+### What is NOT in this phase
+
+- No build, no new provider row, no setting, no request with his sign-in.
+- No switching between Google accounts, and no Workspace, Vertex or API key billing beyond saying how it is told apart.
+- No other provider.
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -46894,3 +47001,4 @@ cycle rather than only the evening it was written.
 - 2026-11-23, **370'S WORKFLOW RESUMED AFTER THE MAC RESTARTED, AND HIS WORD ON 0.116.0.** The Mac restarted at about 23:18 while 370's spec step was re-reading its finished draft; the cause was not found, and the step's last app run had ended at 23:07. The spec, its instruments and both worktrees survived under `/private/var/tmp`, no product file had been written, and a continuation (`wf_4b0fe2a7-52a`) checks that draft and then builds, reviews the probe, verifies, fixes once and reverifies. His word: "once that is verified and pushed to cut the next tortie release and include the outstanding work in it and update /users/gdc/tortiedotsh, etc", so 0.116.0 carries everything under Unreleased (369 and 370) and tortie.sh follows it in the same session. Measured by the spec step at the parent: a project shown with N open folders starts N+2 `git check-ignore` at once (12, 102, 502), and N+2 more on every repository change. **Found beside it, for after the release:** History and branches pile up the same way (227 to 355 git processes at once with git held to 10 s), and every change re-reads every opened folder; neither is in 370.
 - 2026-11-24, **PHASE 370 LANDED, `67be1895` — the file tree asks git what is ignored one call at a time** (one CHANGELOG item, linked; Tier 3; `wf_4b0fe2a7-52a`). At most one `git check-ignore` runs for a repository, one waits behind it, an answer still about the folder lands, a failed call is retried once and never in a loop, and a git that did not answer is never read as "nothing is ignored"; main holds the same line. His report reproduced at the parent: 12, 102 and 502 processes the moment a project with 10, 100 and 500 open folders is shown, and 13 to 566 under a writer; HEAD 1 in every cell. Lens A approved, lens B needs_work on one major (one failed call behind another left a quiet tree undimmed) and two minors, all fixed, and the reverify approved after an exhaustive differential run of both stores and a nine seed soak against real git (HEAD 0 wrong rows in 9 of 9; the parent 12 in one seed). With real git every row reads as the parent or sooner. Worse than the parent only with a git held by a stand-in or one that fails twice, every number in `build/p370/SPEC.md` "What is still worse" and the commit body: all rows after a project opens under a git of 1 s or 10 s a call, a switch away and back mid-call at 10 s, a new file after 10 quiet seconds at 2 s, a rule edit behind an answer held 2 s, one extra call when the section is collapsed mid-call. Landing battery: every step exit 0, npm test 23,634 passed. **Owed, found beside it and not fixed:** the History store starts four git reads a change and waits for none (227 to 355 processes with git held to 10 s, any project), the next phase by default; the tree's own `git status` before the Changes store first answers (13 alive at the parent, 11 at HEAD); every change re-reads every opened folder. **Next:** 0.116.0 carrying 369 and 370, and tortie.sh, on his word of 2026-11-23.
 - 2026-11-24, **0.116.0 PUBLISHED as Latest, `182e6e7e` (tag `v0.116.0`) — Electron 45, and one git question at a time**, on his word of 2026-11-23. It carries 369 and 370; 2 items, both linked. A fresh install of the skills CLI matched the pin before the tag, and the release run (45378215339) passed the first time. The gates run on the release commit was red on one of about 23,600 tests, `p347-open-files.native` N8's wait on GitHub's runner, with no code changed since 370's green gates (`67be1895`); its failed job re-run is green, and nothing was published before it was. Before promoting, the main session read the draft's ZIP on this Mac: sha512 equal to `latest-mac.yml`'s, 0.116.0, `com.itavero.tortie`, `codesign --verify --deep --strict` OK, accepted as Notarized Developer ID (4GRQMF5T5U), stapled, arm64 only (26 Mach-O files), framework 45.3.4, LSMinimumSystemVersion 13.0, tar 7.5.23. The notes are the CHANGELOG entry verbatim. tortie.sh's changelog refreshed through its own workflow (`8e3e90b2` in gregce/tortiedotsh) and serves 0.116.0 at `/docs/changelog/`. No phone build: nothing under `ios/` changed since build 13. **Not true, stated:** the bundled tmux reads `minos 15.0` in the released app (0.115.0's too) while the app says macOS 13, and tortie.sh's pages say macOS 15.7.9 or later; which is right is his to rule. **The queue now waits on his word**: the History store's git pile-up (the next phase by default), the tmux deployment target, the folder re-reads, the safeStorage port before any move to 46, research 145's upstream reports, the 364 diagnostic build's press; his checkout needs `npm ci` after he merges main.
+- 2026-11-24, **PHASES 371 AND 372 QUEUED, AND 373 STARTED** on his words "OK lets do each" and "can we research how to do so". **371** (History, branches and remotes are read when git's own data moves and not when a file is saved; Tier 3, patch; about 9 to 14 git processes a change by 370's audit) starts now. **372** (one Explorer refresh writes the tree once; Tier 2) starts when 371 lands, so each is measured against its own parent. **373** (research 146: how a Gemini and an Antigravity plan's usage can be read; Tier 3, research only) runs beside 371, starts no app and reads no credential; the phase that builds the two meters is written from its document.
