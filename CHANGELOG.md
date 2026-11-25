@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Added
 
-- The usage meter can show your Antigravity plan beside Claude and Codex: turn it on in Settings then Agents, and an Antigravity session you start on this Mac afterwards fills it in. Restored sessions, sessions SpecStory captures and sessions on another machine do not report, and Google has not said whether showing it is allowed
+- The usage meter can show your Antigravity plan beside Claude and Codex: turn it on in Settings then Agents, and an Antigravity session you start on this Mac afterwards fills it in. Restored sessions, sessions SpecStory captures and sessions on another machine do not report, and Google has not said whether showing it is allowed ([`2a014f5a`](https://github.com/gregce/tortie/commit/2a014f5a))
 
 ## 0.116.0 (2026-11-24)
 
