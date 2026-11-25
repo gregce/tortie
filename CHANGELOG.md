@@ -12,7 +12,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- Saving a file, or an agent writing many, no longer makes Tortie ask git for history, branches and remotes again; they refresh when git itself changes, and a remote or upstream you change in a terminal now shows at once. A linked worktree, or a folder inside a repository, still refreshes on every change
+- Saving a file, or an agent writing many, no longer makes Tortie ask git for history, branches and remotes again; they refresh when git itself changes, and a remote or upstream you change in a terminal now shows at once. A linked worktree, or a folder inside a repository, still refreshes on every change ([`4789c42d`](https://github.com/gregce/tortie/commit/4789c42d))
 
 ## 0.116.0 (2026-11-24)
 
