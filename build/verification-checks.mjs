@@ -1960,6 +1960,23 @@ export const CHECKS = [
     'probe:p371',
     `${NEEDS.electron}; a built parent checkout (P371_PARENT_CHECKOUT); an arm whose input is absent reads UNREADABLE`
   ),
+  // PHASE 372 (build/p372/SPEC.md §8): one Explorer refresh writes the tree
+  // once. Electrons through build/electron-run.mjs ONE AT A TIME, in blocks of
+  // parent then HEAD (P372_PARENT_CHECKOUT, a built a28c2cf3, required), each
+  // launch on its own scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null
+  // and SHELL=/bin/sh and the socket gmux-p372… named as its tmuxSocket, over
+  // scratch repositories of 10, 100 and 500 open folders and /usr/bin/git on a
+  // closed PATH. The counters are six conditional breakpoints that never pause,
+  // found by text in each build's own bundle; one folder is held through main's
+  // inspector by wrapping node:fs/promises.readdir, and Electron's
+  // shell.trashItem is replaced by a move into the run's own folder. No session
+  // and no agent is started: every probed registry row is hidden through
+  // build/hidden-agents.mjs and `agents:list` read back. `--grader-self-test`
+  // grades build/p372/fixtures/ and, with `--preflight`, starts nothing.
+  electron(
+    'probe:p372',
+    `${NEEDS.electron}; a built parent checkout (P372_PARENT_CHECKOUT); an arm whose input is absent reads UNREADABLE`
+  ),
   // PHASE 374 (build/p374/SPEC.md §8): the meter reading the Antigravity plan
   // from its status line. Electrons through build/electron-run.mjs ONE AT A
   // TIME and never at once, the parent first (P374_PARENT_CHECKOUT, a built

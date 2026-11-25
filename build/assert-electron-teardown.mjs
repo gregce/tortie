@@ -712,13 +712,22 @@ const HELPER = 'electron-run.mjs';
  * probed registry row but Antigravity's hidden before every launch and
  * `agents:list` read back, `agy` a compiled stand-in under its bare name, and
  * every stand-in ended by pid in its `finally`.
+ * PHASE 372 RAISED IT BY ONE (195 TO 196), for build/p372/probe-p372.mjs
+ * (`probe:p372`), one Explorer refresh writing the tree once: Electrons through
+ * the helper ONE AT A TIME in blocks of the parent's (`P372_PARENT_CHECKOUT`,
+ * required) then HEAD's, each on a scratch profile, HOME and ZDOTDIR with
+ * HISTFILE=/dev/null and the socket gmux-p372… named as its `tmuxSocket` (his
+ * ruling of 2026-11-02), scratch repositories and /usr/bin/git on a closed
+ * PATH, every probed registry row hidden before every launch and `agents:list`
+ * read back, no session and no agent started, and every writer and app ended
+ * by pid in its `finally`.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 195;
+const HELPER_USER_FLOOR = 196;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

@@ -625,7 +625,7 @@ export const ABLATIONS = [
     n: 'a-st5', check: 'tree', owner: /keeps the kind its folder last had/, file: STORE,
     name: "D4's carry removed",
     why: 'a listing whose link stat was gated would turn an OPEN linked folder into a leaf, and the diff would remove its subtree.',
-    from: '            carryLinkTargets(result.entries, s.entriesByDir[dirPath])', to: '            result.entries'
+    from: '      const next = prepare(carryLinkTargets(landing.entries, held));', to: '      const next = prepare(landing.entries);'
   },
   {
     n: 'a-st6', check: 'tree', owner: /sorts a link to a folder with the folders/, file: STORE,

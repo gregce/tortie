@@ -145,6 +145,7 @@
     "probe:p368": "node build/harness-socket.mjs --fresh gmux-p368 'node build/p368/probe-p368.mjs'",
     "probe:p370": "node build/harness-socket.mjs --fresh gmux-p370 'node build/p370/probe-p370.mjs'",
     "probe:p371": "node build/harness-socket.mjs --fresh gmux-p371 'node build/p371/probe-p371.mjs'",
+    "probe:p372": "node build/harness-socket.mjs --fresh gmux-p372 'node build/p372/probe-p372.mjs'",
     "probe:p374": "node build/p374/probe-p374.mjs --preflight && node build/harness-socket.mjs --fresh gmux-p374 'node build/p374/probe-p374.mjs'",
     "measure:p337": "node build/p337/measure-screen.mjs",
     "measure:p342": "node build/p342/measure-p342.mjs",

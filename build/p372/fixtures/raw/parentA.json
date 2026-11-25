@@ -1,0 +1,1614 @@
+{
+ "build": "parent",
+ "block": 1,
+ "label": "parentA",
+ "rev": "a28c2cf32c3e4c5e26211a9d85b1bb1f70fab38d",
+ "loadStart": [
+  19.7,
+  18.5,
+  16.7
+ ],
+ "cells": [
+  {
+   "n": 10,
+   "kind": "same",
+   "W": 3000,
+   "load": [
+    18.3,
+    18.3,
+    16.6
+   ],
+   "loadAfter": [
+    22.3,
+    19.1,
+    17
+   ],
+   "mem": 49,
+   "rows": [
+    {
+     "taskMs": 36,
+     "idleTaskMs": 30,
+     "scriptMs": 8,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 40,
+     "idleTaskMs": 31,
+     "scriptMs": 8,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 28,
+     "idleTaskMs": 30,
+     "scriptMs": 6,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 32,
+     "idleTaskMs": 30,
+     "scriptMs": 6,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 25,
+     "idleTaskMs": 31,
+     "scriptMs": 5,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 28,
+     "idleTaskMs": 30,
+     "scriptMs": 6,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 30,
+     "idleTaskMs": 31,
+     "scriptMs": 6,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 35,
+     "idleTaskMs": 31,
+     "scriptMs": 7,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "kind": "add",
+   "W": 3000,
+   "load": [
+    22.3,
+    19.1,
+    17
+   ],
+   "loadAfter": [
+    21.1,
+    19.1,
+    17
+   ],
+   "mem": 49,
+   "rows": [
+    {
+     "taskMs": 43,
+     "idleTaskMs": 31,
+     "scriptMs": 12,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 464
+    },
+    {
+     "taskMs": 39,
+     "idleTaskMs": 30,
+     "scriptMs": 9,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 477
+    },
+    {
+     "taskMs": 39,
+     "idleTaskMs": 31,
+     "scriptMs": 10,
+     "idleScriptMs": null,
+     "blocked": 5,
+     "longest": 5,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 473
+    },
+    {
+     "taskMs": 36,
+     "idleTaskMs": 30,
+     "scriptMs": 9,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 462
+    },
+    {
+     "taskMs": 54,
+     "idleTaskMs": 31,
+     "scriptMs": 12,
+     "idleScriptMs": null,
+     "blocked": 5,
+     "longest": 5,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 480
+    },
+    {
+     "taskMs": 51,
+     "idleTaskMs": 31,
+     "scriptMs": 12,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 482
+    },
+    {
+     "taskMs": 40,
+     "idleTaskMs": 30,
+     "scriptMs": 10,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 477
+    },
+    {
+     "taskMs": 46,
+     "idleTaskMs": 31,
+     "scriptMs": 11,
+     "idleScriptMs": null,
+     "blocked": 5,
+     "longest": 5,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 470
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "kind": "branch",
+   "W": 3000,
+   "load": [
+    21.1,
+    19.1,
+    17
+   ],
+   "loadAfter": [
+    18.5,
+    18.7,
+    17
+   ],
+   "mem": 48,
+   "rows": [
+    {
+     "taskMs": 44,
+     "idleTaskMs": 31,
+     "scriptMs": 12,
+     "idleScriptMs": null,
+     "blocked": 10,
+     "longest": 10,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 50,
+     "idleTaskMs": 30,
+     "scriptMs": 12,
+     "idleScriptMs": null,
+     "blocked": 6,
+     "longest": 6,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 41,
+     "idleTaskMs": 31,
+     "scriptMs": 10,
+     "idleScriptMs": null,
+     "blocked": 7,
+     "longest": 7,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 129,
+     "idleTaskMs": 30,
+     "scriptMs": 27,
+     "idleScriptMs": null,
+     "blocked": 8,
+     "longest": 8,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 40,
+     "idleTaskMs": 30,
+     "scriptMs": 11,
+     "idleScriptMs": null,
+     "blocked": 7,
+     "longest": 7,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 40,
+     "idleTaskMs": 30,
+     "scriptMs": 10,
+     "idleScriptMs": null,
+     "blocked": 8,
+     "longest": 8,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 34,
+     "idleTaskMs": 30,
+     "scriptMs": 9,
+     "idleScriptMs": null,
+     "blocked": 10,
+     "longest": 10,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 53,
+     "idleTaskMs": 31,
+     "scriptMs": 12,
+     "idleScriptMs": null,
+     "blocked": 10,
+     "longest": 10,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    }
+   ]
+  },
+  {
+   "n": 100,
+   "kind": "same",
+   "W": 3000,
+   "load": [
+    12.9,
+    16.4,
+    16.2
+   ],
+   "loadAfter": [
+    22,
+    18.2,
+    16.9
+   ],
+   "mem": 44,
+   "rows": [
+    {
+     "taskMs": 43,
+     "idleTaskMs": 25,
+     "scriptMs": 16,
+     "idleScriptMs": null,
+     "blocked": 6,
+     "longest": 6,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 48,
+     "idleTaskMs": 25,
+     "scriptMs": 18,
+     "idleScriptMs": null,
+     "blocked": 6,
+     "longest": 6,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 39,
+     "idleTaskMs": 25,
+     "scriptMs": 15,
+     "idleScriptMs": null,
+     "blocked": 4,
+     "longest": 4,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 32,
+     "idleTaskMs": 24,
+     "scriptMs": 14,
+     "idleScriptMs": null,
+     "blocked": 4,
+     "longest": 4,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 39,
+     "idleTaskMs": 25,
+     "scriptMs": 14,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 57,
+     "idleTaskMs": 25,
+     "scriptMs": 19,
+     "idleScriptMs": null,
+     "blocked": 4,
+     "longest": 4,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 44,
+     "idleTaskMs": 25,
+     "scriptMs": 17,
+     "idleScriptMs": null,
+     "blocked": 7,
+     "longest": 7,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 46,
+     "idleTaskMs": 25,
+     "scriptMs": 18,
+     "idleScriptMs": null,
+     "blocked": 6,
+     "longest": 6,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    }
+   ]
+  },
+  {
+   "n": 100,
+   "kind": "add",
+   "W": 3000,
+   "load": [
+    22,
+    18.2,
+    16.9
+   ],
+   "loadAfter": [
+    20.1,
+    18,
+    16.9
+   ],
+   "mem": 45,
+   "rows": [
+    {
+     "taskMs": 47,
+     "idleTaskMs": 25,
+     "scriptMs": 18,
+     "idleScriptMs": null,
+     "blocked": 9,
+     "longest": 9,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 479
+    },
+    {
+     "taskMs": 62,
+     "idleTaskMs": 24,
+     "scriptMs": 22,
+     "idleScriptMs": null,
+     "blocked": 13,
+     "longest": 13,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 492
+    },
+    {
+     "taskMs": 44,
+     "idleTaskMs": 25,
+     "scriptMs": 16,
+     "idleScriptMs": null,
+     "blocked": 7,
+     "longest": 7,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 490
+    },
+    {
+     "taskMs": 44,
+     "idleTaskMs": 25,
+     "scriptMs": 16,
+     "idleScriptMs": null,
+     "blocked": 8,
+     "longest": 8,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 481
+    },
+    {
+     "taskMs": 47,
+     "idleTaskMs": 25,
+     "scriptMs": 16,
+     "idleScriptMs": null,
+     "blocked": 9,
+     "longest": 9,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 477
+    },
+    {
+     "taskMs": 49,
+     "idleTaskMs": 25,
+     "scriptMs": 17,
+     "idleScriptMs": null,
+     "blocked": 8,
+     "longest": 8,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 476
+    },
+    {
+     "taskMs": 51,
+     "idleTaskMs": 25,
+     "scriptMs": 18,
+     "idleScriptMs": null,
+     "blocked": 0,
+     "longest": 0,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 488
+    },
+    {
+     "taskMs": 54,
+     "idleTaskMs": 25,
+     "scriptMs": 20,
+     "idleScriptMs": null,
+     "blocked": 8,
+     "longest": 8,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 485
+    }
+   ]
+  },
+  {
+   "n": 100,
+   "kind": "branch",
+   "W": 3000,
+   "load": [
+    20.1,
+    18,
+    16.9
+   ],
+   "loadAfter": [
+    15,
+    17,
+    16.5
+   ],
+   "mem": 42,
+   "rows": [
+    {
+     "taskMs": 86,
+     "idleTaskMs": 25,
+     "scriptMs": 46,
+     "idleScriptMs": null,
+     "blocked": 49,
+     "longest": 49,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 72,
+     "idleTaskMs": 25,
+     "scriptMs": 42,
+     "idleScriptMs": null,
+     "blocked": 42,
+     "longest": 42,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 70,
+     "idleTaskMs": 24,
+     "scriptMs": 39,
+     "idleScriptMs": null,
+     "blocked": 34,
+     "longest": 26,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 67,
+     "idleTaskMs": 25,
+     "scriptMs": 40,
+     "idleScriptMs": null,
+     "blocked": 43,
+     "longest": 43,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 81,
+     "idleTaskMs": 25,
+     "scriptMs": 41,
+     "idleScriptMs": null,
+     "blocked": 38,
+     "longest": 38,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 68,
+     "idleTaskMs": 24,
+     "scriptMs": 40,
+     "idleScriptMs": null,
+     "blocked": 40,
+     "longest": 40,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 74,
+     "idleTaskMs": 25,
+     "scriptMs": 41,
+     "idleScriptMs": null,
+     "blocked": 42,
+     "longest": 42,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 71,
+     "idleTaskMs": 25,
+     "scriptMs": 40,
+     "idleScriptMs": null,
+     "blocked": 40,
+     "longest": 40,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    }
+   ]
+  },
+  {
+   "n": 500,
+   "kind": "same",
+   "W": 4000,
+   "load": [
+    24.3,
+    19.5,
+    17.5
+   ],
+   "loadAfter": [
+    32.7,
+    22.1,
+    18.6
+   ],
+   "mem": 45,
+   "rows": [
+    {
+     "taskMs": 225,
+     "idleTaskMs": 38,
+     "scriptMs": 161,
+     "idleScriptMs": null,
+     "blocked": 169,
+     "longest": 152,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 253,
+     "idleTaskMs": 37,
+     "scriptMs": 192,
+     "idleScriptMs": null,
+     "blocked": 197,
+     "longest": 161,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 227,
+     "idleTaskMs": 37,
+     "scriptMs": 172,
+     "idleScriptMs": null,
+     "blocked": 173,
+     "longest": 112,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 228,
+     "idleTaskMs": 37,
+     "scriptMs": 173,
+     "idleScriptMs": null,
+     "blocked": 180,
+     "longest": 180,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 246,
+     "idleTaskMs": 38,
+     "scriptMs": 182,
+     "idleScriptMs": null,
+     "blocked": 185,
+     "longest": 106,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 212,
+     "idleTaskMs": 38,
+     "scriptMs": 168,
+     "idleScriptMs": null,
+     "blocked": 171,
+     "longest": 112,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 225,
+     "idleTaskMs": 37,
+     "scriptMs": 173,
+     "idleScriptMs": null,
+     "blocked": 177,
+     "longest": 126,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 224,
+     "idleTaskMs": 37,
+     "scriptMs": 172,
+     "idleScriptMs": null,
+     "blocked": 180,
+     "longest": 180,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    }
+   ]
+  },
+  {
+   "n": 500,
+   "kind": "add",
+   "W": 4000,
+   "load": [
+    32.7,
+    22.1,
+    18.6
+   ],
+   "loadAfter": [
+    53.7,
+    29.2,
+    21.3
+   ],
+   "mem": 46,
+   "rows": [
+    {
+     "taskMs": 219,
+     "idleTaskMs": 37,
+     "scriptMs": 151,
+     "idleScriptMs": null,
+     "blocked": 162,
+     "longest": 162,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 498
+    },
+    {
+     "taskMs": 213,
+     "idleTaskMs": 38,
+     "scriptMs": 148,
+     "idleScriptMs": null,
+     "blocked": 152,
+     "longest": 107,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 570
+    },
+    {
+     "taskMs": 251,
+     "idleTaskMs": 37,
+     "scriptMs": 156,
+     "idleScriptMs": null,
+     "blocked": 155,
+     "longest": 86,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 565
+    },
+    {
+     "taskMs": 269,
+     "idleTaskMs": 38,
+     "scriptMs": 168,
+     "idleScriptMs": null,
+     "blocked": 165,
+     "longest": 137,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 506
+    },
+    {
+     "taskMs": 268,
+     "idleTaskMs": 37,
+     "scriptMs": 168,
+     "idleScriptMs": null,
+     "blocked": 164,
+     "longest": 137,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 587
+    },
+    {
+     "taskMs": 257,
+     "idleTaskMs": 37,
+     "scriptMs": 160,
+     "idleScriptMs": null,
+     "blocked": 162,
+     "longest": 162,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 508
+    },
+    {
+     "taskMs": 272,
+     "idleTaskMs": 37,
+     "scriptMs": 173,
+     "idleScriptMs": null,
+     "blocked": 171,
+     "longest": 171,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 561
+    },
+    {
+     "taskMs": 277,
+     "idleTaskMs": 38,
+     "scriptMs": 171,
+     "idleScriptMs": null,
+     "blocked": 175,
+     "longest": 175,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": 579
+    }
+   ]
+  },
+  {
+   "n": 500,
+   "kind": "branch",
+   "W": 4000,
+   "load": [
+    23.2,
+    46.6,
+    43.7
+   ],
+   "loadAfter": [
+    16.3,
+    42,
+    42.1
+   ],
+   "mem": 46,
+   "rows": [
+    {
+     "taskMs": 449,
+     "idleTaskMs": 37,
+     "scriptMs": 378,
+     "idleScriptMs": null,
+     "blocked": 412,
+     "longest": 335,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 435,
+     "idleTaskMs": 37,
+     "scriptMs": 374,
+     "idleScriptMs": null,
+     "blocked": 412,
+     "longest": 412,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 429,
+     "idleTaskMs": 37,
+     "scriptMs": 367,
+     "idleScriptMs": null,
+     "blocked": 402,
+     "longest": 402,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 426,
+     "idleTaskMs": 37,
+     "scriptMs": 368,
+     "idleScriptMs": null,
+     "blocked": 396,
+     "longest": 336,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 431,
+     "idleTaskMs": 37,
+     "scriptMs": 368,
+     "idleScriptMs": null,
+     "blocked": 392,
+     "longest": 197,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 476,
+     "idleTaskMs": 38,
+     "scriptMs": 389,
+     "idleScriptMs": null,
+     "blocked": 420,
+     "longest": 272,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 460,
+     "idleTaskMs": 37,
+     "scriptMs": 377,
+     "idleScriptMs": null,
+     "blocked": 408,
+     "longest": 240,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    },
+    {
+     "taskMs": 445,
+     "idleTaskMs": 37,
+     "scriptMs": 374,
+     "idleScriptMs": null,
+     "blocked": 400,
+     "longest": 202,
+     "longTasks": 0,
+     "changed": 1,
+     "latencyMs": null
+    }
+   ]
+  }
+ ],
+ "counts": [
+  {
+   "n": 10,
+   "kind": "same",
+   "per": [
+    {
+     "read": 12,
+     "render": 15,
+     "write": 12,
+     "input": 12,
+     "diff": 12,
+     "sync": 13,
+     "firstRead": 489,
+     "lastRead": 490,
+     "firstWrite": 495,
+     "lastWrite": 498,
+     "readToLastWrite": 9
+    },
+    {
+     "read": 12,
+     "write": 12,
+     "render": 14,
+     "input": 12,
+     "diff": 12,
+     "sync": 12,
+     "firstRead": 471,
+     "lastRead": 472,
+     "firstWrite": 472,
+     "lastWrite": 476,
+     "readToLastWrite": 5
+    },
+    {
+     "read": 12,
+     "write": 12,
+     "render": 14,
+     "input": 12,
+     "diff": 12,
+     "sync": 12,
+     "firstRead": 458,
+     "lastRead": 458,
+     "firstWrite": 459,
+     "lastWrite": 463,
+     "readToLastWrite": 5
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "kind": "add",
+   "per": [
+    {
+     "read": 12,
+     "write": 12,
+     "render": 16,
+     "input": 12,
+     "diff": 12,
+     "sync": 13,
+     "firstRead": 473,
+     "lastRead": 473,
+     "firstWrite": 473,
+     "lastWrite": 479,
+     "readToLastWrite": 6
+    },
+    {
+     "read": 12,
+     "write": 12,
+     "render": 15,
+     "input": 12,
+     "diff": 12,
+     "sync": 12,
+     "firstRead": 469,
+     "lastRead": 469,
+     "firstWrite": 469,
+     "lastWrite": 475,
+     "readToLastWrite": 6
+    },
+    {
+     "read": 12,
+     "write": 12,
+     "render": 15,
+     "input": 12,
+     "diff": 12,
+     "sync": 12,
+     "firstRead": 473,
+     "lastRead": 473,
+     "firstWrite": 474,
+     "lastWrite": 479,
+     "readToLastWrite": 6
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "kind": "addEarly",
+   "per": [
+    {
+     "read": 12,
+     "write": 12,
+     "render": 16,
+     "input": 12,
+     "diff": 12,
+     "sync": 13,
+     "firstRead": 473,
+     "lastRead": 473,
+     "firstWrite": 473,
+     "lastWrite": 479,
+     "readToLastWrite": 6
+    },
+    {
+     "read": 12,
+     "write": 12,
+     "render": 15,
+     "input": 12,
+     "diff": 12,
+     "sync": 12,
+     "firstRead": 469,
+     "lastRead": 469,
+     "firstWrite": 469,
+     "lastWrite": 475,
+     "readToLastWrite": 6
+    },
+    {
+     "read": 12,
+     "write": 12,
+     "render": 15,
+     "input": 12,
+     "diff": 12,
+     "sync": 12,
+     "firstRead": 473,
+     "lastRead": 473,
+     "firstWrite": 474,
+     "lastWrite": 479,
+     "readToLastWrite": 6
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "kind": "branch",
+   "per": [
+    {
+     "read": 12,
+     "write": 12,
+     "render": 20,
+     "input": 12,
+     "diff": 12,
+     "sync": 13,
+     "firstRead": 451,
+     "lastRead": 451,
+     "firstWrite": 453,
+     "lastWrite": 466,
+     "readToLastWrite": 15
+    },
+    {
+     "read": 12,
+     "write": 12,
+     "render": 19,
+     "input": 12,
+     "diff": 12,
+     "sync": 12,
+     "firstRead": 459,
+     "lastRead": 459,
+     "firstWrite": 462,
+     "lastWrite": 476,
+     "readToLastWrite": 17
+    },
+    {
+     "read": 12,
+     "write": 12,
+     "render": 19,
+     "input": 12,
+     "diff": 12,
+     "sync": 12,
+     "firstRead": 443,
+     "lastRead": 443,
+     "firstWrite": 448,
+     "lastWrite": 462,
+     "readToLastWrite": 19
+    }
+   ]
+  },
+  {
+   "n": 100,
+   "kind": "same",
+   "per": [
+    {
+     "read": 102,
+     "write": 102,
+     "render": 104,
+     "input": 102,
+     "diff": 102,
+     "sync": 102,
+     "firstRead": 487,
+     "lastRead": 490,
+     "firstWrite": 490,
+     "lastWrite": 530,
+     "readToLastWrite": 43
+    },
+    {
+     "read": 102,
+     "write": 102,
+     "render": 105,
+     "input": 102,
+     "diff": 102,
+     "sync": 103,
+     "firstRead": 472,
+     "lastRead": 474,
+     "firstWrite": 475,
+     "lastWrite": 508,
+     "readToLastWrite": 36
+    },
+    {
+     "read": 102,
+     "write": 102,
+     "render": 104,
+     "input": 102,
+     "diff": 102,
+     "sync": 102,
+     "firstRead": 457,
+     "lastRead": 460,
+     "firstWrite": 460,
+     "lastWrite": 498,
+     "readToLastWrite": 41
+    }
+   ]
+  },
+  {
+   "n": 100,
+   "kind": "add",
+   "per": [
+    {
+     "read": 102,
+     "write": 102,
+     "render": 105,
+     "input": 102,
+     "diff": 102,
+     "sync": 102,
+     "firstRead": 473,
+     "lastRead": 476,
+     "firstWrite": 477,
+     "lastWrite": 515,
+     "readToLastWrite": 42
+    },
+    {
+     "read": 102,
+     "write": 102,
+     "render": 106,
+     "input": 102,
+     "diff": 102,
+     "sync": 103,
+     "firstRead": 470,
+     "lastRead": 475,
+     "firstWrite": 476,
+     "lastWrite": 526,
+     "readToLastWrite": 56
+    },
+    {
+     "read": 102,
+     "write": 102,
+     "render": 105,
+     "input": 102,
+     "diff": 102,
+     "sync": 102,
+     "firstRead": 474,
+     "lastRead": 476,
+     "firstWrite": 477,
+     "lastWrite": 511,
+     "readToLastWrite": 37
+    }
+   ]
+  },
+  {
+   "n": 100,
+   "kind": "addEarly",
+   "per": [
+    {
+     "read": 102,
+     "write": 102,
+     "render": 105,
+     "input": 102,
+     "diff": 102,
+     "sync": 102,
+     "firstRead": 473,
+     "lastRead": 476,
+     "firstWrite": 477,
+     "lastWrite": 515,
+     "readToLastWrite": 42
+    },
+    {
+     "read": 102,
+     "write": 102,
+     "render": 106,
+     "input": 102,
+     "diff": 102,
+     "sync": 103,
+     "firstRead": 470,
+     "lastRead": 475,
+     "firstWrite": 476,
+     "lastWrite": 526,
+     "readToLastWrite": 56
+    },
+    {
+     "read": 102,
+     "write": 102,
+     "render": 105,
+     "input": 102,
+     "diff": 102,
+     "sync": 102,
+     "firstRead": 474,
+     "lastRead": 476,
+     "firstWrite": 477,
+     "lastWrite": 511,
+     "readToLastWrite": 37
+    }
+   ]
+  },
+  {
+   "n": 100,
+   "kind": "branch",
+   "per": [
+    {
+     "read": 102,
+     "write": 102,
+     "render": 154,
+     "input": 102,
+     "diff": 102,
+     "sync": 102,
+     "firstRead": 428,
+     "lastRead": 431,
+     "firstWrite": 432,
+     "lastWrite": 505,
+     "readToLastWrite": 77
+    },
+    {
+     "read": 102,
+     "write": 102,
+     "render": 155,
+     "input": 102,
+     "diff": 102,
+     "sync": 103,
+     "firstRead": 514,
+     "lastRead": 517,
+     "firstWrite": 519,
+     "lastWrite": 593,
+     "readToLastWrite": 79
+    },
+    {
+     "read": 102,
+     "write": 102,
+     "render": 154,
+     "input": 102,
+     "diff": 102,
+     "sync": 102,
+     "firstRead": 514,
+     "lastRead": 519,
+     "firstWrite": 520,
+     "lastWrite": 604,
+     "readToLastWrite": 90
+    }
+   ]
+  },
+  {
+   "n": 500,
+   "kind": "same",
+   "per": [
+    {
+     "read": 502,
+     "write": 502,
+     "render": 505,
+     "input": 502,
+     "diff": 502,
+     "sync": 503,
+     "firstRead": 494,
+     "lastRead": 507,
+     "firstWrite": 509,
+     "lastWrite": 930,
+     "readToLastWrite": 436
+    },
+    {
+     "read": 502,
+     "write": 502,
+     "render": 504,
+     "input": 502,
+     "diff": 502,
+     "sync": 502,
+     "firstRead": 468,
+     "lastRead": 480,
+     "firstWrite": 482,
+     "lastWrite": 888,
+     "readToLastWrite": 420
+    },
+    {
+     "read": 502,
+     "write": 502,
+     "render": 504,
+     "input": 502,
+     "diff": 502,
+     "sync": 502,
+     "firstRead": 474,
+     "lastRead": 491,
+     "firstWrite": 493,
+     "lastWrite": 954,
+     "readToLastWrite": 480
+    }
+   ]
+  },
+  {
+   "n": 500,
+   "kind": "add",
+   "per": [
+    {
+     "read": 502,
+     "write": 502,
+     "render": 505,
+     "input": 502,
+     "diff": 502,
+     "sync": 502,
+     "firstRead": 468,
+     "lastRead": 502,
+     "firstWrite": 504,
+     "lastWrite": 975,
+     "readToLastWrite": 507
+    },
+    {
+     "read": 502,
+     "write": 502,
+     "render": 505,
+     "input": 502,
+     "diff": 502,
+     "sync": 502,
+     "firstRead": 472,
+     "lastRead": 485,
+     "firstWrite": 487,
+     "lastWrite": 884,
+     "readToLastWrite": 412
+    },
+    {
+     "read": 502,
+     "write": 502,
+     "render": 506,
+     "input": 502,
+     "diff": 502,
+     "sync": 503,
+     "firstRead": 469,
+     "lastRead": 485,
+     "firstWrite": 487,
+     "lastWrite": 909,
+     "readToLastWrite": 440
+    }
+   ]
+  },
+  {
+   "n": 500,
+   "kind": "addEarly",
+   "per": [
+    {
+     "read": 502,
+     "write": 502,
+     "render": 505,
+     "input": 502,
+     "diff": 502,
+     "sync": 502,
+     "firstRead": 468,
+     "lastRead": 502,
+     "firstWrite": 504,
+     "lastWrite": 975,
+     "readToLastWrite": 507
+    },
+    {
+     "read": 502,
+     "write": 502,
+     "render": 505,
+     "input": 502,
+     "diff": 502,
+     "sync": 502,
+     "firstRead": 472,
+     "lastRead": 485,
+     "firstWrite": 487,
+     "lastWrite": 884,
+     "readToLastWrite": 412
+    },
+    {
+     "read": 502,
+     "write": 502,
+     "render": 506,
+     "input": 502,
+     "diff": 502,
+     "sync": 503,
+     "firstRead": 469,
+     "lastRead": 485,
+     "firstWrite": 487,
+     "lastWrite": 909,
+     "readToLastWrite": 440
+    }
+   ]
+  },
+  {
+   "n": 500,
+   "kind": "branch",
+   "per": [
+    {
+     "read": 502,
+     "write": 502,
+     "render": 754,
+     "input": 502,
+     "diff": 502,
+     "sync": 502,
+     "firstRead": 509,
+     "lastRead": 523,
+     "firstWrite": 524,
+     "lastWrite": 1197,
+     "readToLastWrite": 688
+    },
+    {
+     "read": 502,
+     "write": 502,
+     "render": 755,
+     "input": 502,
+     "diff": 502,
+     "sync": 503,
+     "firstRead": 504,
+     "lastRead": 518,
+     "firstWrite": 519,
+     "lastWrite": 1262,
+     "readToLastWrite": 758
+    },
+    {
+     "read": 502,
+     "write": 502,
+     "render": 754,
+     "input": 502,
+     "diff": 502,
+     "sync": 502,
+     "firstRead": 504,
+     "lastRead": 517,
+     "firstWrite": 518,
+     "lastWrite": 1181,
+     "readToLastWrite": 677
+    }
+   ]
+  }
+ ],
+ "held": [
+  {
+   "n": 10,
+   "rows": [
+    {
+     "folder": "d0001",
+     "latencyMs": 472,
+     "mainHoldMs": null
+    },
+    {
+     "folder": "d0001",
+     "latencyMs": 477,
+     "mainHoldMs": null
+    },
+    {
+     "folder": "d0001",
+     "latencyMs": 469,
+     "mainHoldMs": null
+    },
+    {
+     "folder": "d0001",
+     "latencyMs": 472,
+     "mainHoldMs": null
+    }
+   ],
+   "own": null
+  },
+  {
+   "n": 500,
+   "rows": [
+    {
+     "folder": "d0001",
+     "latencyMs": 514,
+     "mainHoldMs": null
+    },
+    {
+     "folder": "d0001",
+     "latencyMs": 521,
+     "mainHoldMs": null
+    },
+    {
+     "folder": "d0001",
+     "latencyMs": 485,
+     "mainHoldMs": null
+    },
+    {
+     "folder": "d0001",
+     "latencyMs": 477,
+     "mainHoldMs": null
+    }
+   ],
+   "own": null
+  }
+ ],
+ "anchors": [
+  {
+   "key": "read",
+   "file": "index-XX3Gp7DO.js",
+   "line": 5,
+   "column": 28318,
+   "ok": true,
+   "resolved": true
+  },
+  {
+   "key": "input",
+   "file": "index-XX3Gp7DO.js",
+   "line": 5,
+   "column": 36626,
+   "ok": true,
+   "resolved": true
+  },
+  {
+   "key": "diff",
+   "file": "FilesSection-BeQRRXwf.js",
+   "line": 269,
+   "column": 4968,
+   "ok": true,
+   "resolved": true
+  },
+  {
+   "key": "sync",
+   "file": "row-events-CguwvkyQ.js",
+   "line": 3,
+   "column": 3600,
+   "ok": true,
+   "resolved": true
+  },
+  {
+   "key": "render",
+   "file": "FilesSection-BeQRRXwf.js",
+   "line": 269,
+   "column": 115,
+   "ok": true,
+   "resolved": true
+  },
+  {
+   "key": "store",
+   "file": "globals-DHbyKpis.js",
+   "line": 0,
+   "column": 416729,
+   "ok": true,
+   "resolved": true
+  }
+ ],
+ "note": "the spec step's launch parentA of 2026-11-25T08:20:26.528Z, at a28c2cf3; idle windows filled from each cell's own baseline ([[37, 29, 30], [22, 25, 29], [37, 32, 44]]), paths replaced"
+}

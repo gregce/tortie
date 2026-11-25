@@ -1,0 +1,7488 @@
+{
+  "note": "raw/parentA.json, parentB.json and parentC.json are the spec step’s own three launches of the parent a28c2cf3 (2026-11-25, scratch/p372/spec/out), in this probe’s raw shape: each row’s idle window filled from its cell’s own baseline (the spec step read one baseline a cell, this probe one a change), add’s counts copied as addEarly’s where the spec step counted no addEarly, every path replaced by <run>. Every HEAD launch here is one of those with its edits, written by hand, and so is every launch of the arms the spec step did not drive (E, O, R, V, S, I) and the d0002 and held-folder rows of H; its `ops` break one reading. REVIEW (2026-11-25, the probe review): every launch also carries the four fields the reviewed probe records for each launch (run, startedAt, carriesPhase, visibility), set as an honest run sets them: one run, started in the order listed, each the build it names, never hidden. The spec step’s driver recorded none of them; they are written here, never read from it.",
+  "raw": [
+    {
+      "name": "the spec step's launch B, read as both builds, gives its own over-idle medians and counts back",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentB.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              }
+            ]
+          },
+          {
+            "file": "parentB.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "build": "head"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "cells.n10-same.parent": -3.5,
+        "cells.n10-addEarly.parent": 74,
+        "cells.n500-add.parent": 204,
+        "cells.n500-branch.parent": 397,
+        "cells.n100-same.head": -29,
+        "cells.n500-same.noise": 10,
+        "counts.n500-same.parent.write": [
+          502,
+          502,
+          502
+        ],
+        "counts.n100-branch.parent.read": [
+          102,
+          102,
+          102
+        ],
+        "counts.n10-add.parent.diff": [
+          12,
+          12,
+          12
+        ],
+        "blocks.parent": 1
+      },
+      "grader": "M",
+      "verdict": "unreadable",
+      "names": [
+        "both builds ran two blocks"
+      ]
+    },
+    {
+      "name": "the spec step's launch B's new files: the reader gives back the spec step's §2.3 latency table",
+      "raw": {
+        "arm": "L",
+        "launches": [
+          {
+            "file": "parentB.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              }
+            ]
+          },
+          {
+            "file": "parentB.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "build": "head"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "cells.n10-addEarly.parent": 477.5,
+        "cells.n10-add.parent": 476,
+        "cells.n500-addEarly.parent": 530.5,
+        "cells.n500-add.parent": 680.5,
+        "cells.n500-add.changes.parent": 8
+      },
+      "grader": "L",
+      "verdict": "unreadable",
+      "names": [
+        "every new file was read at both builds, at least 12 each"
+      ]
+    },
+    {
+      "name": "the spec step's launch A, which held d0002 and timed no addEarly, cannot be graded as a matrix",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentA.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              }
+            ]
+          },
+          {
+            "file": "parentA.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "build": "head"
+              }
+            ]
+          },
+          {
+            "file": "parentA.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "block": 2
+              }
+            ]
+          },
+          {
+            "file": "parentA.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "build": "head",
+                "block": 2
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "cells.n500-same.parent": 189,
+        "cells.n500-same.parentBlocks": [
+          189,
+          189
+        ],
+        "cells.n500-same.noise": 10
+      },
+      "grader": "M",
+      "verdict": "unreadable",
+      "names": [
+        "every cell of every size and kind was read at both builds"
+      ]
+    },
+    {
+      "name": "M honest: the parent as launches C (B at 10) twice, 4 ms apart, and HEAD a fifth of its thread at 100 and 500",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "honestFor": "M",
+      "grader": "M",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "cells.n500-same.parent": 199.5,
+        "cells.n500-same.head": 39.5,
+        "cells.n500-same.noise": 10,
+        "cells.n100-addEarly.lower": true,
+        "cells.n10-add.lower": null,
+        "cells.n500-branch.bothPairs": true,
+        "counts.n500-same.head.write": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "counts.n500-same.head.read": [
+          502,
+          502,
+          502,
+          502,
+          502,
+          502
+        ]
+      }
+    },
+    {
+      "name": "M: the same launches with HEAD unchanged at 500 fail the 500 cells and nothing else",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "M",
+      "verdict": "fail",
+      "names": [
+        "D11: at 500 folders HEAD reads lower than the parent − noise, every kind",
+        "D11: at 500 folders HEAD reads below the parent in both block pairs, every kind"
+      ]
+    },
+    {
+      "name": "M: HEAD 15 ms slower at 10 folders in every kind fails the not-higher clause alone",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "n": 10,
+                "addThread": 15
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "n": 10,
+                "addThread": 15
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "M",
+      "verdict": "fail",
+      "names": [
+        "D11: no cell reads HEAD higher than the parent + noise"
+      ]
+    },
+    {
+      "name": "L honest: the matrix launches, whose new files HEAD draws as the parent does",
+      "raw": {
+        "arm": "L",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "honestFor": "L",
+      "grader": "L",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "cells.n10-add.parent": 476,
+        "cells.n10-add.head": 476,
+        "cells.n500-add.changes.head": 16
+      }
+    },
+    {
+      "name": "L: HEAD 20 ms later in the folder read first at 500 fails that clause alone",
+      "raw": {
+        "arm": "L",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "n": 500,
+                "kind": "addEarly",
+                "addLatency": 20
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "n": 500,
+                "kind": "addEarly",
+                "addLatency": 20
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "L",
+      "verdict": "fail",
+      "names": [
+        "500 folders, read first: HEAD no later than the parent + one frame"
+      ]
+    },
+    {
+      "name": "H honest: the parent held as the spec step read it, HEAD drawing the others sooner at 500 and the held folder alone",
+      "raw": {
+        "arm": "H",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "held": [
+                {
+                  "n": 10,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 470,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 476,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 473,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 479,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 478,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 470,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 478,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 481,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5468,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                },
+                {
+                  "n": 500,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 682,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 540,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 685,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 552,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 693,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 561,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 695,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 548,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5690,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "held": [
+                {
+                  "n": 10,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 471,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 474,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 469,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 478,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 480,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 472,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 476,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 480,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5471,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                },
+                {
+                  "n": 500,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 512,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 507,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 520,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 515,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 509,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 511,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 531,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 509,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5502,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "honestFor": "H",
+      "grader": "H",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "cells.n500-d0001.parent.median": 689,
+        "cells.n10-d0001.parent.median": 475.5,
+        "own.n500.head.writes": 1,
+        "holdTook.head": true
+      }
+    },
+    {
+      "name": "H: a hold main answered in 3 s is no hold",
+      "raw": {
+        "arm": "H",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "held": [
+                {
+                  "n": 10,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 470,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 476,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 473,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 479,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 478,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 470,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 478,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 481,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5468,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                },
+                {
+                  "n": 500,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 682,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 540,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 685,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 552,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 693,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 561,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 695,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 548,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5690,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "held": [
+                {
+                  "n": 10,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 471,
+                      "mainHoldMs": 3000
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 474,
+                      "mainHoldMs": 3000
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 469,
+                      "mainHoldMs": 3000
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 478,
+                      "mainHoldMs": 3000
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 480,
+                      "mainHoldMs": 3000
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 472,
+                      "mainHoldMs": 3000
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 476,
+                      "mainHoldMs": 3000
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 480,
+                      "mainHoldMs": 3000
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5471,
+                    "writes": 1,
+                    "mainHoldMs": 3000
+                  }
+                },
+                {
+                  "n": 500,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 512,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 507,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 520,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 515,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 509,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 511,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 531,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 509,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5502,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "H",
+      "verdict": "unreadable",
+      "names": [
+        "main held the folder’s read 5 s every time, at both builds"
+      ]
+    },
+    {
+      "name": "E honest, written by hand: HEAD draws a quiet expand as the parent does and a held one sooner",
+      "raw": {
+        "arm": "E",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "expand": {
+                "quiet": [
+                  40,
+                  42,
+                  38,
+                  45,
+                  41,
+                  39,
+                  44,
+                  40,
+                  43,
+                  41
+                ],
+                "held": [
+                  210,
+                  180,
+                  260,
+                  150,
+                  300,
+                  190,
+                  240,
+                  170,
+                  220,
+                  200
+                ],
+                "holdTook": true,
+                "refreshesWhileHeld": 3
+              },
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "expand": {
+                "quiet": [
+                  41,
+                  40,
+                  39,
+                  44,
+                  42,
+                  38,
+                  43,
+                  41,
+                  40,
+                  42
+                ],
+                "held": [
+                  45,
+                  48,
+                  41,
+                  52,
+                  44,
+                  47,
+                  43,
+                  46,
+                  49,
+                  42
+                ],
+                "holdTook": true,
+                "refreshesWhileHeld": 3
+              },
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "honestFor": "E",
+      "grader": "E",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "parent.quiet": 41,
+        "head.held": 45.5
+      }
+    },
+    {
+      "name": "O honest, written by hand: each event the smaller of its two runs, HEAD as the parent quiet and sooner held",
+      "raw": {
+        "arm": "O",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "ops": {
+                "trashStandIn": true,
+                "quiet": [
+                  {
+                    "steps": {
+                      "passed": 14,
+                      "failed": 0,
+                      "failedNames": []
+                    },
+                    "events": [
+                      {
+                        "key": "1 mkdir <dir>/ drawn",
+                        "ms": 30
+                      },
+                      {
+                        "key": "2 open <dir>/note_md drawn",
+                        "ms": 35
+                      },
+                      {
+                        "key": "3 rename <dir>/renamed_md drawn",
+                        "ms": 32
+                      },
+                      {
+                        "key": "4 rename <dir>/note_md gone",
+                        "ms": 32
+                      },
+                      {
+                        "key": "5 trash <dir>/renamed_md gone",
+                        "ms": 38
+                      }
+                    ],
+                    "holdTook": true
+                  },
+                  {
+                    "steps": {
+                      "passed": 14,
+                      "failed": 0,
+                      "failedNames": []
+                    },
+                    "events": [
+                      {
+                        "key": "1 mkdir <dir>/ drawn",
+                        "ms": 34
+                      },
+                      {
+                        "key": "2 open <dir>/note_md drawn",
+                        "ms": 39
+                      },
+                      {
+                        "key": "3 rename <dir>/renamed_md drawn",
+                        "ms": 36
+                      },
+                      {
+                        "key": "4 rename <dir>/note_md gone",
+                        "ms": 36
+                      },
+                      {
+                        "key": "5 trash <dir>/renamed_md gone",
+                        "ms": 42
+                      }
+                    ],
+                    "holdTook": true
+                  }
+                ],
+                "held": [
+                  {
+                    "steps": {
+                      "passed": 14,
+                      "failed": 0,
+                      "failedNames": []
+                    },
+                    "events": [
+                      {
+                        "key": "1 mkdir <dir>/ drawn",
+                        "ms": 60
+                      },
+                      {
+                        "key": "2 open <dir>/note_md drawn",
+                        "ms": 65
+                      },
+                      {
+                        "key": "3 rename <dir>/renamed_md drawn",
+                        "ms": 62
+                      },
+                      {
+                        "key": "4 rename <dir>/note_md gone",
+                        "ms": 62
+                      },
+                      {
+                        "key": "5 trash <dir>/renamed_md gone",
+                        "ms": 68
+                      }
+                    ],
+                    "holdTook": true
+                  },
+                  {
+                    "steps": {
+                      "passed": 14,
+                      "failed": 0,
+                      "failedNames": []
+                    },
+                    "events": [
+                      {
+                        "key": "1 mkdir <dir>/ drawn",
+                        "ms": 70
+                      },
+                      {
+                        "key": "2 open <dir>/note_md drawn",
+                        "ms": 75
+                      },
+                      {
+                        "key": "3 rename <dir>/renamed_md drawn",
+                        "ms": 72
+                      },
+                      {
+                        "key": "4 rename <dir>/note_md gone",
+                        "ms": 72
+                      },
+                      {
+                        "key": "5 trash <dir>/renamed_md gone",
+                        "ms": 78
+                      }
+                    ],
+                    "holdTook": true
+                  }
+                ]
+              },
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "ops": {
+                "trashStandIn": true,
+                "quiet": [
+                  {
+                    "steps": {
+                      "passed": 14,
+                      "failed": 0,
+                      "failedNames": []
+                    },
+                    "events": [
+                      {
+                        "key": "1 mkdir <dir>/ drawn",
+                        "ms": 31
+                      },
+                      {
+                        "key": "2 open <dir>/note_md drawn",
+                        "ms": 36
+                      },
+                      {
+                        "key": "3 rename <dir>/renamed_md drawn",
+                        "ms": 33
+                      },
+                      {
+                        "key": "4 rename <dir>/note_md gone",
+                        "ms": 33
+                      },
+                      {
+                        "key": "5 trash <dir>/renamed_md gone",
+                        "ms": 39
+                      }
+                    ],
+                    "holdTook": true
+                  },
+                  {
+                    "steps": {
+                      "passed": 14,
+                      "failed": 0,
+                      "failedNames": []
+                    },
+                    "events": [
+                      {
+                        "key": "1 mkdir <dir>/ drawn",
+                        "ms": 29
+                      },
+                      {
+                        "key": "2 open <dir>/note_md drawn",
+                        "ms": 34
+                      },
+                      {
+                        "key": "3 rename <dir>/renamed_md drawn",
+                        "ms": 31
+                      },
+                      {
+                        "key": "4 rename <dir>/note_md gone",
+                        "ms": 31
+                      },
+                      {
+                        "key": "5 trash <dir>/renamed_md gone",
+                        "ms": 37
+                      }
+                    ],
+                    "holdTook": true
+                  }
+                ],
+                "held": [
+                  {
+                    "steps": {
+                      "passed": 14,
+                      "failed": 0,
+                      "failedNames": []
+                    },
+                    "events": [
+                      {
+                        "key": "1 mkdir <dir>/ drawn",
+                        "ms": 33
+                      },
+                      {
+                        "key": "2 open <dir>/note_md drawn",
+                        "ms": 38
+                      },
+                      {
+                        "key": "3 rename <dir>/renamed_md drawn",
+                        "ms": 35
+                      },
+                      {
+                        "key": "4 rename <dir>/note_md gone",
+                        "ms": 35
+                      },
+                      {
+                        "key": "5 trash <dir>/renamed_md gone",
+                        "ms": 41
+                      }
+                    ],
+                    "holdTook": true
+                  },
+                  {
+                    "steps": {
+                      "passed": 14,
+                      "failed": 0,
+                      "failedNames": []
+                    },
+                    "events": [
+                      {
+                        "key": "1 mkdir <dir>/ drawn",
+                        "ms": 36
+                      },
+                      {
+                        "key": "2 open <dir>/note_md drawn",
+                        "ms": 41
+                      },
+                      {
+                        "key": "3 rename <dir>/renamed_md drawn",
+                        "ms": 38
+                      },
+                      {
+                        "key": "4 rename <dir>/note_md gone",
+                        "ms": 38
+                      },
+                      {
+                        "key": "5 trash <dir>/renamed_md gone",
+                        "ms": 44
+                      }
+                    ],
+                    "holdTook": true
+                  }
+                ]
+              },
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "honestFor": "O",
+      "grader": "O",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "parent.quiet.events.1 mkdir <dir>/ drawn": 30,
+        "head.held.events.5 trash <dir>/renamed_md gone": 41
+      }
+    },
+    {
+      "name": "R honest, written by hand",
+      "raw": {
+        "arm": "R",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "refresh": {
+                "pressed": true,
+                "quiet": [
+                  512,
+                  530,
+                  498,
+                  520,
+                  515,
+                  508
+                ],
+                "held": [
+                  {
+                    "ms": 530,
+                    "holdTook": true,
+                    "heldReadAgain": true
+                  },
+                  {
+                    "ms": 530,
+                    "holdTook": true,
+                    "heldReadAgain": true
+                  },
+                  {
+                    "ms": 530,
+                    "holdTook": true,
+                    "heldReadAgain": true
+                  },
+                  {
+                    "ms": 530,
+                    "holdTook": true,
+                    "heldReadAgain": true
+                  }
+                ]
+              },
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "refresh": {
+                "pressed": true,
+                "quiet": [
+                  60,
+                  58,
+                  63,
+                  61,
+                  59,
+                  62
+                ],
+                "held": [
+                  {
+                    "ms": 75,
+                    "holdTook": true,
+                    "heldReadAgain": true
+                  },
+                  {
+                    "ms": 75,
+                    "holdTook": true,
+                    "heldReadAgain": true
+                  },
+                  {
+                    "ms": 75,
+                    "holdTook": true,
+                    "heldReadAgain": true
+                  },
+                  {
+                    "ms": 75,
+                    "holdTook": true,
+                    "heldReadAgain": true
+                  }
+                ]
+              },
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "honestFor": "R",
+      "grader": "R",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "parent.quiet": 513.5,
+        "head.held": 75,
+        "head.heldReadAgain": true
+      }
+    },
+    {
+      "name": "V honest, written by hand",
+      "raw": {
+        "arm": "V",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": 521,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": 522,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": 523,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": 524,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": 525,
+                  "keyAfter": false
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": 481,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": 482,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": 483,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": 484,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": 485,
+                  "keyAfter": false
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "honestFor": "V",
+      "grader": "V",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "parent.gone": 523,
+        "head.keysAfter": 0,
+        "head.cacheRead": true
+      }
+    },
+    {
+      "name": "V: a folder never cached before its removal is no reading",
+      "raw": {
+        "arm": "V",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": 521,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": 522,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": 523,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": 524,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": 525,
+                  "keyAfter": false
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": 480,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": 480,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": 480,
+                  "keyAfter": null
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": 480,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": 480,
+                  "keyAfter": false
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "V",
+      "verdict": "unreadable",
+      "names": [
+        "every folder was cached before its removal and the cache read after it, at HEAD"
+      ]
+    },
+    {
+      "name": "S honest, written by hand",
+      "raw": {
+        "arm": "S",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 2,
+              "switch": {
+                "tenShown": true,
+                "frames": 400,
+                "forbidden": 0,
+                "examples": [],
+                "newFiles": {
+                  "d0001/0s-1.txt": 9100,
+                  "d0003/0s-2.txt": 12000
+                },
+                "holdTook": true
+              },
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 2,
+              "switch": {
+                "tenShown": true,
+                "frames": 410,
+                "forbidden": 0,
+                "examples": [],
+                "newFiles": {
+                  "d0001/0s-1.txt": 8900,
+                  "d0003/0s-2.txt": 11800
+                },
+                "holdTook": true
+              },
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "honestFor": "S",
+      "grader": "S",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "head.allDrawn": true
+      }
+    },
+    {
+      "name": "S: a new file never drawn after the return",
+      "raw": {
+        "arm": "S",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 2,
+              "switch": {
+                "tenShown": true,
+                "frames": 400,
+                "forbidden": 0,
+                "examples": [],
+                "newFiles": {
+                  "d0001/0s-1.txt": 9100,
+                  "d0003/0s-2.txt": 12000
+                },
+                "holdTook": true
+              },
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 2,
+              "switch": {
+                "tenShown": true,
+                "frames": 410,
+                "forbidden": 0,
+                "examples": [],
+                "newFiles": {
+                  "d0001/0s-1.txt": 8900,
+                  "d0003/0s-2.txt": null
+                },
+                "holdTook": true
+              },
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "S",
+      "verdict": "fail",
+      "names": [
+        "after the return, every new file drawn"
+      ]
+    },
+    {
+      "name": "I honest, written by hand",
+      "raw": {
+        "arm": "I",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 2,
+              "ignore": {
+                "newLog": [
+                  600,
+                  620,
+                  610,
+                  640
+                ],
+                "ruleAdd": [
+                  700,
+                  720,
+                  690
+                ],
+                "ruleRemove": [
+                  710,
+                  705,
+                  730
+                ],
+                "frames": 1180,
+                "bad": 0,
+                "changes": 44
+              },
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 2,
+              "ignore": {
+                "newLog": [
+                  590,
+                  600,
+                  605,
+                  615
+                ],
+                "ruleAdd": [
+                  690,
+                  700,
+                  710
+                ],
+                "ruleRemove": [
+                  700,
+                  720,
+                  715
+                ],
+                "frames": 1190,
+                "bad": 0,
+                "changes": 45
+              },
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "honestFor": "I",
+      "grader": "I",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "parent.newLog": 615,
+        "head.ruleRemove": 715,
+        "head.missing": 0
+      }
+    },
+    {
+      "name": "V: the parent never took the rows away, read as still drawn when the wait ended, and HEAD took them away",
+      "raw": {
+        "arm": "V",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": 481,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": 482,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": 483,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": 484,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": 485,
+                  "keyAfter": false
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "V",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "parent.gone": null,
+        "parent.missing": 5,
+        "parent.never": 5,
+        "head.gone": 483
+      }
+    },
+    {
+      "name": "V: a parent row neither gone nor read as still drawn is no reading",
+      "raw": {
+        "arm": "V",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": false
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": 481,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": 482,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": 483,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": 484,
+                  "keyAfter": false
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": 485,
+                  "keyAfter": false
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "V",
+      "verdict": "unreadable",
+      "names": [
+        "five folders removed at both builds, every row gone at HEAD, and at the parent gone or read as still drawn"
+      ],
+      "expect": {
+        "parent.never": 4
+      }
+    },
+    {
+      "name": "V: the parent never took the rows away and HEAD did not either is no reading of HEAD",
+      "raw": {
+        "arm": "V",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "vanish": [
+                {
+                  "folder": "0v1",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v2",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v3",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v4",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                },
+                {
+                  "folder": "0v5",
+                  "goneMs": null,
+                  "keyAfter": false,
+                  "stillDrawn": true
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "V",
+      "verdict": "unreadable",
+      "names": [
+        "the reading has no head.gone"
+      ],
+      "expect": {
+        "head.never": 5
+      }
+    },
+    {
+      "name": "I: the parent never showed a rule added, read undimmed when the wait ended, and its undims are left out",
+      "raw": {
+        "arm": "I",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 2,
+              "ignore": {
+                "newLog": [
+                  600,
+                  620,
+                  610,
+                  640
+                ],
+                "ruleAdd": [
+                  null,
+                  null,
+                  null
+                ],
+                "ruleRemove": [
+                  3,
+                  7,
+                  3
+                ],
+                "frames": 1180,
+                "bad": 0,
+                "changes": 44,
+                "ruleAddNever": [
+                  true,
+                  true,
+                  true
+                ]
+              },
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 2,
+              "ignore": {
+                "newLog": [
+                  590,
+                  600,
+                  605,
+                  615
+                ],
+                "ruleAdd": [
+                  690,
+                  700,
+                  710
+                ],
+                "ruleRemove": [
+                  700,
+                  720,
+                  715
+                ],
+                "frames": 1190,
+                "bad": 0,
+                "changes": 45
+              },
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "I",
+      "verdict": "pass",
+      "names": [],
+      "expect": {
+        "parent.ruleAdd": null,
+        "parent.ruleAddNever": 3,
+        "parent.ruleRemove": null,
+        "parent.missing": 0,
+        "head.ruleAdd": 700
+      }
+    },
+    {
+      "name": "I: a rule add that timed out with its row not read undimmed is no reading",
+      "raw": {
+        "arm": "I",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 2,
+              "ignore": {
+                "newLog": [
+                  600,
+                  620,
+                  610,
+                  640
+                ],
+                "ruleAdd": [
+                  null,
+                  null,
+                  null
+                ],
+                "ruleRemove": [
+                  3,
+                  7,
+                  3
+                ],
+                "frames": 1180,
+                "bad": 0,
+                "changes": 44,
+                "ruleAddNever": [
+                  true,
+                  false,
+                  true
+                ]
+              },
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 2,
+              "ignore": {
+                "newLog": [
+                  590,
+                  600,
+                  605,
+                  615
+                ],
+                "ruleAdd": [
+                  690,
+                  700,
+                  710
+                ],
+                "ruleRemove": [
+                  700,
+                  720,
+                  715
+                ],
+                "frames": 1190,
+                "bad": 0,
+                "changes": 45
+              },
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "I",
+      "verdict": "unreadable",
+      "names": [
+        "every dim and undim was drawn at both builds"
+      ],
+      "expect": {
+        "parent.ruleAddNever": 2
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW M: the parent’s second block lost one cell (one parent run missing in that cell)",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              },
+              {
+                "n": 100,
+                "kind": "same",
+                "dropCell": true
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "M",
+      "verdict": "unreadable",
+      "names": [
+        "every cell holds every change it timed, readable, at least 8 a block, in every block of both builds"
+      ],
+      "expect": {
+        "cells.n100-same.changes.parent": [
+          8
+        ],
+        "cells.n100-same.noise": 10
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW M: a HEAD cell with seven readable changes of the eight asked",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "set": "cells.0.rows.3.taskMs",
+                "value": null
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "M",
+      "verdict": "unreadable",
+      "names": [
+        "every cell holds every change it timed, readable, at least 8 a block, in every block of both builds"
+      ],
+      "expect": {
+        "cells.n100-same.changes.head": [
+          7,
+          8
+        ],
+        "cells.n100-same.asked.head": [
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW M: HEAD’s first block timed while its window was hidden",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": [
+                    [
+                      1,
+                      2
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "M",
+      "verdict": "unreadable",
+      "names": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ],
+      "expect": {
+        "session.why": [
+          "a window was hidden, or its visibility unread"
+        ]
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW M: HEAD’s second launch has no reading of its window’s visibility",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "delete": "visibility"
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "M",
+      "verdict": "unreadable",
+      "names": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ],
+      "expect": {
+        "session.why": [
+          "a window was hidden, or its visibility unread"
+        ]
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW M: HEAD read in another session than the parent",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "set": "run",
+                "value": "another"
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "set": "run",
+                "value": "another"
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "M",
+      "verdict": "unreadable",
+      "names": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ],
+      "expect": {
+        "session.why": [
+          "not one run"
+        ]
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW M: both parent blocks run before both HEAD blocks",
+      "raw": {
+        "arm": "M",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "M",
+      "verdict": "unreadable",
+      "names": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ],
+      "expect": {
+        "session.why": [
+          "the parent and HEAD not alternated"
+        ]
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW L: the parent’s launches missing and HEAD’s graded in their place, equal to itself",
+      "raw": {
+        "arm": "L",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "build": "parent",
+                "block": 2
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "L",
+      "verdict": "unreadable",
+      "names": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ],
+      "expect": {
+        "session.why": [
+          "a launch is not the build it names"
+        ]
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW L: a new file read as drawn before it was written",
+      "raw": {
+        "arm": "L",
+        "launches": [
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 1000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 1
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 2000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 1
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              },
+              {
+                "n": 500,
+                "kind": "add",
+                "addLatency": -1000
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 3000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": false
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "parent",
+                "block": 2
+              },
+              {
+                "addThread": 4
+              }
+            ]
+          },
+          {
+            "file": "parentC.json",
+            "edits": [
+              {
+                "set": "run",
+                "value": "fixture"
+              },
+              {
+                "set": "startedAt",
+                "value": 4000
+              },
+              {
+                "set": "visibility",
+                "value": {
+                  "read": true,
+                  "hidden": []
+                }
+              },
+              {
+                "set": "carriesPhase",
+                "value": true
+              },
+              {
+                "take": {
+                  "file": "parentB.json",
+                  "n": 10
+                }
+              },
+              {
+                "build": "head",
+                "block": 2
+              },
+              {
+                "n": 100,
+                "scaleThread": 0.2
+              },
+              {
+                "n": 500,
+                "scaleThread": 0.2
+              },
+              {
+                "kind": "same",
+                "count": "write",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "diff",
+                "value": 0
+              },
+              {
+                "kind": "same",
+                "count": "sync",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "add",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "addEarly",
+                "count": "write",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "diff",
+                "value": 1
+              },
+              {
+                "kind": "addEarly",
+                "count": "sync",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "write",
+                "value": 2
+              },
+              {
+                "kind": "branch",
+                "count": "diff",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "grader": "L",
+      "verdict": "unreadable",
+      "names": [
+        "every new file was drawn at both builds"
+      ],
+      "expect": {
+        "cells.n500-add.missing.head": 8
+      }
+    },
+    {
+      "review": true,
+      "name": "REVIEW H: the held folder’s own file read as drawn before it was written",
+      "raw": {
+        "arm": "H",
+        "launches": [
+          {
+            "launch": {
+              "build": "parent",
+              "block": 1,
+              "held": [
+                {
+                  "n": 10,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 470,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 476,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 473,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 479,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 478,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 470,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 478,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 481,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5468,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                },
+                {
+                  "n": 500,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 682,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 540,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 685,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 552,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 693,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 561,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 695,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 548,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5690,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 1000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": false
+            }
+          },
+          {
+            "launch": {
+              "build": "head",
+              "block": 1,
+              "held": [
+                {
+                  "n": 10,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 471,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 474,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 469,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 478,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 480,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 472,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 476,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 480,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": -40,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                },
+                {
+                  "n": 500,
+                  "rows": [
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 512,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 507,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 520,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 515,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 509,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 511,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0001",
+                      "latencyMs": 531,
+                      "mainHoldMs": 5003
+                    },
+                    {
+                      "folder": "d0002",
+                      "latencyMs": 509,
+                      "mainHoldMs": 5003
+                    }
+                  ],
+                  "own": {
+                    "latencyMs": 5502,
+                    "writes": 1,
+                    "mainHoldMs": 5003
+                  }
+                }
+              ],
+              "run": "fixture",
+              "startedAt": 2000,
+              "visibility": {
+                "read": true,
+                "hidden": []
+              },
+              "carriesPhase": true
+            }
+          }
+        ]
+      },
+      "grader": "H",
+      "verdict": "unreadable",
+      "names": [
+        "every new file was drawn at both builds"
+      ],
+      "expect": {
+        "own.n10.head.latencyMs": null
+      }
+    }
+  ],
+  "honestRun": {
+    "preflight": {
+      "ok": true
+    },
+    "launches": 4,
+    "agentsHeld": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "censusFailures": [],
+    "processTableRead": true,
+    "electronsLeft": 0,
+    "leftovers": [],
+    "history": {
+      "before": "1 2|3 4",
+      "after": "1 2|3 4",
+      "quiet": null
+    },
+    "loads": [
+      {
+        "load": 12.5,
+        "mem": 48
+      }
+    ]
+  },
+  "broken": [
+    {
+      "grader": "M",
+      "name": "one cell higher than the parent",
+      "ops": [
+        {
+          "set": "cells.n10-same.notHigher",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "D11: no cell reads HEAD higher than the parent + noise"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "one cell at 100 not lower",
+      "ops": [
+        {
+          "set": "cells.n100-same.lower",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "D11: at 100 folders HEAD reads lower than the parent − noise, every kind"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "one cell at 500 not lower",
+      "ops": [
+        {
+          "set": "cells.n500-same.lower",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "D11: at 500 folders HEAD reads lower than the parent − noise, every kind"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "one block pair at 500 where HEAD is not below",
+      "ops": [
+        {
+          "set": "cells.n500-branch.bothPairs",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "D11: at 500 folders HEAD reads below the parent in both block pairs, every kind"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a change that read one folder fewer",
+      "ops": [
+        {
+          "set": "counts.n10-same.head.read",
+          "value": [
+            12,
+            12,
+            11
+          ]
+        }
+      ],
+      "mustFail": [
+        "Phase 155: every change still reads every cached folder at HEAD"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "nothing changed and one write",
+      "ops": [
+        {
+          "set": "counts.n10-same.head.write",
+          "value": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "mustFail": [
+        "nothing changed: 0 store writes, 0 model passes, at most 1 ignore-store call"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "nothing changed and two ignore calls",
+      "ops": [
+        {
+          "set": "counts.n500-same.head.sync",
+          "value": [
+            1,
+            2,
+            1
+          ]
+        }
+      ],
+      "mustFail": [
+        "nothing changed: 0 store writes, 0 model passes, at most 1 ignore-store call"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "one file added and two writes",
+      "ops": [
+        {
+          "set": "counts.n100-addEarly.head.write",
+          "value": [
+            1,
+            2,
+            1
+          ]
+        }
+      ],
+      "mustFail": [
+        "one file added: 1 store write, 1 model pass, at most 2 ignore-store calls"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a branch and three model passes",
+      "ops": [
+        {
+          "set": "counts.n500-branch.head.diff",
+          "value": [
+            2,
+            3,
+            2
+          ]
+        }
+      ],
+      "mustFail": [
+        "a branch switch: at most 2 store writes and 2 model passes"
+      ]
+    },
+    {
+      "grader": "L",
+      "name": "10 folders, read last: 18 ms later",
+      "ops": [
+        {
+          "set": "cells.n10-add.parent",
+          "value": 500
+        },
+        {
+          "set": "cells.n10-add.head",
+          "value": 518
+        }
+      ],
+      "mustFail": [
+        "10 folders, read last: HEAD no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "L",
+      "name": "10 folders, read first: 18 ms later",
+      "ops": [
+        {
+          "set": "cells.n10-addEarly.parent",
+          "value": 500
+        },
+        {
+          "set": "cells.n10-addEarly.head",
+          "value": 518
+        }
+      ],
+      "mustFail": [
+        "10 folders, read first: HEAD no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "L",
+      "name": "500 folders, read last: 18 ms later",
+      "ops": [
+        {
+          "set": "cells.n500-add.parent",
+          "value": 500
+        },
+        {
+          "set": "cells.n500-add.head",
+          "value": 518
+        }
+      ],
+      "mustFail": [
+        "500 folders, read last: HEAD no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "L",
+      "name": "500 folders, read first: 18 ms later",
+      "ops": [
+        {
+          "set": "cells.n500-addEarly.parent",
+          "value": 500
+        },
+        {
+          "set": "cells.n500-addEarly.head",
+          "value": 518
+        }
+      ],
+      "mustFail": [
+        "500 folders, read first: HEAD no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "H",
+      "name": "a new file 19 ms later at HEAD",
+      "ops": [
+        {
+          "set": "cells.n10-d0002.head.median",
+          "value": 495
+        }
+      ],
+      "mustFail": [
+        "a new file in another folder: HEAD no later than the parent + one frame, every cell"
+      ]
+    },
+    {
+      "grader": "H",
+      "name": "the held folder’s file later than the parent’s own + one frame",
+      "ops": [
+        {
+          "set": "own.n500.head.latencyMs",
+          "value": 5708
+        }
+      ],
+      "mustFail": [
+        "the held folder’s own new file: no later than the parent’s own + one frame"
+      ]
+    },
+    {
+      "grader": "H",
+      "name": "the held folder landed in two writes",
+      "ops": [
+        {
+          "set": "own.n10.head.writes",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "the held folder is written alone: one store write when it lands"
+      ]
+    },
+    {
+      "grader": "E",
+      "name": "quiet 18 ms later",
+      "ops": [
+        {
+          "set": "head.quiet",
+          "value": 59
+        }
+      ],
+      "mustFail": [
+        "quiet: HEAD draws the rows no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "E",
+      "name": "held 18 ms later",
+      "ops": [
+        {
+          "set": "head.held",
+          "value": 223
+        }
+      ],
+      "mustFail": [
+        "held: HEAD draws the rows no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "O",
+      "name": "a step failed at the parent",
+      "ops": [
+        {
+          "set": "parent.held.stepsOk",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "every step ok at the parent"
+      ]
+    },
+    {
+      "grader": "O",
+      "name": "a step failed at HEAD",
+      "ops": [
+        {
+          "set": "head.quiet.stepsOk",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "every step ok at HEAD"
+      ]
+    },
+    {
+      "grader": "O",
+      "name": "a quiet row 18 ms later",
+      "ops": [
+        {
+          "set": "head.quiet.events.3 rename <dir>/renamed_md drawn",
+          "value": 51
+        }
+      ],
+      "mustFail": [
+        "quiet: every row drawn or gone no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "O",
+      "name": "a held row never drawn",
+      "ops": [
+        {
+          "set": "head.held.events.5 trash <dir>/renamed_md gone",
+          "value": null
+        }
+      ],
+      "mustFail": [
+        "held: every row drawn or gone no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "R",
+      "name": "quiet 18 ms later",
+      "ops": [
+        {
+          "set": "head.quiet",
+          "value": 531.5
+        }
+      ],
+      "mustFail": [
+        "quiet: the row after the press no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "R",
+      "name": "held 18 ms later",
+      "ops": [
+        {
+          "set": "head.held",
+          "value": 548
+        }
+      ],
+      "mustFail": [
+        "held: the row after the press no later than the parent + one frame"
+      ]
+    },
+    {
+      "grader": "R",
+      "name": "the held folder not read again",
+      "ops": [
+        {
+          "set": "head.heldReadAgain",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "Phase 155: the held folder is read again after its held read, every press"
+      ]
+    },
+    {
+      "grader": "V",
+      "name": "rows gone 18 ms later",
+      "ops": [
+        {
+          "set": "head.gone",
+          "value": 541
+        }
+      ],
+      "mustFail": [
+        "the rows gone no later than the parent + one frame (or the parent never took them away)"
+      ]
+    },
+    {
+      "grader": "V",
+      "name": "a key left",
+      "ops": [
+        {
+          "set": "head.keysAfter",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "no key for a removed folder after"
+      ]
+    },
+    {
+      "grader": "S",
+      "name": "a row of the 500 drawn while the 10 shows",
+      "ops": [
+        {
+          "set": "head.forbidden",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "no row of the 500 repository drawn while the 10 is shown"
+      ]
+    },
+    {
+      "grader": "S",
+      "name": "a new file never drawn",
+      "ops": [
+        {
+          "set": "head.allDrawn",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "after the return, every new file drawn"
+      ]
+    },
+    {
+      "grader": "I",
+      "name": "a new ignored file 201 ms later",
+      "ops": [
+        {
+          "set": "head.newLog",
+          "value": 816
+        }
+      ],
+      "mustFail": [
+        "a new ignored file dims no later than the parent + 200 ms"
+      ]
+    },
+    {
+      "grader": "I",
+      "name": "a rule added 201 ms later",
+      "ops": [
+        {
+          "set": "head.ruleAdd",
+          "value": 901
+        }
+      ],
+      "mustFail": [
+        "a rule added shows no later than the parent + 200 ms (or the parent never showed it)"
+      ]
+    },
+    {
+      "grader": "I",
+      "name": "a rule taken away 201 ms later",
+      "ops": [
+        {
+          "set": "head.ruleRemove",
+          "value": 911
+        }
+      ],
+      "mustFail": [
+        "a rule taken away shows no later than the parent + 200 ms (or the parent never showed the rule)"
+      ]
+    },
+    {
+      "grader": "I",
+      "name": "a must-dim row undimmed",
+      "ops": [
+        {
+          "set": "head.bad",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "no frame draws a must-dim row undimmed"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "a preflight refused",
+      "ops": [
+        {
+          "set": "preflight.ok",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "every preflight held"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "an agent resolved",
+      "ops": [
+        {
+          "set": "agentsHeld",
+          "value": [
+            true,
+            false,
+            true,
+            true
+          ]
+        }
+      ],
+      "mustFail": [
+        "every launch’s agents:list resolved nothing"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "the census found something",
+      "ops": [
+        {
+          "set": "censusFailures",
+          "value": [
+            "p372-head1: a session appeared"
+          ]
+        }
+      ],
+      "mustFail": [
+        "the census found nothing of the run on his server"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "an Electron left",
+      "ops": [
+        {
+          "set": "electronsLeft",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "no Electron of the run left"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "a leftover",
+      "ops": [
+        {
+          "set": "leftovers",
+          "value": [
+            "p372-head1: /bin/sh"
+          ]
+        }
+      ],
+      "mustFail": [
+        "no process naming a run folder was left to end"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "his history moved and stayed moved",
+      "ops": [
+        {
+          "set": "history",
+          "value": {
+            "before": "1 2|3 4",
+            "after": "1 9|3 4",
+            "quiet": {
+              "again": "1 9|3 4"
+            }
+          }
+        }
+      ],
+      "mustFail": [
+        "his shell history unmoved, or moved by his own terminal"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "a cell with no load",
+      "ops": [
+        {
+          "set": "loads",
+          "value": [
+            {
+              "load": null,
+              "mem": 48
+            }
+          ]
+        }
+      ],
+      "mustFail": [
+        "the load and the memory were read beside every timed cell"
+      ]
+    },
+    {
+      "grader": "I",
+      "name": "a rule added that never showed at HEAD",
+      "mustFail": [
+        "at HEAD a rule added always shows"
+      ],
+      "ops": [
+        {
+          "set": "head.ruleAddNever",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "REVIEW: a cell whose memory was never read",
+      "ops": [
+        {
+          "set": "loads",
+          "value": [
+            {
+              "load": 12.5,
+              "mem": null
+            }
+          ]
+        }
+      ],
+      "mustFail": [
+        "the load and the memory were read beside every timed cell"
+      ]
+    }
+  ],
+  "unreadable": [
+    {
+      "grader": "M",
+      "name": "a counter not resolved",
+      "ops": [
+        {
+          "set": "anchors",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every counter was found once in both builds and resolved at its own statement"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "HEAD ran one block",
+      "ops": [
+        {
+          "set": "blocks.head",
+          "value": 1
+        }
+      ],
+      "mustMiss": [
+        "both builds ran two blocks",
+        "every cell holds every change it timed, readable, at least 8 a block, in every block of both builds",
+        "every size and kind was counted at both builds, three changes in every block"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a cell missing",
+      "ops": [
+        {
+          "delete": "cells.n10-same"
+        }
+      ],
+      "mustMiss": [
+        "every cell of every size and kind was read at both builds"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a block with five readable changes",
+      "ops": [
+        {
+          "set": "cells.n10-same.changes.head",
+          "value": [
+            8,
+            5
+          ]
+        }
+      ],
+      "mustMiss": [
+        "every cell holds every change it timed, readable, at least 8 a block, in every block of both builds"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a change that produced two git:changed",
+      "ops": [
+        {
+          "set": "changed.notOne",
+          "value": 1
+        }
+      ],
+      "mustMiss": [
+        "every change the matrix timed produced exactly one git:changed in the page"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a kind HEAD did not count",
+      "ops": [
+        {
+          "delete": "counts.n10-same.head"
+        }
+      ],
+      "mustMiss": [
+        "every size and kind was counted at both builds, three changes in every block"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "the parent wrote one folder fewer",
+      "ops": [
+        {
+          "set": "counts.n10-same.parent.write",
+          "value": [
+            12,
+            11,
+            12
+          ]
+        }
+      ],
+      "mustMiss": [
+        "the parent wrote the cache once a folder a change, as the spec step read it (the counters see what they count)"
+      ]
+    },
+    {
+      "grader": "L",
+      "name": "eleven new files read at HEAD",
+      "ops": [
+        {
+          "set": "cells.n10-add.changes.head",
+          "value": 11
+        }
+      ],
+      "mustMiss": [
+        "every new file was read at both builds, at least 12 each"
+      ]
+    },
+    {
+      "grader": "L",
+      "name": "a new file never drawn at HEAD",
+      "ops": [
+        {
+          "set": "cells.n500-add.missing.head",
+          "value": 1
+        }
+      ],
+      "mustMiss": [
+        "every new file was drawn at both builds"
+      ]
+    },
+    {
+      "grader": "H",
+      "name": "no hold at HEAD",
+      "ops": [
+        {
+          "set": "holdTook.head",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "main held the folder’s read 5 s every time, at both builds"
+      ]
+    },
+    {
+      "grader": "H",
+      "name": "a new file never drawn",
+      "ops": [
+        {
+          "set": "cells.n500-d0001.head.missing",
+          "value": 1
+        }
+      ],
+      "mustMiss": [
+        "every new file was drawn at both builds"
+      ]
+    },
+    {
+      "grader": "H",
+      "name": "the landing not counted",
+      "ops": [
+        {
+          "set": "own.n10.head.writes",
+          "value": null
+        }
+      ],
+      "mustMiss": [
+        "the held folder’s landing was counted"
+      ]
+    },
+    {
+      "grader": "E",
+      "name": "an expand never drawn",
+      "ops": [
+        {
+          "set": "head.missing",
+          "value": 1
+        }
+      ],
+      "mustMiss": [
+        "ten expands a mode were drawn at both builds"
+      ]
+    },
+    {
+      "grader": "E",
+      "name": "no refresh in flight while held",
+      "ops": [
+        {
+          "set": "parent.refreshesWhileHeld",
+          "value": 0
+        }
+      ],
+      "mustMiss": [
+        "the folder was held and refreshes were in flight while it was, at both builds"
+      ]
+    },
+    {
+      "grader": "O",
+      "name": "the trash not replaced",
+      "ops": [
+        {
+          "set": "head.trashStandIn",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the trash went into the run’s own folder at both builds, never his Trash"
+      ]
+    },
+    {
+      "grader": "O",
+      "name": "one held run",
+      "ops": [
+        {
+          "set": "head.held.runs",
+          "value": 1
+        }
+      ],
+      "mustMiss": [
+        "each mode ran twice at both builds, the held one with its folder held"
+      ]
+    },
+    {
+      "grader": "O",
+      "name": "an event the parent drew that HEAD did not read",
+      "ops": [
+        {
+          "delete": "head.quiet.events.2 open <dir>/note_md drawn"
+        }
+      ],
+      "mustMiss": [
+        "every event the parent drew was read at HEAD too"
+      ]
+    },
+    {
+      "grader": "R",
+      "name": "the button not found",
+      "ops": [
+        {
+          "set": "head.pressed",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the Refresh button was pressed and every row was drawn at both builds"
+      ]
+    },
+    {
+      "grader": "R",
+      "name": "no hold at the parent",
+      "ops": [
+        {
+          "set": "parent.heldTook",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the folder’s read was held at every held press, at both builds"
+      ]
+    },
+    {
+      "grader": "V",
+      "name": "a row never gone at the parent",
+      "ops": [
+        {
+          "set": "parent.missing",
+          "value": 1
+        }
+      ],
+      "mustMiss": [
+        "five folders removed at both builds, every row gone at HEAD, and at the parent gone or read as still drawn"
+      ]
+    },
+    {
+      "grader": "V",
+      "name": "the cache not read",
+      "ops": [
+        {
+          "set": "head.cacheRead",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every folder was cached before its removal and the cache read after it, at HEAD"
+      ]
+    },
+    {
+      "grader": "S",
+      "name": "the 10 never shown",
+      "ops": [
+        {
+          "set": "head.tenShown",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the 10 was shown and its frames were read at HEAD, at least 30"
+      ]
+    },
+    {
+      "grader": "S",
+      "name": "no hold",
+      "ops": [
+        {
+          "set": "head.holdTook",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the folder was held when the switch was made at HEAD"
+      ]
+    },
+    {
+      "grader": "S",
+      "name": "one new file watched",
+      "ops": [
+        {
+          "set": "head.newFiles",
+          "value": {
+            "d0001/0s-1.txt": 9
+          }
+        }
+      ],
+      "mustMiss": [
+        "new files were watched after the return"
+      ]
+    },
+    {
+      "grader": "I",
+      "name": "an undim never drawn",
+      "ops": [
+        {
+          "set": "parent.missing",
+          "value": 1
+        }
+      ],
+      "mustMiss": [
+        "every dim and undim was drawn at both builds"
+      ]
+    },
+    {
+      "grader": "I",
+      "name": "900 frames",
+      "ops": [
+        {
+          "set": "head.frames",
+          "value": 900
+        }
+      ],
+      "mustMiss": [
+        "at least 1000 frames painted under the writer at HEAD, with changes in them"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "no process table",
+      "ops": [
+        {
+          "set": "processTableRead",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the process table was read"
+      ]
+    },
+    {
+      "grader": "RUN",
+      "name": "no launch",
+      "ops": [
+        {
+          "set": "launches",
+          "value": 0
+        }
+      ],
+      "mustMiss": [
+        "at least one app was launched"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "L",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "H",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "E",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "O",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "R",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "V",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "S",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "I",
+      "name": "the launches are not one alternated session of the builds they name, with the window shown",
+      "ops": [
+        {
+          "set": "session.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "every launch is of this one run, the parent and HEAD alternated, each the build its renderer says, its window never hidden"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a block with one change of eight unread",
+      "ops": [
+        {
+          "set": "cells.n10-same.changes.head",
+          "value": [
+            8,
+            7
+          ]
+        }
+      ],
+      "mustMiss": [
+        "every cell holds every change it timed, readable, at least 8 a block, in every block of both builds"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a parent block that lost the cell",
+      "ops": [
+        {
+          "set": "cells.n100-same.changes.parent",
+          "value": [
+            8
+          ]
+        },
+        {
+          "set": "cells.n100-same.asked.parent",
+          "value": [
+            8
+          ]
+        }
+      ],
+      "mustMiss": [
+        "every cell holds every change it timed, readable, at least 8 a block, in every block of both builds"
+      ]
+    },
+    {
+      "grader": "M",
+      "name": "a block that counted two changes of a kind",
+      "ops": [
+        {
+          "set": "counts.n10-same.head.perLaunch",
+          "value": [
+            3,
+            2
+          ]
+        }
+      ],
+      "mustMiss": [
+        "every size and kind was counted at both builds, three changes in every block"
+      ]
+    }
+  ]
+}

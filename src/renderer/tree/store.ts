@@ -45,6 +45,40 @@
  * line. A link to a folder the account cannot read, or whose target went away,
  * answers `denied` or `missing` for THAT folder, and the folder stays unlisted,
  * as a failed child read on this Mac does; the Explorer keeps every row.
+ *
+ * ## PHASE 372 — one refresh, one write
+ *
+ * A refresh still re-reads every cached folder, forced, exactly as Phase 155
+ * made it. What changed is what it WRITES. Measured at 500 open folders, every
+ * change on disk made 502 store writes, 502 passes of the tree's model and 502
+ * calls into the ignore store, even a change no listing showed, and the writes
+ * of one refresh spread over 0.41 to 0.79 s although its 502 reads all answered
+ * within 11 to 19 ms. Each answer rendered before the next was taken.
+ *
+ * A LISTING EQUAL TO THE ONE HELD WRITES NOTHING (`sameListing`): every own key
+ * of every entry, in order, both ways, so a field added to `FsDirEntry` later
+ * is compared without anybody remembering to. Equal keeps the held array, so
+ * nothing above the store moves. A folder that vanished and was not cached, and
+ * a root error that did not change, write nothing either.
+ *
+ * THE ANSWERS ONE REFRESH ASKED FOR ARE WRITTEN BY ONE `set`, when the last of
+ * them answers, or when none has answered for `REFRESH_QUIET_MS` while one is
+ * still out, or `REFRESH_CAP_MS` after the first, whichever is first. A slow
+ * folder never holds the rest past the quiet gap, and what is late is written
+ * the moment it lands. Everything a person does to one folder (an expand, a
+ * relist after a create, rename, move, trash or import, the root's first read)
+ * is never collected and writes when it answers, as before; a relist that
+ * joins a read a refresh started makes that read write at once.
+ *
+ * ORDER AND TRUTH ARE KEPT. Every read takes a stamp when it starts, and a
+ * landing never replaces what a later read wrote. A folder `forgetUnder`
+ * dropped is never brought back by a read that began before the forget, and
+ * its staged answer is dropped with it. Pointing the tree at another folder
+ * drops the collection, its stamps and its timers. A read is in flight from
+ * its `readDir` call until its answer arrives, so a Refresh pressed while an
+ * answer is only staged reads again (Phase 155), and `refreshLoaded()` resolves
+ * once every read it asked for has been written or dropped. The two timers are
+ * the only clocks in this store, bounded, and only an answer arms them.
  */
 
 import { create } from 'zustand';
@@ -71,6 +105,60 @@ import { drawsAsFolder } from './tree-paths';
  * to a machine at once, beside the root's. See the module header.
  */
 export const REMOTE_EXTRA_READS = 9;
+
+/**
+ * PHASE 372 (D3). How long a refresh waits, with a read still out, after the
+ * last of its answers before it writes what has answered. The largest gap
+ * between two answers of one refresh measured 4.8 ms over fifteen whole
+ * refreshes of 502 folders (its 99th percentile at most 0.6 ms), so an ordinary
+ * refresh never meets it, and with one folder held the rest are written about
+ * this long after they stop arriving.
+ */
+export const REFRESH_QUIET_MS = 8;
+
+/**
+ * PHASE 372 (D3). The longest a refresh holds an answer before it writes it,
+ * counted from the first one it holds. Five times the slowest whole refresh
+ * measured (19 ms at 502 folders), so it bites only on a trickle of answers
+ * none of which comes 8 ms after the last, and half of the 195 to 205 ms the
+ * parent already added for the folder it read last.
+ */
+export const REFRESH_CAP_MS = 100;
+
+/** PHASE 372 (D1). Every own key of both entries, both ways, by `Object.is`. */
+function sameEntry(a: FsDirEntry, b: FsDirEntry): boolean {
+  if (a === b) return true;
+  const own = (x: FsDirEntry, k: string): boolean =>
+    Object.prototype.hasOwnProperty.call(x, k);
+  for (const k of Object.keys(a) as Array<keyof FsDirEntry>) {
+    if (!own(b, k) || !Object.is(a[k], b[k])) return false;
+  }
+  for (const k of Object.keys(b)) {
+    if (!own(a, k)) return false;
+  }
+  return true;
+}
+
+/**
+ * PHASE 372 (D1). Whether two listings of one folder would draw, dim, badge
+ * and open exactly alike: the same length, and at every index two entries with
+ * the same own keys holding the same values. Every own key rather than a named
+ * list, because every reader of the cache is answered by an entry's fields and
+ * their order, and a list would rot the first time `FsDirEntry` grows.
+ */
+export function sameListing(
+  a: readonly FsDirEntry[] | undefined,
+  b: readonly FsDirEntry[] | undefined
+): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i];
+    const y = b[i];
+    if (x === undefined || y === undefined || !sameEntry(x, y)) return false;
+  }
+  return true;
+}
 
 /**
  * Sort: directories first, then case-insensitive by name (dotfiles mixed in).
@@ -155,6 +243,45 @@ const REMOTE_IDLE: RemoteTreeRead = {
   loading: false
 };
 
+/**
+ * PHASE 372. How a read's answer is written: `now` false collects it for a
+ * refresh's one write, true writes it when it lands. Shared between a promised
+ * read and the read it becomes, so a person who joins either raises both.
+ */
+interface Want {
+  now: boolean;
+}
+
+/** PHASE 372. A local read from its `readDir` call until its answer arrives. */
+interface LocalRead {
+  stamp: number;
+  want: Want;
+  /** Still counted among the collected reads out (D3). */
+  counted: boolean;
+  /** Settles when `readDir` answers, never when the answer is written (D7). */
+  answered: Promise<void>;
+}
+
+/** PHASE 372. One answer: a listing, or `entries` null and the failure. */
+interface Landing {
+  seq: number;
+  stamp: number;
+  entries: readonly FsDirEntry[] | null;
+  error: unknown;
+}
+
+/** PHASE 372 (D3). An answer held for the flush, and who waits for it. */
+interface Staged extends Landing {
+  waiters: Array<() => void>;
+}
+
+/** PHASE 372. The cache as one write will leave it, copied on first change. */
+interface Draft {
+  base: Record<string, FsDirEntry[]>;
+  next: Record<string, FsDirEntry[]> | null;
+  rootError: string | null;
+}
+
 interface FileTreeState {
   /**
    * The folder the tree is showing, being one path on one computer.
@@ -212,14 +339,154 @@ interface FileTreeState {
 export const useFileTree = create<FileTreeState>((set, get) => {
   /** Guards against out-of-order async results after a root switch. */
   let rootSeq = 0;
-  /** Reads running right now, one per directory. */
-  const inFlight = new Map<string, Promise<void>>();
+  /**
+   * Reads running right now, one per directory. PHASE 372 (D7): a read is here
+   * from its `readDir` call until its answer arrives, whether that answer is
+   * then written or only staged.
+   */
+  const inFlight = new Map<string, LocalRead>();
   /**
    * PHASE 155. A second read already promised to a caller that asked while
    * another was running, one per directory. It exists so that "read it again"
    * costs ONE extra read however many people ask for it in the same burst.
    */
-  const queued = new Map<string, Promise<void>>();
+  const queued = new Map<string, { want: Want; done: Promise<void> }>();
+
+  /** PHASE 372 (D4). One counter, taken when a read starts and by a forget. */
+  let stampSeq = 0;
+  /** PHASE 372 (D4). The stamp of the read whose answer the store holds. */
+  const heldStamp = new Map<string, number>();
+  /** PHASE 372 (D5). Folders forgotten while a read was out, with their stamp. */
+  const forgets: Array<{ dir: string; stamp: number }> = [];
+  /** PHASE 372 (D3). Answers a refresh collected and has not written yet. */
+  const staged = new Map<string, Staged>();
+  /** PHASE 372 (D3). Collected reads whose `readDir` has not answered. */
+  let collectedOut = 0;
+  /** PHASE 372 (D5). Every local read of this root still out, any mode. */
+  let readsOut = 0;
+  let quietTimer: ReturnType<typeof setTimeout> | null = null;
+  let capTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const clearTimers = (): void => {
+    if (quietTimer !== null) clearTimeout(quietTimer);
+    if (capTimer !== null) clearTimeout(capTimer);
+    quietTimer = null;
+    capTimer = null;
+  };
+
+  /** True when a forget at or above `dirPath` came after a read stamped `stamp`. */
+  const forgottenSince = (dirPath: string, stamp: number): boolean =>
+    forgets.some(
+      (f) =>
+        f.stamp > stamp && (dirPath === f.dir || dirPath.startsWith(f.dir + '/'))
+    );
+
+  /**
+   * With nothing out and nothing staged every later read is stamped after
+   * everything held, so the stamps and the forgets have nothing left to guard.
+   */
+  const pruneIdle = (): void => {
+    if (readsOut !== 0 || staged.size !== 0) return;
+    heldStamp.clear();
+    forgets.length = 0;
+  };
+
+  /**
+   * PHASE 372. One landing against a draft of the cache: D5's forget, D4's
+   * order, then D1's equality or D2's guards. Nothing is written here; the
+   * caller writes the draft once.
+   */
+  const landInto = (draft: Draft, dirPath: string, landing: Landing): void => {
+    if (forgottenSince(dirPath, landing.stamp)) return;
+    if ((heldStamp.get(dirPath) ?? 0) > landing.stamp) return;
+    heldStamp.set(dirPath, landing.stamp);
+    const cache = draft.next ?? draft.base;
+    if (landing.entries !== null) {
+      const held = cache[dirPath];
+      // PHASE 343 (D4). A link main did not answer for in time keeps the
+      // kind this folder's last listing gave it.
+      const next = prepare(carryLinkTargets(landing.entries, held));
+      if (sameListing(held, next)) return;
+      draft.next ??= { ...draft.base };
+      draft.next[dirPath] = next;
+      return;
+    }
+    if (dirPath === localPathOf(get().root)) {
+      draft.rootError = errorText(landing.error);
+      return;
+    }
+    // A child dir vanished (branch flip, rm -rf): drop it quietly.
+    if (cache[dirPath] === undefined) return;
+    draft.next ??= { ...draft.base };
+    delete draft.next[dirPath];
+  };
+
+  const draftOf = (): Draft => {
+    const s = get();
+    return { base: s.entriesByDir, next: null, rootError: s.rootError };
+  };
+
+  /** ONE `set`, or none when the draft changed nothing. */
+  const commit = (draft: Draft): void => {
+    const patch: Partial<Pick<FileTreeState, 'entriesByDir' | 'rootError'>> = {};
+    if (draft.next !== null) patch.entriesByDir = draft.next;
+    if (draft.rootError !== get().rootError) patch.rootError = draft.rootError;
+    if (Object.keys(patch).length > 0) set(patch);
+  };
+
+  /** PHASE 372 (D3). Write every staged answer in one `set`. */
+  const flush = (): void => {
+    clearTimers();
+    if (staged.size === 0) return;
+    const landings = [...staged];
+    staged.clear();
+    const draft = draftOf();
+    for (const [dirPath, landing] of landings) {
+      if (landing.seq !== rootSeq) continue; // root switched while staged
+      landInto(draft, dirPath, landing);
+    }
+    commit(draft);
+    pruneIdle();
+    for (const [, landing] of landings) {
+      for (const done of landing.waiters) done();
+    }
+  };
+
+  /** PHASE 372 (D3). The flush rule: none out, or quiet, or the cap. */
+  const scheduleFlush = (): void => {
+    if (staged.size === 0) return;
+    if (collectedOut === 0) {
+      flush();
+      return;
+    }
+    if (quietTimer !== null) clearTimeout(quietTimer);
+    quietTimer = setTimeout(flush, REFRESH_QUIET_MS);
+    capTimer ??= setTimeout(flush, REFRESH_CAP_MS);
+  };
+
+  /** PHASE 372 (D8). A person's read joined a collected one: write it at once. */
+  const raise = (read: LocalRead): void => {
+    read.want.now = true;
+    if (!read.counted) return;
+    read.counted = false;
+    collectedOut -= 1;
+    if (collectedOut === 0) scheduleFlush();
+  };
+
+  /** PHASE 372 (D3). Hold an answer for the flush, resolved when it is written. */
+  const stage = (dirPath: string, landing: Landing): Promise<void> =>
+    new Promise<void>((done) => {
+      const before = staged.get(dirPath);
+      if (before !== undefined && before.stamp > landing.stamp) {
+        before.waiters.push(done);
+      } else {
+        staged.set(dirPath, {
+          ...landing,
+          waiters: [...(before?.waiters ?? []), done]
+        });
+      }
+      scheduleFlush();
+    });
   /**
    * The remote walk's own guard, deliberately separate from the two above. A
    * `machines:listTree` is one call that fills many directories and it is not
@@ -255,33 +522,56 @@ export const useFileTree = create<FileTreeState>((set, get) => {
     for (const waiter of extraWaiting.splice(0)) waiter(false);
   };
 
-  const readInto = async (dirPath: string, seq: number): Promise<void> => {
+  /**
+   * One `readDir` of one folder, and its landing. PHASE 372: the read is
+   * stamped when it starts; a collected read's answer is staged for the flush,
+   * and a person's is written at once. It resolves when the answer has been
+   * written or dropped.
+   */
+  const readInto = async (
+    dirPath: string,
+    seq: number,
+    want: Want
+  ): Promise<void> => {
+    // A read promised before a root switch has nothing left to answer for.
+    if (seq !== rootSeq) return;
+    const stamp = ++stampSeq;
+    let answered!: () => void;
+    const read: LocalRead = {
+      stamp,
+      want,
+      counted: !want.now,
+      answered: new Promise<void>((resolve) => {
+        answered = resolve;
+      })
+    };
+    readsOut += 1;
+    if (read.counted) collectedOut += 1;
+    inFlight.set(dirPath, read);
+    let landing: Landing;
     try {
       const result = await readDir(dirPath);
-      if (seq !== rootSeq) return; // root switched while listing
-      set((s) => ({
-        entriesByDir: {
-          ...s.entriesByDir,
-          // PHASE 343 (D4). A link main did not answer for in time keeps the
-          // kind this folder's last listing gave it.
-          [dirPath]: prepare(
-            carryLinkTargets(result.entries, s.entriesByDir[dirPath])
-          )
-        }
-      }));
+      landing = { seq, stamp, entries: result.entries, error: undefined };
     } catch (err) {
-      if (seq !== rootSeq) return;
-      if (dirPath === localPathOf(get().root)) {
-        set({ rootError: errorText(err) });
-      } else {
-        // A child dir vanished (branch flip, rm -rf): drop it quietly.
-        set((s) => {
-          const next = { ...s.entriesByDir };
-          delete next[dirPath];
-          return { entriesByDir: next };
-        });
-      }
+      landing = { seq, stamp, entries: null, error: err };
+    } finally {
+      if (inFlight.get(dirPath) === read) inFlight.delete(dirPath);
+      answered();
     }
+    if (seq !== rootSeq) return; // root switched while listing
+    readsOut -= 1;
+    if (read.counted) {
+      read.counted = false;
+      collectedOut -= 1;
+    }
+    if (!read.want.now) {
+      await stage(dirPath, landing);
+      return;
+    }
+    const draft = draftOf();
+    landInto(draft, dirPath, landing);
+    commit(draft);
+    pruneIdle();
   };
 
   /**
@@ -295,36 +585,46 @@ export const useFileTree = create<FileTreeState>((set, get) => {
    * again, and everyone who asks while that second read is still waiting joins
    * it rather than adding a third. A lazy load keeps the old behaviour: it
    * wanted a listing, one is coming, and that is enough.
+   *
+   * PHASE 372. `want.now` is the difference between a refresh and a person:
+   * false collects the answer for the flush, true writes it when it lands. A
+   * person who joins a collected read, running or promised, raises it, so a
+   * relist never waits on a refresh's timers; a refresh that joins a person's
+   * promised read gets that read's write. A forced call waits only for the
+   * running read's ANSWER, never for its flush. And a lazy load never rides a
+   * read that began before a forget of its folder, because that answer will
+   * be dropped (D5).
    */
   const listInto = async (
     dirPath: string,
     seq: number,
-    force = false
+    force: boolean,
+    want: Want
   ): Promise<void> => {
     const running = inFlight.get(dirPath);
     if (running !== undefined) {
-      if (!force) return;
+      if (want.now) raise(running);
+      if (!force && !forgottenSince(dirPath, running.stamp)) return;
       const already = queued.get(dirPath);
       if (already !== undefined) {
-        await already;
+        if (want.now) already.want.now = true;
+        await already.done;
         return;
       }
-      const next = (async () => {
-        await running.catch(() => undefined);
-        queued.delete(dirPath);
-        await listInto(dirPath, seq, true);
+      const entry: { want: Want; done: Promise<void> } = {
+        want,
+        done: Promise.resolve()
+      };
+      entry.done = (async () => {
+        await running.answered;
+        if (queued.get(dirPath) === entry) queued.delete(dirPath);
+        await listInto(dirPath, seq, true, want);
       })();
-      queued.set(dirPath, next);
-      await next;
+      queued.set(dirPath, entry);
+      await entry.done;
       return;
     }
-    const run = readInto(dirPath, seq);
-    inFlight.set(dirPath, run);
-    try {
-      await run;
-    } finally {
-      if (inFlight.get(dirPath) === run) inFlight.delete(dirPath);
-    }
+    await readInto(dirPath, seq, want);
   };
 
   /**
@@ -463,6 +763,18 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       inFlight.clear();
       queued.clear();
       remoteInFlight.clear();
+      // PHASE 372 (D6). Nothing the old folder collected is written, and
+      // everybody waiting for it is let go.
+      clearTimers();
+      const dropped = [...staged.values()];
+      staged.clear();
+      heldStamp.clear();
+      forgets.length = 0;
+      collectedOut = 0;
+      readsOut = 0;
+      for (const landing of dropped) {
+        for (const done of landing.waiters) done();
+      }
       // PHASE 343. Nobody waiting for a walk of the old folder is started.
       dropExtraWaiters();
       const remoteTab = target !== null && !isLocalTarget(target);
@@ -493,7 +805,7 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       }
       const local = localPathOf(target);
       if (local === null) return;
-      await listInto(local, seq);
+      await listInto(local, seq, false, { now: true });
       if (seq === rootSeq) set({ rootLoaded: true });
     },
 
@@ -510,7 +822,7 @@ export const useFileTree = create<FileTreeState>((set, get) => {
         await treeInto(root.machineId, dirPath, rootSeq, true);
         return;
       }
-      await listInto(dirPath, rootSeq);
+      await listInto(dirPath, rootSeq, false, { now: true });
     },
 
     async relist(dirPaths) {
@@ -536,11 +848,28 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       // FORCED, because this verb's whole contract is "re-list NOW, cached or
       // not". A read already running was started before the file operation
       // that is calling this, so it can only answer with the folder as it was.
-      await Promise.all(wanted.map((d) => listInto(d, seq, true)));
+      await Promise.all(
+        wanted.map((d) => listInto(d, seq, true, { now: true }))
+      );
     },
 
     forgetUnder(dirPaths) {
       if (dirPaths.length === 0) return;
+      // PHASE 372 (D5). A read that began before this never brings the folder
+      // back, and an answer already staged for it is dropped now.
+      const under = (key: string): boolean =>
+        dirPaths.some((dir) => key === dir || key.startsWith(dir + '/'));
+      for (const dir of dirPaths) forgets.push({ dir, stamp: ++stampSeq });
+      for (const key of [...heldStamp.keys()]) {
+        if (under(key)) heldStamp.delete(key);
+      }
+      for (const [key, landing] of [...staged]) {
+        if (!under(key)) continue;
+        staged.delete(key);
+        for (const done of landing.waiters) done();
+      }
+      if (staged.size === 0) clearTimers();
+      pruneIdle();
       set((s) => {
         const next = { ...s.entriesByDir };
         let dropped = false;
@@ -597,14 +926,21 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       if (bridgeNow !== bridgeMissing) set({ bridgeMissing: bridgeNow });
       if (bridgeNow) return;
       const seq = rootSeq;
-      set({ rootError: null });
+      // PHASE 372 (D2). Only when there was one: an unchanged field still runs
+      // every subscriber of the store.
+      if (get().rootError !== null) set({ rootError: null });
       const dirs = new Set(Object.keys(get().entriesByDir));
       dirs.add(rootPath);
       // FORCED. Refresh is the manual override and it must never be a no-op.
       // Before Phase 155 a press that landed while any other read of the same
       // folder was in flight returned at once and repainted nothing, and the
       // watcher starts one of those every few hundred milliseconds under churn.
-      await Promise.all([...dirs].map((d) => listInto(d, seq, true)));
+      //
+      // PHASE 372 (D3). Collected: the answers are written together, and this
+      // resolves once every one of them has been written or dropped.
+      await Promise.all(
+        [...dirs].map((d) => listInto(d, seq, true, { now: false }))
+      );
       if (seq === rootSeq && !get().rootLoaded && get().rootError === null) {
         set({ rootLoaded: true });
       }
