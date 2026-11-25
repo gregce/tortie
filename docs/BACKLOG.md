@@ -45689,6 +45689,46 @@ The five questions, with their defaults, are 146 §14: (1) build it knowing Goog
 - No question posted to Google. If he wants to ask, topic 178823 is open and he asks it.
 - No change to the Claude tap. That its clock can lose a last number is written in 146 §6.5 and is its own entry if he wants one.
 
+## Phase 375 — "i would like it to show my logins if possible?" — the Antigravity card names the account its numbers belong to (operator, 2026-11-25) QUEUED 2026-11-25
+
+**Subject.** `feat(usage): name the Antigravity account on its card`
+
+**First body line.** `Phase 375: the Antigravity card shows its login`
+
+**Semver.** Minor, with one CHANGELOG item under Added. No release: that waits for his word.
+
+**Tier 3.** It changes the script Tortie hands agy in his sessions (a mistake draws in his pane or stops a session from starting) and it puts his address, which Phase 374 kept only as a salted hash, on disk in Tortie's folder and across IPC.
+
+**Charter.** His words of 2026-11-25, beside a card whose Claude and Codex rows read `Login: <address>` and `Choose login` and whose Antigravity row named neither: "for antigravity why doesn't it show "choose login?"", then "i would like it to show my logins if possible?". He was told that switching Google accounts from Tortie stays refused (research 146 §8: Google says in writing that third-party tools touching Antigravity sign-ins can cost an account; agy has no per-session account setting), and that showing the signed-in address is possible because agy's own status line payload already carries `email`. Phase 203 is the precedent for an address on the card (`usageLoginLine`, `loginEmailOf`); Phase 374's rule 10 ("no address reaches IPC, a log, the snapshot or a file") is the rule this phase narrows, on his word, to: the address reaches the slot file and the card, and still no log, no other file, no argv and no phone route.
+
+### What the tree says (read 2026-11-25 at the commit that queues this)
+
+- **The script hashes and drops the address.** `src/main/usage/antigravity/script.ts`: awk takes the top-level `email` (`:138`), the address is piped to `/usr/bin/openssl dgst -sha256` with the salt (`:202-203`) and only the hash `h` is written. `receive.ts:146-155` reads `h`, `p` and the buckets; `hash` never leaves main (`:33`, `:78`).
+- **The card's login line** is `usageLoginLine(login, email)` (`src/renderer/app/usage-copy.ts`), called by `cardLines` only when `usageLoginProvider(p.provider) !== null` (`src/renderer/app/UsageMeter.tsx:224-226`); the email comes from the logins store through `loginEmailOf` (`:317-328`), which knows Claude and Codex alone.
+- **Settings then Agents, Logins** lists Claude's and Codex's logins with Choose and Remove; Antigravity has no entry.
+
+### The mechanism
+
+1. **The script keeps the address too.** It writes the address the payload names beside the hash, escaped for the one line it writes, bounded (at most 254 bytes, an address shape or nothing), on the same rules: no output, exit 0, inside agy's 300 ms overlap, no partial file, the hostile payload matrix of Phase 374 run again with addresses holding quotes, backslashes, newlines, shell metacharacters, Unicode and a fake bucket block.
+2. **The snapshot carries it for this row only**, as the `email` the card already knows how to draw, so the card reads `Login: <address>` as Claude's and Codex's do; no `Choose login`. An unknown or malformed address draws no line. A new account (hash changed) replaces the address with the numbers, never mixes them.
+3. **Settings then Agents, Logins** gains one read-only Antigravity line: the address, and one short sentence that it is the account the Antigravity CLI is signed in to, switched there. No Choose and no Remove.
+4. **Where it may go and where it may not.** The slot file (0600, Tortie's folder, removed with its session and by the boot sweep), the usage IPC answer and the two drawn places. Never a log line, the manifest, a crash report, an argv, a door route or the phone. `conformance:usage` gains the rule, with an ablation per sink.
+5. **An older Tortie** reading a newer slot file ignores the field; a newer Tortie reading an older one draws no login line.
+
+### The proof, run rather than read
+
+- **The parent (mandatory).** The same recorded payloads at both builds: HEAD's card names the address, the parent's names none; every other line byte for byte the parent's.
+- **The script, attacked.** The 374 hostile matrix and the new address cases under sh, bash, dash, zsh and ksh, through real tmux 3.7b and 3.6a, full volumes and SIGKILL at every step: 0 bytes out, exit 0, no partial file.
+- **Where the address goes.** A planted unique address through a stand-in agy in one app run, then searched for in every file under the scratch profile and HOME, the logs, `ps` and every IPC answer: present only in the slot file and the usage answer.
+- **One app run, parent first**, with the stand-in agy on a closed PATH, every other agent hidden and `agents:list` read back: the card and Settings read as above; with two accounts in two sessions the card follows the last writer and never mixes.
+
+### What is NOT in this phase
+
+- No choosing, switching, adding or removing a Google account, and no read of agy's keychain item or any Google credential; no request to Google.
+- No address for Claude or Codex beyond what Phase 203 already does.
+- No phone change, no new door route.
+- No release.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -47092,3 +47132,4 @@ cycle rather than only the evening it was written.
 - 2026-11-25, **372 STARTED — one Explorer refresh writes the tree once** (Tier 2, one workflow in `/private/var/tmp/tortie-wt/wt-p372` at `a28c2cf3`, with the parent at `wt-p372-parent`): spec with the parent measured at 10, 100 and 500 open folders, builders, integrator, probe review, one lens (the number beside the parent and an oracle of its own over the shipping store), one fix, an independent reverify. It lands only if the window's thread a change is no higher anywhere and lower at 100 and 500 folders.
 - 2026-11-25, **PHASE 372 LANDED, `53b21bc0` — one Explorer refresh writes the tree once** (one CHANGELOG item, linked; Tier 2; `wf_6494a1bf-c0b`). Beside the parent, the window's thread a change at 500 open folders fell from 201 to 12.5 ms (nothing changed), 219.5 to 28.5 (a file added) and 440 to 23 (a branch switch), the longest block from 101-358 ms to 0-5; at 100 folders 13 to 3, 22.5 to 14.5 and 52 to 10; no cell higher at 10. The lens approved, so no fix round. Still worse, stated: with one folder's read held 5 s at 10 folders, a new file elsewhere is drawn 10 to 12 ms later. Unreleased now holds three items (374, 371, 372). No release: that waits for his word.
 - 2026-11-25, **0.117.0 PUBLISHED as Latest, `4328f89e` (tag `v0.117.0`) — lighter on git and on the Explorer, and an Antigravity meter**, on his word ("lets do a release to incorporate these changes, also make sure to update /users/gdc/tortiedotsh"). It carries 374, 371 and 372; 3 items, all linked (a stray full stop before 372's link was removed in the release commit). A fresh install of the skills CLI matched its pin before the tag; the release run (45658188884) and gates (45658186561) passed the first time. Before promoting, the main session read the draft's ZIP on this Mac: sha512 equal to `latest-mac.yml`'s, 0.117.0, `com.itavero.tortie`, `codesign --verify --deep --strict` OK, accepted as Notarized Developer ID (4GRQMF5T5U), stapled, arm64 only, framework 45.3.4, LSMinimumSystemVersion 13.0. The notes are the CHANGELOG entry verbatim, and the latest download serves `version: 0.117.0`. His checkout was fast-forwarded (no local commits, no dependency change, so no `npm ci`). No phone build: nothing under `ios/` changed since build 13. tortie.sh is refreshed through its own workflow.
+- 2026-11-25, **374.1 LANDED, `c5f941d8` — the Antigravity card says Gemini and Other models**, on his report beside a 0.117.0 card (its "Claude and GPT" group read like the Claude and Codex rows) and his Settings wording ("more like what chatgpt and codex says"), written true: Tortie reads no stored login and asks Google nothing, so his proposed "reads the login Antigravity already stored and asks Google" was not used; the note that Google had not answered is gone, as in his version. **PHASE 375 QUEUED AND STARTING**, his "i would like it to show my logins if possible?": the Antigravity card names the address agy's status line already carries, read only; switching Google accounts stays refused. No release.

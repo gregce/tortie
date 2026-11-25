@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Changed
 
-- The Antigravity usage card names its two groups, Gemini and Other models, so its Claude and GPT models no longer read like the Claude and Codex rows above it, and its line in Settings now reads like theirs
+- The Antigravity usage card names its two groups, Gemini and Other models, so its Claude and GPT models no longer read like the Claude and Codex rows above it, and its line in Settings now reads like theirs ([`c5f941d8`](https://github.com/gregce/tortie/commit/c5f941d8))
 
 ## 0.117.0 (2026-11-25)
 
