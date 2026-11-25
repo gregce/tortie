@@ -2352,7 +2352,18 @@
    ],
    "finalFace": "47% 5h · 16% wk",
    "wantFinal": "47% 5h · 16% wk",
-   "hits": [],
+   "hits": [
+    {
+     "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a374.json",
+     "needle": "person@example.com",
+     "slotE": true
+    },
+    {
+     "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a374.json",
+     "needle": "example.com",
+     "slotE": true
+    }
+   ],
    "hashes": [
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -2448,12 +2459,71 @@
     ]
    },
    {
-    "name": "no address byte in any file",
+    "name": "no address byte in any file but a slot line’s \"e\"",
     "ops": [
      {
       "set": "hits",
       "to": [
        "/p/x: person@example.com"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no address byte in any file but a slot line’s \"e\"",
+    "ops": [
+     {
+      "set": "hits",
+      "to": [
+       {
+        "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a374.json",
+        "needle": "person@example.com",
+        "slotE": true
+       },
+       {
+        "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a374.json",
+        "needle": "example.com",
+        "slotE": true
+       },
+       {
+        "path": "/p/app.log",
+        "needle": "person@example.com",
+        "slotE": false
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no address byte in any file but a slot line’s \"e\"",
+    "ops": [
+     {
+      "set": "hits.0.slotE",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "no address byte in any file but a slot line’s \"e\"",
+    "ops": [
+     {
+      "set": "hits",
+      "to": [
+       {
+        "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a374.json",
+        "needle": "person@example.com",
+        "slotE": true
+       },
+       {
+        "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a374.json",
+        "needle": "example.com",
+        "slotE": true
+       },
+       {
+        "path": "/p/gmux/antigravity-usage/status.sh",
+        "needle": "other@example.org",
+        "slotE": true
+       }
       ]
      }
     ]

@@ -216,7 +216,7 @@ const ARMS = [
   { id: 'S3b', row: 'S3', what: 'an unchanged line is written again', test: T.script, red: ['a payload whose countdown moved writes nothing'], edits: one(SCRIPT, '[ "$tt_l" != "$tt_v" ] || exit 0\n', '') },
   { id: 'S3c', row: 'S3', what: 'the fractions compared at four decimals', test: T.script, red: ['every run of both recordings holds what that run must hold'], edits: one(SCRIPT, '[ "$tt_l" != "$tt_v" ] || exit 0\n', 'tt_l4=$(printf %s "$tt_l" | /usr/bin/awk \'{gsub(/[0-9][0-9]*,"r"/,",r");print}\')\ntt_v4=$(printf %s "$tt_v" | /usr/bin/awk \'{gsub(/[0-9][0-9]*,"r"/,",r");print}\')\n[ "$tt_l4" != "$tt_v4" ] || exit 0\n') },
   { id: 'S4', row: 'S4', what: 'written in place', test: T.script, red: ['200 SIGKILLs of the sh'], edits: one(SCRIPT, `printf '%s\\\\n' "$tt_l" >"$tt_t" && [ -f "$tt_f" ] && /bin/mv -f "$tt_t" "$tt_f" && exit 0\n/bin/rm -f "$tt_t"`, `printf '%s' "$tt_l" >"$tt_f"; /usr/bin/awk 'BEGIN{exit}' </dev/null; printf '\\\\n' >>"$tt_f"`) },
-  { id: 'S5a', row: 'S5', what: 'a here-document in', test: T.script, red: ['names no other program, no clock, no network, no home and no here-document'], edits: one(SCRIPT, "tt_p=\ntt_l=\nwhile IFS=", "tt_p=\ntt_l=\n: <<X\nX\nwhile IFS=") },
+  { id: 'S5a', row: 'S5', what: 'a here-document in', test: T.script, red: ['names no other program, no clock, no network, no home and no here-document'], edits: one(SCRIPT, "tt_p=\ntt_l=\ntt_q=\ntt_c=0\nwhile IFS=", "tt_p=\ntt_l=\ntt_q=\ntt_c=0\n: <<X\nX\nwhile IFS=") },
   { id: 'S5b', row: 'S5', what: 'a background child', test: T.script, red: ['names no other program'], edits: one(SCRIPT, "umask 077\nLC_ALL=C\n", "umask 077\n: &\nLC_ALL=C\n") },
   { id: 'S5c', row: 'S5', what: 'a clock', test: T.script, red: ['names no other program, no clock'], edits: one(SCRIPT, "umask 077\nLC_ALL=C\n", "umask 077\ntt_v=$(/bin/date)\nLC_ALL=C\n") },
 
@@ -232,15 +232,17 @@ const ARMS = [
 
   // ------------------------------------------------------------------ the face and Settings
   { id: 'R1a', row: 'R1', what: 'the null check of the login control out', test: T.meter, red: ['draws Choose login for Claude and Codex and not for Antigravity'], edits: one(METER, '{onChooseLogin === null || login === null ? null : (', '{onChooseLogin === null ? null : (') },
-  { id: 'R1b', row: 'R1', what: 'a login line drawn for a row with none', test: T.meter, red: ['draws no login line, even over a snapshot that names one'], edits: one(METER, "  const login = hasLogin ? usageLoginLine(p.login, email) : '';", '  const login = usageLoginLine(p.login, email);') },
+  { id: 'R1b', row: 'R1', what: 'a login line drawn for a row with none', test: T.meter, red: ['draws no login line, even over a snapshot that names one'], edits: one(METER, '  const login = usageLoginLine(hasLogin ? p.login : null, email);', '  const login = usageLoginLine(p.login, email);') },
   { id: 'R1c', row: 'R1', what: 'the second group left off the card', test: T.meter, red: ['names the second group after the two windows of the face'], edits: one(METER, '      out.push(`${p.second.label} ${text}`);', '      void text;') },
   { id: 'R2a', row: 'R2', what: 'the last read failed, said of a row nobody reads', test: T.meter, red: ['says the age for a row nobody asks for, and never a failure'], edits: one(METER, '    const mark = usageIsReceiver(p.provider)\n', '    const mark = false\n') },
   { id: 'R2b', row: 'R2', what: 'every reason waits for a session', test: T.meter, red: ['says why it waits'], edits: one(COPY, "      return USAGE_WAITING_LINE[waitingFor ?? 'session'];", "      return USAGE_WAITING_LINE['session'];") },
   { id: 'R3a', row: 'R3', what: 'the control stays when nothing can be refreshed', test: T.meter, red: ['is absent when every drawn row is one nobody asks for'], edits: one(METER, '  return shown.some((p) => !usageIsReceiver(p.provider));', '  return shown.length > 0;') },
   { id: 'R3b', row: 'R3', what: 'the control goes when one row cannot be refreshed', test: T.meter, red: ['is there while any drawn row is one that is asked'], edits: one(METER, '  return shown.some((p) => !usageIsReceiver(p.provider));', '  return shown.every((p) => !usageIsReceiver(p.provider));') },
-  { id: 'R4a', row: 'R4', what: 'the Google line left out', test: T.settings, red: ['says Google has not answered, on and off, once'], edits: one(GROUP, '          note={USAGE_ANTIGRAVITY_NOTE}\n', '') },
+  // R4a and R4c: Phase 374.1 (c5f941d8) took the Google line out and named the
+  // row's two remaining claims, so Phase 375 points both arms at them.
+  { id: 'R4a', row: 'R4', what: 'a note drawn under the switch', test: T.settings, red: ['draws no note under it, on or off'], edits: one(GROUP, '          noteWarns={false}\n', '          note={USAGE_ANTIGRAVITY_CAPTION}\n          noteWarns={false}\n') },
   { id: 'R4b', row: 'R4', what: 'shipped on', test: T.settings, red: ['ships off, and draws off'], edits: one(SETTINGS, '    antigravity: false,\n', '    antigravity: true,\n') },
-  { id: 'R4c', row: 'R4', what: 'drawn as a fault', test: T.settings, red: ['draws that line as a fact and not as a fault'], edits: one(GROUP, '          noteWarns={false}\n', '') }
+  { id: 'R4c', row: 'R4', what: 'the switch says nothing of what it does', test: T.settings, red: ['says what turning it on does, in the shape of the Claude and Codex rows'], edits: one(GROUP, '          caption={USAGE_ANTIGRAVITY_CAPTION}\n', "          caption=\"\"\n") }
 ];
 
 // ---------------------------------------------------------------------------

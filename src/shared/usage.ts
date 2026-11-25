@@ -12,7 +12,9 @@
  * LEVEL, measured
  * over the wire on 2026-08-31 and written down in docs/research/72 section
  * 8.3, so that body is itself personal data. Main parses it and none of it
- * reaches this shape, a log line, the manifest, a store or an argv.
+ * reaches this shape, a log line, the manifest, a store or an argv. And since
+ * Phase 375 one address, on the received row alone, which the person's own
+ * agent handed Tortie's script: `email` below, which passes `usageAddress`.
  *
  * The state word is a CODE and never a vendor sentence. Main names what
  * happened and the renderer writes the words (src/renderer/app/usage-copy.ts),
@@ -237,6 +239,24 @@ export interface UsageProviderSnapshot {
   readAt: number | null;
   /** Milliseconds since epoch before which a refresh is refused, or null. */
   retryAfter: number | null;
+  /**
+   * THE ACCOUNT A RECEIVED ROW'S NUMBERS BELONG TO (Phase 375 D6, D11), being
+   * the address the person's own agent handed Tortie's script beside them, and
+   * it passed {@link usageAddress}. OPTIONAL AND ABSENT UNLESS SET: only the
+   * Antigravity row ever carries it, and only when its newest file names one,
+   * so every other row, and an Antigravity row with no address, is the JSON
+   * Phase 374 sent. Claude's and Codex's addresses are never put here; the card
+   * finds those through the logins store (Phase 203).
+   *
+   * WHERE IT MAY GO: the slot file, main's memory, the `usage:read`,
+   * `usage:refresh` and `usage:account` answers, the `usage:changed` push, the
+   * two windows' memory, the hover card and the one Settings row. NEVER a log
+   * line, the manifest, settings.json, Local or Session Storage, an argv, an
+   * environment, a door route or the phone, Live Diagnostics, a crash
+   * annotation or a row's resting accessible text. `npm run conformance:usage`
+   * G12 holds it.
+   */
+  email?: string;
 }
 
 /** Every provider, in `USAGE_PROVIDERS` order. The one payload both channels answer. */
@@ -363,6 +383,34 @@ export function usagePlanWord(raw: unknown): string | null {
   const word = raw.trim();
   if (word.length === 0 || word.length > USAGE_PLAN_MAX) return null;
   return /^[A-Za-z][A-Za-z0-9 _-]*$/.test(word) ? word : null;
+}
+
+/** The longest address this app will draw, being what one may be (Phase 375). */
+export const USAGE_ADDRESS_MAX = 254;
+
+/**
+ * The one gate an address passes before it may be drawn or carried (Phase 375
+ * D4). Main's reader, the card and Settings each ask it.
+ *
+ * WHAT IT LETS THROUGH: a plain ASCII address, being letters, digits and
+ * `. _ % + ' -` before ONE `@`, a local part of 1 to 64 of them, then labels
+ * of letters, digits and hyphens with at least one dot between them, and at
+ * most {@link USAGE_ADDRESS_MAX} in all. It is the twin, over the DECODED
+ * string, of the shape Tortie's Antigravity script keeps over the raw token
+ * (src/main/usage/antigravity/script.ts), and `conformance:usage` G12 holds
+ * the two to one committed corpus.
+ *
+ * WHAT IT REFUSES, and that is most of what it is for: a quote, a backslash,
+ * a space, a newline, markup, any byte outside ASCII (an accent, another
+ * script, a direction mark), two `@`, no dot, a trailing dot, and anything
+ * longer. Nothing is ever escaped or trimmed to make a value pass: an address
+ * that does not pass is not drawn at all.
+ */
+export function usageAddress(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw.length > USAGE_ADDRESS_MAX) return null;
+  const at = raw.indexOf('@');
+  if (at < 1 || at > 64) return null;
+  return /^[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(raw) ? raw : null;
 }
 
 /**

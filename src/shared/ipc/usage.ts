@@ -19,7 +19,9 @@
  *
  * The payload carries numbers, timestamps and a state code. The Codex usage
  * body carries the person's email address, user id and account id; none of
- * that is in `UsageSnapshot` and none of it crosses this pair.
+ * that is in `UsageSnapshot` and none of it crosses this pair. Since Phase 375
+ * the Antigravity row alone may carry the address its own agent handed
+ * Tortie's script, as its optional `email`.
  *
  * PHASE 219 ADDED ONE READ, `usage:statusLine`, and it is the cheapest thing
  * in this file: it reads at most three files under the person's own `.claude`
@@ -27,6 +29,10 @@
  * and writes no byte, which is exactly why it is not a field on the snapshot
  * the two reads answer with — those can fetch and can open the keychain, and
  * opening Settings must do neither.
+ *
+ * PHASE 375 ADDED ONE READ, `usage:account`, for the same reason: Settings
+ * names the account the Antigravity CLI is signed in to, and it may not call
+ * a read that can fetch. It answers what main already holds.
  *
  * PHASE 182 ADDED ONE EVENT and no invoke. The live tap arrives when a
  * person's own turn ends rather than when a window asks, so there is nothing
@@ -73,6 +79,17 @@ export interface UsageInvokeChannelMap {
    * Settings page ask it on every open.
    */
   'usage:statusLine': { req: []; res: ClaudeStatusLineState };
+  /**
+   * PHASE 375 D10. The account the Antigravity CLI is signed in to, as the
+   * newest received file named it, or null. Settings draws it, and Settings
+   * may not call the two reads above.
+   *
+   * It answers what main ALREADY HOLDS and starts nothing: it builds no
+   * service, opens no folder, reads no login, asks no vendor and arms no
+   * clock. Null while the Antigravity switch is off, before any service was
+   * built, and after shutdown admission.
+   */
+  'usage:account': { req: []; res: string | null };
 }
 
 export interface GmuxUsageExtras {
@@ -83,5 +100,7 @@ export interface GmuxUsageExtras {
     onChanged(cb: (snapshot: UsageSnapshot) => void): () => void;
     /** Why a launched claude session has no managed status line, or that it has. */
     statusLine(): Promise<ClaudeStatusLineState>;
+    /** Phase 375. The address the Antigravity row holds, or null. Starts nothing. */
+    account(): Promise<string | null>;
   };
 }

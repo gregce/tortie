@@ -21,6 +21,11 @@
  *  3. NOTHING HERE THROWS. Every door answers false, null or an empty list, so
  *     a full disk costs the meter its numbers and never a session its start.
  *
+ * Since Phase 375 a session's file and its unrenamed write may hold the
+ * account's plain address beside the numbers (./script.ts rule 5), so the
+ * three ways out of this folder are also the address's: removing the session,
+ * the boot sweep of unrenamed writes, and turning the switch off.
+ *
  * WHICH SESSION IDS ARE KNOWN is a question main answers once, at boot
  * ({@link bootAntigravityUsage}), because an id the session list does not hold,
  * or holds only as a removed row, is not this meter's to draw. Before that
@@ -332,6 +337,16 @@ export function antigravityMeterOn(): boolean {
  * either sweeps the folder or, with the switch off, removes what Tortie put
  * there. `ids` answers the sessions a person has, a removed one counting as
  * none, and it is asked again at every listing.
+ *
+ * PHASE 375 D14: WITH THE SWITCH ON, A SCRIPT THAT STANDS IS BROUGHT UP TO
+ * THIS BUILD, KEEPING ITS SALT. Running sessions source it by path on every
+ * run, so after an update they report what this build keeps at their next run
+ * rather than only sessions started since. It goes through {@link ensureScript}
+ * and so by a temporary name and a rename, with the salt read back by
+ * `saltOf` (a new salt would make the same account look like another), and
+ * equal bytes at 0700 are not written at all. Only a regular file is touched:
+ * a link, a folder or nothing at that name is left as it is, and a failure is
+ * ignored (rule 3).
  */
 export function bootAntigravityUsage(ids: () => Iterable<string>): void {
   knownIds = ids;
@@ -357,6 +372,16 @@ export function bootAntigravityUsage(ids: () => Iterable<string>): void {
     if (found === null) continue;
     const unrenamed = found[2] !== undefined;
     if (unrenamed || (known !== null && !known.has(found[1] ?? ''))) removeName(dir, name);
+  }
+  if (scriptStands(dir)) ensureScript(dir);
+}
+
+/** TRUE when the generated script's name holds a regular file, never through a link. */
+function scriptStands(dir: string): boolean {
+  try {
+    return lstatSync(join(dir, SCRIPT_NAME)).isFile();
+  } catch {
+    return false;
   }
 }
 

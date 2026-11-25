@@ -58,12 +58,34 @@
  *   G9  THE GENERATED SCRIPT, as text and DRIVEN under `/bin/sh`: none of the
  *       words it may not hold, three programs by absolute path, and over
  *       thirteen payloads exit 0, no output, the kept line and no byte of an
- *       address, a folder or a countdown on disk. The settings value holds
- *       `statusLine` with three keys.
+ *       address, a folder or a countdown on disk BUT the planted address as
+ *       the `e` of the kept line (Phase 375, which `KEPT` spells). The settings
+ *       value holds `statusLine` with three keys.
  *   G10 NO NAME CARRIES AN ACCOUNT. No field of the snapshot or of the IPC map,
  *       and nothing handed to a log call in the domain, holds a hash or an
  *       address; and the payload a window is handed does not hold the mark.
+ *       Since Phase 375 exactly TWO NAMED EXCEPTIONS, each of which must still
+ *       be there: the optional `email` of `UsageProviderSnapshot`, and the
+ *       `usage:account` channel (its key in the IPC map and its bridge member
+ *       `account`); and the payload holds no `@` outside the Antigravity row's
+ *       `email`.
  *   G11 `LoginProviderId` HAS TWO MEMBERS, and `LOGIN_PROVIDERS` names them.
+ *   G12 THE ADDRESS GOES ONLY WHERE IT MAY (Phase 375, build/p375/SPEC.md
+ *       §7.2). (a) DRIVEN under `/bin/sh` and `/bin/dash` over the committed
+ *       corpus, the script keeps `e` exactly when `usageAddress` accepts the
+ *       decoded address and its raw token holds no backslash, and keeps that
+ *       address; (b) `UsageProviderSnapshot` names `email` once, optional, and
+ *       `viewOf`, `emptyUsageProvider` and the `waiting` row never name it,
+ *       and only `antigravityRow` sets it, from `reading.email`; (c) DRIVEN,
+ *       every switch on and an address planted, the Claude and Codex rows hold
+ *       no `email` key and no `@`, the Antigravity row's `email` is the
+ *       planted one, and no other field of it holds it; (d) `usage:account`'s
+ *       handler names `current(` and none of `read(`, `refresh(`, `pulse(`,
+ *       `usageService(` or the folder; (e) nothing under `src/main/pocket`,
+ *       `diagnostics`, `log`, `manifest` or `settings` imports the usage domain
+ *       or `@shared/usage`, and no crash annotation in `src/main` names an
+ *       account; (f) the command string and the settings value hold no `@`,
+ *       and with an address held they are what they were without.
  *
  * EVERY RULE IS SHOWN RED. Each ablation edits one clause, in memory for the
  * rules that read text and in a sibling copy for the ones that are driven, and
@@ -162,6 +184,14 @@ function onDisk(path) {
   return disk.get(path);
 }
 
+/**
+ * The files on disk, parsed once for every reading. Since Phase 375 G12 reads
+ * every file under `src/main`, so a reading per ablation that parsed them all
+ * again tripled the gate's time; a file an ablation does not edit is the same
+ * tree whichever reading asks.
+ */
+const parsedOnDisk = new Map();
+
 /** One reading of the tree: the files on disk, with any edits laid over them. */
 function tree(edits = new Map()) {
   const parsed = new Map();
@@ -170,13 +200,14 @@ function tree(edits = new Map()) {
     read,
     edits,
     source(path) {
-      if (!parsed.has(path)) {
-        parsed.set(
+      const cache = edits.has(path) ? parsed : parsedOnDisk;
+      if (!cache.has(path)) {
+        cache.set(
           path,
           ts.createSourceFile(path, read(path) ?? '', ts.ScriptTarget.ES2023, true)
         );
       }
-      return parsed.get(path);
+      return cache.get(path);
     }
   };
 }
@@ -356,7 +387,7 @@ function literalSet(type) {
 // The rules that read text
 // ---------------------------------------------------------------------------
 
-const RULES = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11'];
+const RULES = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12'];
 
 /** The frozen pair: whose token may go where. */
 const ISSUER = { claude: 'api.anthropic.com', codex: 'chatgpt.com' };
@@ -850,7 +881,8 @@ function ruleG8(t, _probe, say) {
   });
 }
 
-const KEPT = /^\{"v":1,"h":"[0-9a-f]{64}","p":(?:null|"[A-Za-z][A-Za-z0-9 _-]*"),"q":\{(?:"(?:gemini-5h|gemini-weekly|3p-5h|3p-weekly)":\{"f":(?:null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?),"r":(?:null|"[0-9TZ:.+-]+"),"d":(?:null|true|false),"a":(?:true|false)\},?)+\}\}$/;
+/** The one line the script writes. `e` is the D2 class since Phase 375, or null. */
+const KEPT = /^\{"v":1,"h":"[0-9a-f]{64}","e":(?:null|"[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+"),"p":(?:null|"[A-Za-z][A-Za-z0-9 _-]*"),"q":\{(?:"(?:gemini-5h|gemini-weekly|3p-5h|3p-weekly)":\{"f":(?:null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?),"r":(?:null|"[0-9TZ:.+-]+"),"d":(?:null|true|false),"a":(?:true|false)\},?)+\}\}$/;
 
 function ruleG9(_t, probe, say) {
   if (probe.error !== undefined) return say(`the probe could not run: ${probe.error}`);
@@ -924,6 +956,9 @@ function ruleG9(_t, probe, say) {
     if (run.names.length !== 1) say(`${run.what}: ${run.names.length} files were left`);
     if (!want[run.what]?.(run.kept)) say(`${run.what}: kept ${run.kept.slice(0, 160)}`);
     if (run.kept !== '{}' && !KEPT.test(run.kept)) say(`${run.what}: the kept line is not the one shape`);
+    // Phase 375: every one of these payloads names the same plain address, so a
+    // line that was written keeps exactly it, and nothing else, as `e`.
+    if (run.kept !== '{}' && run.e !== probe.scriptAddress) say(`${run.what}: kept ${JSON.stringify(run.e)} as the address`);
   }
   if (probe.missingScript.status !== 0 || probe.missingScript.output !== '') {
     say(`with no script the command answered ${probe.missingScript.status} and said ${JSON.stringify(probe.missingScript.output)}`);
@@ -932,7 +967,18 @@ function ruleG9(_t, probe, say) {
 
 const ACCOUNT_WORD = /hash|e-?mail|address|salt|account|subject|token|cwd|transcript|title/i;
 
+/**
+ * The two names Phase 375 allows, by where each stands, and why. Each must
+ * still be found, so the list cannot rot into a hole.
+ */
+const ACCOUNT_EXCEPTIONS = [
+  { path: SHARED_USAGE, in: 'UsageProviderSnapshot', name: 'email', why: 'the received row’s address (SPEC D6)' },
+  { path: SHARED_IPC, in: 'UsageInvokeChannelMap', name: 'usage:account', why: 'the read Settings asks (SPEC D10)' },
+  { path: SHARED_IPC, in: 'GmuxUsageExtras', name: 'account', why: 'that read’s bridge member (SPEC D10)' }
+];
+
 function ruleG10(t, probe, say) {
+  const met = new Set();
   const names = (path, wanted) => {
     const source = t.source(path);
     each(source, (node) => {
@@ -940,13 +986,22 @@ function ruleG10(t, probe, say) {
       each(node, (inner) => {
         if ((ts.isPropertySignature(inner) || ts.isMethodSignature(inner)) && inner.name !== undefined) {
           const name = inner.name.getText(source).replace(/['"]/g, '');
-          if (ACCOUNT_WORD.test(name)) say(`${path}: ${node.name.text} has a field named ${name}`);
+          if (!ACCOUNT_WORD.test(name)) return;
+          const allowed = ACCOUNT_EXCEPTIONS.find((x) => x.path === path && x.in === node.name.text && x.name === name);
+          if (allowed !== undefined && !met.has(allowed)) {
+            met.add(allowed);
+            return;
+          }
+          say(`${path}: ${node.name.text} has a field named ${name}`);
         }
       });
     });
   };
   names(SHARED_USAGE, (n) => /^Usage(?!Login)/.test(n));
   names(SHARED_IPC, () => true);
+  for (const x of ACCOUNT_EXCEPTIONS) {
+    if (!met.has(x)) say(`the named exception ${x.in}.${x.name} (${x.why}) is no longer there`);
+  }
   for (const path of DOMAIN_FILES) {
     const source = t.source(path);
     each(source, (node) => {
@@ -969,7 +1024,16 @@ function ruleG10(t, probe, say) {
   }
   if (probe.payloadHoldsMark !== false) say('the payload a window is handed holds the account mark');
   if (/[0-9a-f]{40}/.test(probe.payload)) say('the payload a window is handed holds a long hex value');
-  if (/@|example\.com/.test(probe.payload)) say('the payload a window is handed holds an address');
+  // Phase 375: one address may stand in it, as the Antigravity row's `email`.
+  let rest = probe.payload;
+  try {
+    const parsed = JSON.parse(probe.payload);
+    for (const row of parsed.providers ?? []) if (row?.provider === RECEIVER) delete row.email;
+    rest = JSON.stringify(parsed);
+  } catch {
+    say('the payload a window is handed is not JSON');
+  }
+  if (/@|example\.(?:com|invalid)/.test(rest)) say('the payload a window is handed holds an address outside the Antigravity row’s email');
   for (const run of probe.runs) {
     if (/@|[0-9a-f]{40}/.test(JSON.stringify(run.logs))) say('a log line holds an address or a mark');
   }
@@ -987,6 +1051,204 @@ function ruleG11(t, _probe, say) {
   if (!same(order, ['claude', 'codex'])) say(`LOGIN_PROVIDERS is ${JSON.stringify(order)}`);
 }
 
+/** The folders an address may never reach, by any import (SPEC D11). */
+const NO_ADDRESS_FOLDERS = ['src/main/pocket', 'src/main/diagnostics', 'src/main/log', 'src/main/manifest', 'src/main/settings'];
+const IPC_FILE = `${DOMAIN}/ipc.ts`;
+
+/** Every module name a file imports, re-exports, `import()`s or `require`s. */
+function moduleNamesOf(source) {
+  const out = [];
+  each(source, (node) => {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier !== undefined && ts.isStringLiteral(node.moduleSpecifier)) {
+      out.push(node.moduleSpecifier.text);
+    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && ts.isStringLiteral(node.moduleReference.expression)) {
+      out.push(node.moduleReference.expression.text);
+    } else if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require')) &&
+      node.arguments[0] !== undefined &&
+      isText(node.arguments[0])
+    ) {
+      out.push(node.arguments[0].text);
+    }
+  });
+  return out;
+}
+
+/** Is this module name, written in `from`, the usage domain or the shared usage file? */
+function namesUsage(from, name) {
+  if (/^@shared\/usage(?:\.ts)?$/.test(name)) return true;
+  if (!name.startsWith('.')) return false;
+  const to = relative(ROOT, resolve(ROOT, dirname(from), name));
+  return to === DOMAIN || to.startsWith(`${DOMAIN}/`) || /^src\/shared\/usage(?:\.ts)?$/.test(to);
+}
+
+/** Every identifier and property name under a node, as text. */
+function namesUnder(source, node) {
+  const out = [];
+  each(node, (inner) => {
+    if (ts.isIdentifier(inner) || ts.isPrivateIdentifier(inner)) out.push(inner.text);
+    else if (ts.isStringLiteral(inner) && ts.isPropertyAssignment(inner.parent) && inner.parent.name === inner) out.push(inner.text);
+  });
+  return out;
+}
+
+/** The function declaration, or the const bound to an arrow or function, called `name`, anywhere in a file. */
+function functionNamed(source, name) {
+  let found;
+  each(source, (node) => {
+    if (found !== undefined) return;
+    if (ts.isFunctionDeclaration(node) && node.name?.text === name) found = node;
+    else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer !== undefined) {
+      const init = unwrap(node.initializer);
+      if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) found = init;
+    }
+  });
+  return found;
+}
+
+function ruleG12(t, probe, say) {
+  // (b) the field, read with the parser.
+  const shared = t.source(SHARED_USAGE);
+  let fields = 0;
+  each(shared, (node) => {
+    if (!ts.isInterfaceDeclaration(node) || node.name.text !== 'UsageProviderSnapshot') return;
+    for (const m of node.members) {
+      if (propName(m) !== 'email') continue;
+      fields += 1;
+      if (m.questionToken === undefined) say('UsageProviderSnapshot.email is not optional');
+      if (m.type?.getText(shared) !== 'string') say(`UsageProviderSnapshot.email is ${m.type?.getText(shared)}, not string`);
+    }
+  });
+  if (fields !== 1) say(`UsageProviderSnapshot names email ${fields} times; it names it once`);
+  const empty = functionNamed(shared, 'emptyUsageProvider');
+  if (empty === undefined) say('emptyUsageProvider is not there to read');
+  else if (namesUnder(shared, empty).includes('email')) say('emptyUsageProvider names email');
+  const service = t.source(SERVICE);
+  const view = functionNamed(service, 'viewOf');
+  if (view === undefined) say('viewOf is not there to read');
+  else if (namesUnder(service, view).includes('email')) say('viewOf names email, so an asked row could carry one');
+  const receive = t.source(RECEIVE);
+  const row = functionNamed(receive, 'antigravityRow');
+  if (row === undefined) say('antigravityRow is not there to read');
+  else {
+    const waiting = functionNamed(row, 'waiting');
+    if (waiting === undefined) say('the waiting row is not there to read');
+    else if (namesUnder(receive, waiting).includes('email')) say('the waiting row names email');
+  }
+  // Only antigravityRow sets it on a row, and from the reading's own field.
+  let setters = 0;
+  for (const path of [...DOMAIN_FILES, SHARED_USAGE]) {
+    const source = t.source(path);
+    each(source, (node) => {
+      if (!(ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) || propName(node) !== 'email') return;
+      // Phase 203's account reader answers the logins store, never a usage row.
+      if (path === `${DOMAIN}/login-accounts.ts`) return;
+      let inRow = false;
+      for (let at = node.parent; at !== undefined; at = at.parent) if (at === row) inRow = true;
+      // The reading's own field, asked the shape in parseAntigravityFile.
+      const parse = functionNamed(receive, 'parseAntigravityFile');
+      let inParse = false;
+      for (let at = node.parent; at !== undefined; at = at.parent) if (at === parse) inParse = true;
+      const value = ts.isPropertyAssignment(node) ? node.initializer.getText(source) : 'email';
+      if (path === RECEIVE && inRow && value === 'reading.email') {
+        setters += 1;
+        return;
+      }
+      if (path === RECEIVE && inParse && value === "usageAddress(obj['e'])") return;
+      say(`${path}:${lineOf(source, node)} sets email to ${value}`);
+    });
+  }
+  if (setters !== 1) say(`antigravityRow sets email from reading.email ${setters} times; it does once`);
+
+  // (d) the read Settings asks builds nothing and reads nothing.
+  const ipc = t.source(IPC_FILE);
+  let handler;
+  each(ipc, (node) => {
+    if (ts.isCallExpression(node) && node.expression.getText(ipc) === 'handle' && node.arguments[1] !== undefined && ts.isStringLiteral(node.arguments[1]) && node.arguments[1].text === 'usage:account') {
+      handler = node.arguments[2];
+    }
+  });
+  if (handler === undefined) say('usage:account has no handler to read');
+  else {
+    const folder = new Set();
+    for (const st of ipc.statements) {
+      if (ts.isImportDeclaration(st) && ts.isStringLiteral(st.moduleSpecifier) && /antigravity\/(?:folder|launch)$/.test(st.moduleSpecifier.text)) {
+        for (const el of st.importClause?.namedBindings?.elements ?? []) folder.add(el.name.text);
+      }
+    }
+    const calls = [];
+    each(handler, (node) => {
+      if (!ts.isCallExpression(node)) return;
+      const callee = node.expression;
+      calls.push(ts.isPropertyAccessExpression(callee) ? callee.name.text : callee.getText(ipc));
+    });
+    if (!calls.includes('current')) say('usage:account does not answer from current()');
+    for (const bad of ['read', 'refresh', 'pulse', 'usageService', 'armUsagePulse', 'receive', ...folder]) {
+      if (calls.includes(bad)) say(`usage:account calls ${bad}()`);
+    }
+  }
+
+  // (e) no folder an address may not reach imports the usage domain, and no
+  // crash annotation names an account.
+  for (const path of MAIN_FILES) {
+    const source = t.source(path);
+    if (NO_ADDRESS_FOLDERS.some((d) => path.startsWith(`${d}/`))) {
+      for (const name of moduleNamesOf(source)) {
+        if (namesUsage(path, name)) say(`${path} imports ${name}, so the address could reach it`);
+      }
+    }
+    each(source, (node) => {
+      if (!ts.isCallExpression(node)) return;
+      const callee = node.expression;
+      const name = ts.isPropertyAccessExpression(callee) ? callee.name.text : callee.getText(source);
+      if (name !== 'addExtraParameter') return;
+      const said = node.arguments.map((a) => a.getText(source)).join(' ');
+      if (/e-?mail|address|account|usage|received|reading/i.test(said)) say(`${path}:${lineOf(source, node)} names an account in a crash annotation`);
+    });
+  }
+
+  if (probe.error !== undefined) return say(`the probe could not run: ${probe.error}`);
+  // (a) the corpus, driven.
+  if (!Array.isArray(probe.corpus) || probe.corpus.length < 40) say('the address corpus was not run');
+  for (const c of probe.corpus ?? []) {
+    for (const [sh, k] of Object.entries(c.kept ?? {})) {
+      if (k.status !== 0 || k.output !== '' || k.files !== 2) say(`${c.name} [${sh}]: answered ${k.status}, said ${JSON.stringify(k.output)}, left ${k.files} files`);
+      if (k.e === 'odd') say(`${c.name} [${sh}]: the line is not the one shape`);
+      if (c.want === 'none') {
+        if (k.e !== 'none') say(`${c.name} [${sh}]: wrote where the case writes nothing`);
+        continue;
+      }
+      const keeps = c.accepted !== null && c.backslash === false;
+      const want = keeps ? c.decoded : null;
+      if (k.e !== want) say(`${c.name} [${sh}]: kept ${JSON.stringify(k.e)}, where the shared shape says ${JSON.stringify(want)}`);
+      if (k.e !== c.want) say(`${c.name} [${sh}]: kept ${JSON.stringify(k.e)}, the corpus says ${JSON.stringify(c.want)}`);
+    }
+  }
+  // (c) the payload, driven.
+  let parsed = null;
+  try {
+    parsed = JSON.parse(probe.payload);
+  } catch {
+    say('the payload a window is handed is not JSON');
+  }
+  for (const r of parsed?.providers ?? []) {
+    if (r.provider === RECEIVER) {
+      if (r.email !== probe.planted) say(`the Antigravity row's email is ${JSON.stringify(r.email)}, not the planted address`);
+      const { email: _held, ...rest } = r;
+      if (JSON.stringify(rest).includes(probe.planted)) say('another field of the Antigravity row holds the address');
+    } else {
+      if (Object.prototype.hasOwnProperty.call(r, 'email')) say(`the ${r.provider} row has an email key`);
+      if (JSON.stringify(r).includes('@')) say(`the ${r.provider} row holds an @`);
+    }
+  }
+  // (f) what agy is handed holds no address, and an address held moves nothing.
+  const a = probe.argv ?? {};
+  if (a.held !== true) say('the argv was not composed beside a service that holds an address');
+  if (/@/.test(`${a.settingsBefore}${a.commandBefore}`)) say('the command or the settings value holds an @');
+  if (a.settingsBefore !== a.settingsAfter || a.commandBefore !== a.commandAfter) say('the argv moved once an address was held');
+}
+
 const JUDGES = {
   G1: ruleG1,
   G2: ruleG2,
@@ -998,7 +1260,8 @@ const JUDGES = {
   G8: ruleG8,
   G9: ruleG9,
   G10: ruleG10,
-  G11: ruleG11
+  G11: ruleG11,
+  G12: ruleG12
 };
 
 /** Judge every rule over one tree and one probe's reading. */
@@ -1020,7 +1283,12 @@ function judge(t, probe) {
 // The probe, over the tree or over a sibling copy
 // ---------------------------------------------------------------------------
 
-function runProbe(dir) {
+/**
+ * `corpus` false leaves out Phase 375's address corpus (84 runs of the script),
+ * for a copy whose edit does not reach the script's reader: the reading of the
+ * tree stands in for it, and the gate stays near its Phase 374 time.
+ */
+function runProbe(dir, corpus = true) {
   const run = spawnSync(
     process.execPath,
     [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/usage-conformance-probe.mts'],
@@ -1028,7 +1296,7 @@ function runProbe(dir) {
       cwd: ROOT,
       encoding: 'utf8',
       timeout: 120_000,
-      env: { ...process.env, P374_USAGE_DIR: dir }
+      env: { ...process.env, P374_USAGE_DIR: dir, P375_CORPUS: corpus ? '1' : '0' }
     }
   );
   try {
@@ -1068,7 +1336,9 @@ const FALL_THROUGH = [
 
 const ABLATIONS = [
   // The first one is the defect this gate exists for.
-  { name: 'the Codex fall-through', driven: true, red: ['G1', 'G3', 'G4', 'G5', 'G7'], edits: FALL_THROUGH },
+  // Since Phase 375 G12 reads it too: a Codex fetch under the received row's
+  // name draws no address that the received file planted.
+  { name: 'the Codex fall-through', driven: true, red: ['G1', 'G3', 'G4', 'G5', 'G7', 'G12'], edits: FALL_THROUGH },
   {
     name: 'a second receiver with no port',
     driven: true,
@@ -1240,7 +1510,7 @@ const ABLATIONS = [
     name: 'a here-document in the script',
     driven: true,
     red: ['G9'],
-    edits: [[SCRIPT, "case $tt_p in *'\"quota\"'*) ;; *) exit 0 ;; esac", "case $tt_p in *'\"quota\"'*) ;; *) exit 0 ;; esac\nread -r tt_v <<TT\nx\nTT"]]
+    edits: [[SCRIPT, "case $tt_p in *'\"quota\"'* | *'\n'*) ;; *) exit 0 ;; esac", "case $tt_p in *'\"quota\"'* | *'\n'*) ;; *) exit 0 ;; esac\nread -r tt_v <<TT\nx\nTT"]]
   },
   {
     name: 'a fourth key in the settings value',
@@ -1270,7 +1540,7 @@ const ABLATIONS = [
     name: 'the account mark on the row',
     driven: true,
     red: ['G10'],
-    edits: [[RECEIVE, '    plan: reading.plan,\n    readAt: reading.at\n  };\n}\n', '    plan: reading.hash,\n    readAt: reading.at\n  };\n}\n']]
+    edits: [[RECEIVE, '    plan: reading.plan,\n    readAt: reading.at,\n    ...account\n  };\n}\n', '    plan: reading.hash,\n    readAt: reading.at,\n    ...account\n  };\n}\n']]
   },
   {
     name: 'a field named for the account on the snapshot',
@@ -1281,6 +1551,68 @@ const ABLATIONS = [
     name: 'a body handed to a log line',
     red: ['G10'],
     edits: [[SERVICE, "deps.log('usage.read.dropped', { provider, reason: 'login-changed' });", "deps.log('usage.read.dropped', { provider, reason: 'login-changed', hash: received });"]]
+  },
+  // Phase 375, one per sink the address could reach (build/p375/SPEC.md §7.2).
+  {
+    name: 'the received address handed to a log line',
+    red: ['G10'],
+    edits: [[SERVICE, '      received = heldReading(received, deps.receiver.read(), now);\n', "      received = heldReading(received, deps.receiver.read(), now);\n      deps.log('usage.received', { provider: 'antigravity', who: received?.email });\n"]]
+  },
+  {
+    name: 'the address kept outside its e',
+    driven: true,
+    red: ['G9'],
+    edits: [[SCRIPT, 'tt_l="{\\\\"v\\\\":1,\\\\"h\\\\":\\\\"$tt_h\\\\",$tt_b}"', 'tt_l="{\\\\"v\\\\":1,\\\\"h\\\\":\\\\"$tt_h\\\\",\\\\"m\\\\":$tt_m,$tt_b}"'], [SCRIPT, 'tt_m=\ntt_o=\n', 'tt_o=\n']]
+  },
+  {
+    name: 'the address drawn as the plan',
+    driven: true,
+    red: ['G10', 'G12'],
+    edits: [[RECEIVE, '    plan: reading.plan,\n    readAt: reading.at,\n    ...account\n  };\n}\n', '    plan: reading.email,\n    readAt: reading.at,\n    ...account\n  };\n}\n']]
+  },
+  {
+    name: 'a named exception left behind',
+    red: ['G10'],
+    edits: [[SHARED_IPC, "  'usage:account': { req: []; res: string | null };\n", '']]
+  },
+  {
+    name: 'the awk class widened past a plain address',
+    driven: true,
+    corpus: true,
+    red: ['G12'],
+    edits: [[SCRIPT, 'ad="^\\"[A-Za-z0-9._%+" sq "-]+@', 'ad="^\\"[^\\"]+@']]
+  },
+  {
+    name: 'an email on an asked row',
+    driven: true,
+    red: ['G12'],
+    edits: [[SERVICE, '    retryAfter: held.retryAfter\n  };', '    retryAfter: held.retryAfter,\n    email: null as never\n  };']]
+  },
+  {
+    name: 'the account read asks a read',
+    red: ['G12'],
+    edits: [[IPC_FILE, '      const row = service.current().providers', '      void usageService().read();\n      const row = service.current().providers']]
+  },
+  {
+    name: 'the door imports the shared usage file',
+    red: ['G12'],
+    edits: [['src/main/pocket/routes.ts', "import { createHash } from 'node:crypto';\n", "import { createHash } from 'node:crypto';\nimport type { UsageSnapshot } from '@shared/usage';\nexport type Spare = UsageSnapshot;\n"]]
+  },
+  {
+    name: 'Live Diagnostics imports the usage domain',
+    red: ['G12'],
+    edits: [['src/main/diagnostics/report.ts', "import { randomUUID } from 'node:crypto';\n", "import { randomUUID } from 'node:crypto';\nimport { usageService } from '../usage/ipc';\nexport const spare = usageService;\n"]]
+  },
+  {
+    name: 'a crash annotation naming the account',
+    red: ['G12'],
+    edits: [['src/main/log/crash.ts', '    crashReporter.start({ uploadToServer: false });\n', "    crashReporter.start({ uploadToServer: false });\n    crashReporter.addExtraParameter('account', String(process.env['TORTIE_P375'] ?? ''));\n"]]
+  },
+  {
+    name: 'the settings value carrying an address',
+    driven: true,
+    red: ['G12'],
+    edits: [[SCRIPT, "const COMMAND_TAIL = '; exit 0';", "const COMMAND_TAIL = '; : p375@example.invalid; exit 0';"]]
   },
   {
     name: 'a third login provider',
@@ -1358,7 +1690,8 @@ if (!LIVE_ONLY) {
       let got;
       try {
         const edits = laidOver(one);
-        let reading = one.driven === true ? runProbe(copyOf(edits)) : probe;
+        let reading = one.driven === true ? runProbe(copyOf(edits), one.corpus === true) : probe;
+        if (reading.corpus === undefined) reading = { ...reading, corpus: probe.corpus };
         if (one.driven === true && reading.error !== undefined) {
           throw new Error(`the edited copy could not be run: ${reading.error}`);
         }

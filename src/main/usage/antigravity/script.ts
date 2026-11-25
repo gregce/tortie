@@ -6,16 +6,18 @@
  * JSON payload on standard input, and the payload carries the plan's quota
  * block (docs/research/146, section 6). Tortie starts a NEW Antigravity session
  * with an inline `--settings` naming the command below, the command sources one
- * generated script, and the script keeps four buckets, the plan word and a
- * salted hash of the address in one small private file under Tortie's own
- * folder. Main reads that folder (./folder.ts) while the switch is on.
+ * generated script, and the script keeps four buckets, the plan word, a
+ * salted hash of the address and, since Phase 375, the address itself when it
+ * is a plain one, in one small private file under Tortie's own folder. Main
+ * reads that folder (./folder.ts) while the switch is on.
  *
  * THIS FILE IS PURE. No file system, no electron, no clock and no random
  * number of its own: the salt is handed in. The folder is ./folder.ts's and
  * the decision to use it at all is ./launch.ts's.
  *
- * SIX RULES, each measured (build/p374/SPEC.md section 2, docs/research/146
- * sections 6.5 and 6.6), and each one a later round must not undo.
+ * SEVEN RULES, each measured (build/p374/SPEC.md section 2, build/p375/SPEC.md
+ * section 2, docs/research/146 sections 6.5 and 6.6), and each one a later
+ * round must not undo.
  *
  *  1. IT WRITES A FILE AND POSTS NOTHING. The Claude tap beside this one
  *     (../statusline.ts) posts to a loopback route with a token. There is no
@@ -37,16 +39,50 @@
  *  4. THE COUNTDOWN IS LEFT OUT. `reset_in_seconds` moves in every run, so a
  *     comparison that held it would write on nearly every run and the age of
  *     the file would be the age of the last run rather than of the numbers.
- *  5. THE ADDRESS NEVER LANDS ANYWHERE. It reaches `openssl` through a pipe,
- *     salted, and only the hash is kept, so that two accounts are told apart.
- *     No payload text is ever an argument of a program, an exported variable or
- *     a byte on disk, and no here-document is used because bash writes one to a
- *     temporary file. Every kept field is held to a character set that cannot
- *     spell an address. The hash tells two accounts apart on this Mac; it is
- *     not claimed to hide one from the person's own user.
+ *  5. THE ADDRESS LANDS IN ONE PLACE, IN ONE SHAPE (Phase 375, on the
+ *     person's word; Phase 374 kept only the hash). It reaches `openssl`
+ *     through a pipe, salted, for the hash that tells two accounts apart, and
+ *     it reaches the slot line, as `"e"` straight after `"h"`, only when the
+ *     raw JSON token is a PLAIN ASCII address: letters, digits and
+ *     `. _ % + ' -`, one `@` at token positions 3 to 66 (a local part of 1 to
+ *     64), a dot after it, at most 256 characters with the quotes, and no line
+ *     break inside. Anything else, an escape of any kind included, is written
+ *     `"e":null` with every other byte the parent's. NOTHING IS EVER ESCAPED:
+ *     the class holds no quote, backslash or control byte, so a kept token is
+ *     already a JSON string and the line needs nothing done to it. The line
+ *     goes out through the builtin `printf` alone. No payload text is ever an
+ *     argument of a program, an exported variable, a here-document (bash
+ *     writes one to a temporary file) or a byte of any other file, and every
+ *     other kept field is held to a character set that cannot spell an
+ *     address. The main side asks `usageAddress` (src/shared/usage.ts) again,
+ *     and `conformance:usage` G12 holds the two to one corpus. The hash is
+ *     not claimed to hide the address from the person's own user, and the
+ *     address is not hidden from them at all.
  *  6. ONLY WHERE TORTIE MADE A PLACE. It writes only over the regular file main
  *     opened for this session, so a removed session's file is never made again
  *     and a forged id has nowhere to write.
+ *  7. THE READER READS EXACTLY WHAT PHASE 374 READ, AND A LINE BREAK IS ONLY
+ *     A MARK BESIDE IT (Phase 375 and its fix round). Phase 374 glued the
+ *     payload's lines, so a raw line break inside the address vanished and a
+ *     different address would have been kept. So the shell glues the lines as
+ *     374 did and leaves a newline between two lines only where the first one
+ *     holds a quote, which every line that opens the address does; the reader
+ *     notes where those newlines stood, removes them, and parses the glued text,
+ *     which is 374's input byte for byte, so every byte it writes but `e` is
+ *     374's for any payload at all, a raw break inside a key, a number or the
+ *     plan word included. `e` is refused when a newline stood strictly inside
+ *     the address token. The bound is 374's (`tt_c`, the sum of the lines' own
+ *     lengths, against the reader's glued length), and the shell's early look
+ *     for `"quota"` lets through any payload a newline was left in, because a
+ *     newline can stand inside that key too, and the reader then answers as 374
+ *     did. A compact payload, which is what agy sends, holds no newline, so its
+ *     look is 374's exactly. A BLANK LINE COSTS NOTHING:
+ *     it adds no byte, no count and no mark, because a newline for each one
+ *     grew the payload without bound and the joining took seconds over tens of
+ *     thousands of them, past agy's 300 ms, where 374 wrote (the verify round).
+ *     A raw NUL inside the token is the one case the shells disagree on (dash
+ *     and ksh drop it, bash and zsh write nothing), as at 374; JSON forbids one
+ *     and agy's encoder never writes one.
  *
  * THE PROGRAMS are `/usr/bin/awk`, `/usr/bin/openssl`, `/bin/mv` and, only for
  * a write that did not land, `/bin/rm`, by absolute path, and the shell's own
@@ -76,20 +112,31 @@ const SALT_SHAPE = /^[0-9a-f]{32}$/;
  * `quota.<id>.<field>` of the top level object, and it prints nothing at all
  * unless the document closed cleanly with nothing after it.
  *
- * What it prints is two lines: the raw token of the top level `email`, and the
- * kept fields. A container's key is empty until one is read and an array never
- * has one, so an array anywhere on the way matches nothing. A duplicate key takes the last, whole, as `JSON.parse` does. A
- * container where a value was expected is read as an odd value: an odd
+ * It reads the payload as Phase 374 handed it, glued: the newlines the shell
+ * left are noted by where they stood in the glued text (`br`) and removed
+ * before a byte is parsed (rule 7). What it prints is two lines: the raw
+ * token of the top level `email`, for the hash, and the kept fields, which
+ * begin with `"e"`, being that token when it is a plain address with no
+ * newline noted inside it and `null` otherwise (rule 5). The address's shape
+ * is built in `BEGIN` with `sprintf("%c",39)` for its apostrophe, because the
+ * program sits between apostrophes.
+ *
+ * A container's key is empty until one is read and an array never has one, so
+ * an array anywhere on the way matches nothing. A duplicate key takes the last,
+ * whole, as `JSON.parse` does. A container where a value was expected is read
+ * as an odd value: an odd
  * `disabled` is true and any `remaining_amount` is an amount, because both
  * make main draw nothing, which is the safe direction.
  *
  * NO APOSTROPHE MAY APPEAR IN IT. It sits between two in the script.
  */
-const AWK_READER = String.raw`BEGIN{RS="\001";m=split("${ANTIGRAVITY_BUCKET_IDS.join(' ')}",id," ")}
+const AWK_READER = String.raw`BEGIN{RS="\001";sq=sprintf("%c",39);ad="^\"[A-Za-z0-9._%+" sq "-]+@[A-Za-z0-9-]+([.][A-Za-z0-9-]+)+\"$";m=split("${ANTIGRAVITY_BUCKET_IDS.join(' ')}",id," ")}
 NR>1{bad=1}
 {s=$0}
 END{
- if(bad||length(s)>${String(ANTIGRAVITY_PAYLOAD_CAP)})exit
+ np=split(s,ln,"\n");c=0;for(i=1;i<np;i++){c+=length(ln[i]);br[c]=1}
+ gsub(/\n/,"",s);L=length(s)
+ if(bad||L>${String(ANTIGRAVITY_PAYLOAD_CAP)})exit
  n=0;want="v"
  while(1){
   sub(/^[ \t\r\n]+/,"",s)
@@ -101,6 +148,7 @@ END{
    t=substr(s,1,RLENGTH);s=substr(s,RLENGTH+1)
    if(want=="k"||want=="K"){key[n]=substr(t,2,length(t)-2);want=":";continue}
    if(want!="v"&&want!="V")exit
+   if(n==1&&key[1]=="email")ea=L-length(s)-length(t)+1
    leaf(t,"s");want=",";if(n==0)done=1;continue
   }
   if(c=="{"||c=="["){
@@ -127,15 +175,17 @@ END{
  for(i=1;i<=m;i++){if(!(id[i] in seen))continue
   o=o (o==""?"":",") "\"" id[i] "\":{\"f\":" ((id[i] in fr)?fr[id[i]]:"null") ",\"r\":" ((id[i] in rs)?rs[id[i]]:"null") ",\"d\":" ((id[i] in di)?di[id[i]]:"null") ",\"a\":" ((id[i] in am)?"true":"false") "}"}
  if(o=="")exit
+ e="null"
+ if(!nl&&length(mail)<=256&&mail~ad){at=index(mail,"@");if(at>=3&&at<=66)e=mail}
  print mail
- print "\"p\":" (plan==""?"null":plan) ",\"q\":{" o "}"
+ print "\"e\":" e ",\"p\":" (plan==""?"null":plan) ",\"q\":{" o "}"
 }
 function wipe(q){delete seen[q];delete fr[q];delete rs[q];delete di[q];delete am[q]}
 function known(q, i){for(i=1;i<=m;i++)if(id[i]==q)return 1;return 0}
-function leaf(t,k, q,i){
+function leaf(t,k, q,i,j){
  if(n==0)return
  if(n==1){
-  if(key[1]=="email")mail=(k=="s"&&length(t)>2&&length(t)<=514)?t:""
+  if(key[1]=="email"){nl=0;if(k=="s"&&length(t)<=256)for(j=ea;j<ea+length(t)-1;j++)if(j in br)nl=1;mail=(k=="s"&&length(t)>2&&length(t)<=514)?t:""}
   else if(key[1]=="plan_tier")plan=(k=="s"&&length(t)<=42&&t~/^"[A-Za-z][A-Za-z0-9 _-]*"$/)?t:""
   else if(key[1]=="quota")for(i=1;i<=m;i++)wipe(id[i])
   return
@@ -172,8 +222,9 @@ export interface AntigravityScriptPlaces {
 export function antigravityStatusScript(places: AntigravityScriptPlaces): string {
   if (!SALT_SHAPE.test(places.salt)) throw new Error('the salt is not 32 lower case hex digits');
   return `# Tortie's Antigravity usage line. Generated by Tortie (Phase 374); edits are
-# overwritten. It prints nothing and keeps four numbers and no address.
-unset tt_p tt_l tt_o tt_m tt_b tt_h tt_v tt_f tt_s tt_t tt_k
+# overwritten. It prints nothing and keeps four buckets, the plan word and the
+# account's plain address (Phase 375), or none.
+unset tt_p tt_l tt_o tt_m tt_b tt_h tt_v tt_f tt_s tt_t tt_k tt_c tt_q
 set +a
 umask 077
 LC_ALL=C
@@ -185,12 +236,23 @@ tt_f=${shellQuote(places.dir)}/$tt_s.json
 [ -f "$tt_f" ] || exit 0
 tt_p=
 tt_l=
+tt_q=
+tt_c=0
 while IFS= read -r tt_l || [ -n "$tt_l" ]; do
-  tt_p=$tt_p$tt_l
+  case $tt_l in
+  '') ;;
+  *)
+    tt_c=$((tt_c+\${#tt_l}))
+    [ $tt_c -le ${String(ANTIGRAVITY_PAYLOAD_CAP)} ] || exit 0
+    tt_p=$tt_p$tt_q$tt_l
+    case $tt_l in *'"'*) tt_q='
+' ;; *) tt_q= ;; esac
+    ;;
+  esac
   tt_l=
-  [ \${#tt_p} -le ${String(ANTIGRAVITY_PAYLOAD_CAP)} ] || exit 0
 done
-case $tt_p in *'"quota"'*) ;; *) exit 0 ;; esac
+case $tt_p in *'"quota"'* | *'
+'*) ;; *) exit 0 ;; esac
 tt_o=$(printf '%s' "$tt_p" | /usr/bin/awk '${AWK_READER}')
 tt_p=
 tt_m=\${tt_o%%

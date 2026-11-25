@@ -4,11 +4,13 @@
  *     import { registerUsageIpc } from './usage/ipc';
  *     registerUsageIpc(ipcMain);
  *
- * Two channels, and both READ. Neither spawns a process, writes the manifest,
- * touches tmux or sets a session's status. Registering them opens nothing:
- * the service is built on the first call, and while every provider switch
- * is off that first call still opens no keychain, reads no credentials file,
- * opens no folder of received numbers and makes no request.
+ * Four channels, and all READ: the pair, Phase 219's `usage:statusLine` and
+ * Phase 375's `usage:account`, the last two building no service. None spawns
+ * a process, writes the manifest, touches tmux or sets a session's status.
+ * Registering them opens nothing: the service is built on the first read, and
+ * while every provider switch is off that first read still opens no keychain,
+ * reads no credentials file, opens no folder of received numbers and makes no
+ * request.
  *
  * PHASE 374 ADDED ONE SLOW CLOCK AND NO CHANNEL. A received row changes with
  * nobody asking, so while its switch is on and the service is open this file
@@ -22,12 +24,14 @@
  * The payload is numbers, timestamps and a state code. The Codex usage body
  * carries the person's email address, user id and account id at its top level
  * and none of that crosses this pair, because the parser never reads those
- * fields at all.
+ * fields at all. SINCE PHASE 375 ONE ADDRESS DOES, on the Antigravity row
+ * alone: the one the person's own agent handed Tortie's script (./antigravity/
+ * receive.ts). No log line here names it, and no field of any line is a body.
  */
 
 import { BrowserWindow, type IpcMain } from 'electron';
 import type { ClaudeStatusLineState, UsageSnapshot } from '@shared/usage';
-import { USAGE_PROVIDERS, usageIsReceiver } from '@shared/usage';
+import { USAGE_PROVIDERS, usageAddress, usageIsReceiver } from '@shared/usage';
 import { EVT_USAGE_CHANGED } from '@shared/ipc';
 import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
@@ -202,7 +206,8 @@ export function usageService(): UsageService {
       log: (event, fields) => log.warn(event, fields),
       // Phase 182. A live tap moved the numbers and nobody asked, or since
       // Phase 374 a received row did, so every window is told. The payload is the same one the two reads answer
-      // with, being numbers, timestamps and a state code.
+      // with, being numbers, timestamps and a state code, and since Phase 375 the
+      // received row's address (src/shared/usage.ts says where it may go).
       onChanged: (snapshot) => broadcastEvent(EVT_USAGE_CHANGED, snapshot)
     });
   }
@@ -384,5 +389,31 @@ export function registerUsageIpc(ipc: IpcMain): void {
    */
   handle(ipc, 'usage:statusLine', (): Promise<ClaudeStatusLineState> => {
     return Promise.resolve(claudeStatusLineState());
+  });
+  /**
+   * PHASE 375 D10. The account the Antigravity CLI is signed in to, for
+   * Settings, which may not call the two reads above.
+   *
+   * It answers WHAT MAIN ALREADY HOLDS and starts nothing. It BUILDS NO
+   * SERVICE: before any window has asked for a read there is nothing held, and
+   * the answer is null. It opens no folder, reads no login, asks no vendor and
+   * arms no clock, because `current()` composes from memory alone. Null while
+   * the Antigravity switch is off, whatever is still held, and null rather
+   * than a refusal after shutdown admission, because a Settings window that
+   * asks during a quit has nothing to be told. The address is asked
+   * `usageAddress` once more on its way out.
+   */
+  handle(ipc, 'usage:account', (): Promise<string | null> => {
+    if (shuttingDown || service === null) return Promise.resolve(null);
+    try {
+      // The received row, by the table's lookup and never by a comparison on
+      // a provider (conformance:usage G2): there is exactly one receiver.
+      const receiver = USAGE_PROVIDERS.find((p) => usageIsReceiver(p));
+      if (receiver === undefined || getSettings().usage[receiver] !== true) return Promise.resolve(null);
+      const row = service.current().providers.find((p) => usageIsReceiver(p.provider));
+      return Promise.resolve(usageAddress(row?.email));
+    } catch {
+      return Promise.resolve(null);
+    }
   });
 }

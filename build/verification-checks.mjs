@@ -417,8 +417,9 @@ export const CHECKS = [
   // src/shared/usage.ts, src/shared/settings.ts and the Antigravity splice in
   // src/main/sessions/create-local.ts with the TypeScript parser and its type
   // checker (a module, not a process) and drives the SHIPPING service, table
-  // and generated script through build/usage-conformance-probe.mts. Eleven
-  // rules, G1 to G11, each asked again over copies with it broken, the Codex
+  // and generated script through build/usage-conformance-probe.mts. Twelve
+  // rules, G1 to G12 (G12, since Phase 375, the Antigravity address only where
+  // it may go), each asked again over copies with it broken, the Codex
   // fall-through first, every one red on exactly its own rules beside an
   // unedited control. It starts the pinned tsx and, below it, /bin/sh over the
   // generated script in a scratch directory; its copies are dot-named siblings
@@ -1996,6 +1997,23 @@ export const CHECKS = [
     'probe:p374',
     `${NEEDS.electron}; a built parent checkout (P374_PARENT_CHECKOUT) and clang for the stand-in's launcher; an arm whose input is absent reads UNREADABLE`
   ),
+  // PHASE 375 (build/p375/SPEC.md §8): the Antigravity card naming the account
+  // its numbers belong to. Electrons through build/electron-run.mjs ONE AT A
+  // TIME and never at once, the parent first (P375_PARENT_CHECKOUT, a built
+  // 8d58c391, required), each launch on its own scratch profile, HOME and
+  // ZDOTDIR with HISTFILE=/dev/null and SHELL=/bin/sh and the socket gmux-p375…
+  // named as its tmuxSocket. `agy` is build/p374/stand-in.mjs behind the
+  // launcher its buildAgy compiles with clang, under its bare name on a closed
+  // PATH, replaying build/fixtures/p374's recordings with made-up addresses;
+  // every other probed registry row is hidden through build/hidden-agents.mjs
+  // and `agents:list` read back, the two other meters read GMUX_USAGE_FIXTURE,
+  // so no agent runs, no token is spent and nothing leaves the Mac.
+  // `--grader-self-test` grades build/p375/fixtures/graders.json; it,
+  // `--preflight` and `--list-graders` start nothing.
+  electron(
+    'probe:p375',
+    `${NEEDS.electron}; a built parent checkout (P375_PARENT_CHECKOUT) and clang for the stand-in's launcher; an arm whose input is absent reads UNREADABLE`
+  ),
   // PHASE 364 (build/p364/SPEC.md §8): the diagnostic Tortie he will run as his
   // everyday app, beside the normal app it must leave unchanged. Electrons
   // through build/electron-run.mjs ONE AT A TIME and never at once, each launch
@@ -3260,6 +3278,14 @@ export const CHECKS = [
   // sha256. No Electron, no tmux, no agent, no token. `P374_ONLY` runs named
   // arms.
   pure('ablation:p374', NEEDS.vitest),
+  // PHASE 375's attack on its own rows (build/p375/SPEC.md §7.1, §7.3): a
+  // `cp -Rc` clone of src/, build/ and resources/, one clause per arm taken out
+  // of the SHIPPING source (the script's address shape, bounds and line join,
+  // the reader's check, the row's conditional address, the account channel,
+  // the boot rewrite keeping its salt, the card's and Settings' gates and the
+  // copy), each red BY ITS ROW ID, an unedited control green first and last,
+  // every file restored by sha256. No Electron, no tmux, no agent, no token.
+  pure('ablation:p375', NEEDS.vitest),
   // PHASE 331's attack on its own clauses (build/p331/SPEC.md §2.10): seventeen
   // arms over a `cp -Rc` clone of src/, resources/ and build/ (build/vendor
   // symlinked), one clause each broken in the SHIPPING source: the scrollback

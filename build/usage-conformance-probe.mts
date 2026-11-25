@@ -15,7 +15,13 @@
  *
  * WHAT IT STARTS. `/bin/sh`, with `spawnSync`, over the generated status line
  * script and the command string that runs it, in a scratch directory it makes
- * and removes. Nothing it starts outlives the call that started it.
+ * and removes, and since Phase 375 `/bin/dash` beside it over the committed
+ * address corpus (build/fixtures/p375/addresses.json). Nothing it starts
+ * outlives the call that started it.
+ *
+ * PHASE 375 PLANTS AN ADDRESS. The received file carries one as `e`, so the
+ * gate reads where it goes in the payload a window is handed (G10, G12), and
+ * the corpus is run to read which tokens the script keeps (G12).
  */
 
 import { spawnSync } from 'node:child_process';
@@ -51,6 +57,8 @@ type Settings = Parameters<typeof serviceMod.createUsageService>[0]['settings'] 
   : never;
 
 const HASH = 'f'.repeat(64);
+/** Phase 375: the address the received file carries, invented. */
+const PLANTED = 'planted.p375@example.invalid';
 const NOW = Date.UTC(2031, 0, 10, 12, 0, 0);
 const TOKENS = { claude: 'P374-CLAUDE-TOKEN', codex: 'P374-CODEX-TOKEN' } as const;
 const ACCOUNT = 'P374-CODEX-ACCOUNT';
@@ -103,6 +111,7 @@ const FILE = {
   text: JSON.stringify({
     v: 1,
     h: HASH,
+    e: PLANTED,
     p: 'Example Plan',
     q: {
       'gemini-5h': { f: 0.75, r: '2031-01-10T15:00:00Z', d: null, a: false },
@@ -173,6 +182,43 @@ async function ask(
   const states: Record<string, string> = {};
   for (const row of snapshot.providers) states[row.provider] = row.state;
   return { seen, snapshot, states };
+}
+
+/** The kept line's head, and the `e` beside it, in the one shape the script writes. */
+const E_AT_HEAD = /^(\{"v":1,"h":"[0-9a-f]{64}","e":)(null|"[^"\\]*"),/;
+
+/**
+ * The raw text of the LAST top level `email` value, or undefined when that one
+ * is not a string. Keys are compared as written, as SPEC D2's raw token is.
+ */
+function topEmailToken(raw: string): string | undefined {
+  let depth = 0;
+  let key: string | null = null;
+  let wantKey = false;
+  let token: string | undefined;
+  for (let i = 0; i < raw.length; ) {
+    const c = raw[i] ?? '';
+    if (c === '"') {
+      let j = i + 1;
+      while (j < raw.length && raw[j] !== '"') j += raw[j] === '\\' ? 2 : 1;
+      const str = raw.slice(i, j + 1);
+      if (depth === 1 && wantKey) {
+        key = str.slice(1, -1);
+        wantKey = false;
+      } else if (depth === 1 && key === 'email') token = str;
+      i = j + 1;
+      continue;
+    }
+    if (c === '{' || c === '[') {
+      if (depth === 1 && key === 'email') token = undefined;
+      depth += 1;
+      if (depth === 1) wantKey = c === '{';
+    } else if (c === '}' || c === ']') depth -= 1;
+    else if (c === ',' && depth === 1) wantKey = true;
+    else if (depth === 1 && key === 'email' && !wantKey && /[-0-9a-z]/.test(c)) token = undefined;
+    i += 1;
+  }
+  return token;
 }
 
 const out: Record<string, unknown> = {};
@@ -248,6 +294,7 @@ try {
   const whole = await ask({ claude: true, codex: true, antigravity: true }, 'read');
   out['payload'] = JSON.stringify(whole.snapshot);
   out['payloadHoldsMark'] = JSON.stringify(whole.snapshot).includes(HASH);
+  out['planted'] = PLANTED;
   // 5. The script, its command and its settings value.
   const root = mkdtempSync(join(tmpdir(), 'p374-conformance-'));
   try {
@@ -307,19 +354,26 @@ try {
       const held = readdirSync(dir)
         .filter((name) => name !== 'status.sh')
         .map((name) => [name, readFileSync(join(dir, name), 'utf8')] as const);
-      const all = held.map(([name, body]) => `${name}\n${body}`).join('\n');
+      // Phase 375: the one place an address may stand, the `e` of the slot line
+      // in exactly the shape the line begins with, is taken out before the search.
+      const all = held
+        .map(([name, body]) => `${name}\n${name === `${sid}.json` ? body.replace(E_AT_HEAD, '$1"KEPT",') : body}`)
+        .join('\n');
       const kept = readFileSync(slot, 'utf8');
+      const e = E_AT_HEAD.exec(kept);
       return {
         what,
         status: run.status,
         output: `${run.stdout ?? ''}${run.stderr ?? ''}`,
         kept: kept.trim(),
+        e: e === null ? null : (JSON.parse(e[2] ?? 'null') as unknown),
         names: held.map(([name]) => name).sort(),
         leaks: ['@', 'example.com', 'secret-folder', '"email"', 'reset_in_seconds'].filter((w) =>
           all.includes(w)
         )
       };
     });
+    out['scriptAddress'] = ADDRESS;
     const gone = spawnSync(
       '/bin/sh',
       ['-c', script.antigravityStatusCommand(join(root, 'absent', 'status.sh'))],
@@ -328,6 +382,60 @@ try {
     out['missingScript'] = {
       status: gone.status,
       output: `${gone.stdout ?? ''}${gone.stderr ?? ''}`
+    };
+    // 6. Phase 375, G12 (a): the committed address corpus under /bin/sh and
+    // /bin/dash, with what the shared shape says of each decoded address.
+    const corpus = JSON.parse(readFileSync(resolve('build/fixtures/p375/addresses.json'), 'utf8')) as {
+      cases: { name: string; raw: string; want: string | null }[];
+    };
+    // The gate leaves it out (`P375_CORPUS=0`) for a copy whose edit cannot reach the reader.
+    if (process.env['P375_CORPUS'] !== '0') out['corpus'] = corpus.cases.map((c) => {
+      const token = topEmailToken(c.raw);
+      let decoded: unknown;
+      try {
+        decoded = (JSON.parse(c.raw) as Record<string, unknown>)['email'];
+      } catch {
+        decoded = undefined;
+      }
+      const kept: Record<string, unknown> = {};
+      for (const sh of ['/bin/sh', '/bin/dash']) {
+        for (const name of readdirSync(dir)) if (name !== 'status.sh') rmSync(join(dir, name));
+        writeFileSync(slot, '{}\n', { mode: 0o600 });
+        const r = spawnSync(sh, ['-c', command], {
+          input: c.raw,
+          encoding: 'utf8',
+          timeout: 10_000,
+          env: { PATH: '/usr/bin:/bin', TMPDIR: root, GMUX_MANAGED: '1', GMUX_SESSION_ID: sid }
+        });
+        const line = readFileSync(slot, 'utf8');
+        const m = E_AT_HEAD.exec(line);
+        kept[sh] = {
+          status: r.status,
+          output: `${r.stdout ?? ''}${r.stderr ?? ''}`,
+          files: readdirSync(dir).length,
+          e: line === '{}\n' ? 'none' : m === null ? 'odd' : (JSON.parse(m[2] ?? 'null') as unknown)
+        };
+      }
+      return {
+        name: c.name,
+        want: c.want,
+        accepted: shared.usageAddress(decoded),
+        decoded: typeof decoded === 'string' ? decoded : null,
+        backslash: token === undefined ? null : token.includes('\\'),
+        kept
+      };
+    });
+    // 7. G12 (f): the command and the settings value, before and after a
+    // service that holds an address, for the same script path.
+    const settingsBefore = script.antigravitySettingsJson(path);
+    const commandBefore = script.antigravityStatusCommand(path);
+    const holding = await ask({ claude: false, codex: false, antigravity: true }, 'read');
+    out['argv'] = {
+      held: JSON.stringify(holding.snapshot).includes(PLANTED),
+      settingsBefore,
+      settingsAfter: script.antigravitySettingsJson(path),
+      commandBefore,
+      commandAfter: script.antigravityStatusCommand(path)
     };
   } finally {
     rmSync(root, { recursive: true, force: true });

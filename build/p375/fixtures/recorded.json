@@ -1,0 +1,2981 @@
+{
+ "note": "Phase 375, the probe review. readings: the integrator’s own probe:p375 run of 2026-11-25 beside the parent (10 of 10 PASS), as its report recorded them, with the two planted addresses’ hex invented again (c0ffee0a, c0ffee0b) and every path the report wrote as <run>. Filled in by the review because the run predates the fields: CARD.<build>.kept is that run’s ON.<build>.kept and CARD.<build>.want its ON.<build>.wantFace (read moments before the card); TWO.pid and every sample’s pid are one invented pid (the run did not record it); SEARCH.manifest.control is true (the run did not record it). broken: the review’s own readings broken from those, each read as its need (UNREADABLE) or clause (FAIL) says. Every address is invented under example.invalid.",
+ "readings": {
+  "OFF": {
+   "parent": {
+    "spawned": [],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "asked": true,
+    "runs": 0,
+    "folder": false,
+    "groups": [
+     {
+      "lines": [
+       "Claude",
+       "Max plan",
+       "37% 5h, Resets in 2h 59m",
+       "12% wk, Resets in 3d 23h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Codex",
+       "Pro plan",
+       "41% 5h, Resets in 1h 0m",
+       "9% wk, Resets in 1d 0h"
+      ],
+      "controls": 1
+     }
+    ],
+    "settings": [
+     {
+      "provider": "claude",
+      "label": "Claude",
+      "text": "ClaudeYour own sign in · Account not known yet · Chosen",
+      "caption": null,
+      "controls": 0
+     },
+     {
+      "provider": "codex",
+      "label": "Codex",
+      "text": "CodexYour own sign in · Account not known yet · Chosen",
+      "caption": null,
+      "controls": 0
+     }
+    ]
+   },
+   "head": {
+    "spawned": [],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "asked": true,
+    "runs": 0,
+    "folder": false,
+    "groups": [
+     {
+      "lines": [
+       "Claude",
+       "Max plan",
+       "37% 5h, Resets in 2h 59m",
+       "12% wk, Resets in 3d 23h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Codex",
+       "Pro plan",
+       "41% 5h, Resets in 1h 0m",
+       "9% wk, Resets in 1d 0h"
+      ],
+      "controls": 1
+     }
+    ],
+    "settings": [
+     {
+      "provider": "claude",
+      "label": "Claude",
+      "text": "ClaudeYour own sign in · Account not known yet · Chosen",
+      "caption": null,
+      "controls": 0
+     },
+     {
+      "provider": "codex",
+      "label": "Codex",
+      "text": "CodexYour own sign in · Account not known yet · Chosen",
+      "caption": null,
+      "controls": 0
+     }
+    ]
+   }
+  },
+  "ON": {
+   "A": "p375-c0ffee0a-a@example.invalid",
+   "parent": {
+    "pid": 96204,
+    "kept": "{\"v\":1,\"h\":\"c5aed348f4085380697e40d725b40e7ee6b2e5389b5e8100d85e17db5d8035ee\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:25:45Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:14:45Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:29:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:29:05Z\",\"d\":null,\"a\":false}}}",
+    "hash": "c5aed348f4085380697e40d725b40e7ee6b2e5389b5e8100d85e17db5d8035ee",
+    "want": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:25:45Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:14:45Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:29:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:29:05Z\",\"d\":null,\"a\":false}}}",
+    "face": "30% 5h · 37% wk",
+    "wantFace": "30% 5h · 37% wk",
+    "runs": {
+     "sent": 42,
+     "logged": 42,
+     "codes": [
+      0
+     ],
+     "nonZero": 0,
+     "outBytes": 0,
+     "errBytes": 0,
+     "killedByNext": 0,
+     "errorBlocks": 0,
+     "ms": {
+      "max": 46,
+      "p50": 18
+     }
+    }
+   },
+   "head": {
+    "pid": 99215,
+    "kept": "{\"v\":1,\"h\":\"6655d54f99a1a090c6fdc05b8faf6d35ef972aa233ee29a04ce33f7a415ca613\",\"e\":\"p375-c0ffee0a-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:27:39Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:16:39Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:30:59Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:30:59Z\",\"d\":null,\"a\":false}}}",
+    "hash": "6655d54f99a1a090c6fdc05b8faf6d35ef972aa233ee29a04ce33f7a415ca613",
+    "want": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:27:39Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:16:39Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:30:59Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:30:59Z\",\"d\":null,\"a\":false}}}",
+    "face": "30% 5h · 37% wk",
+    "wantFace": "30% 5h · 37% wk",
+    "runs": {
+     "sent": 42,
+     "logged": 42,
+     "codes": [
+      0
+     ],
+     "nonZero": 0,
+     "outBytes": 0,
+     "errBytes": 0,
+     "killedByNext": 0,
+     "errorBlocks": 0,
+     "ms": {
+      "max": 44,
+      "p50": 22
+     }
+    }
+   }
+  },
+  "CARD": {
+   "A": "p375-c0ffee0a-a@example.invalid",
+   "parent": {
+    "groups": [
+     {
+      "lines": [
+       "Claude",
+       "Max plan",
+       "37% 5h, Resets in 2h 59m",
+       "12% wk, Resets in 3d 23h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Codex",
+       "Pro plan",
+       "41% 5h, Resets in 1h 0m",
+       "9% wk, Resets in 1d 0h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Antigravity",
+       "Example Tier plan",
+       "Gemini 30% 5h, Resets in 3h 11m",
+       "Gemini 37% wk, Resets in 5d 2h",
+       "Other models 0% 5h",
+       "Other models 0% wk"
+      ],
+      "controls": 0
+     }
+    ],
+    "resting": "Antigravity. Example Tier plan. Gemini 30% 5h, Resets in 3h 11m. Gemini 37% wk, Resets in 5d 2h. Other models 0% 5h. Other models 0% wk",
+    "kept": "{\"v\":1,\"h\":\"c5aed348f4085380697e40d725b40e7ee6b2e5389b5e8100d85e17db5d8035ee\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:25:45Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:14:45Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:29:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:29:05Z\",\"d\":null,\"a\":false}}}",
+    "want": "30% 5h · 37% wk"
+   },
+   "head": {
+    "groups": [
+     {
+      "lines": [
+       "Claude",
+       "Max plan",
+       "37% 5h, Resets in 2h 59m",
+       "12% wk, Resets in 3d 23h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Codex",
+       "Pro plan",
+       "41% 5h, Resets in 1h 0m",
+       "9% wk, Resets in 1d 0h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Antigravity",
+       "Example Tier plan",
+       "Login: p375-c0ffee0a-a@example.invalid",
+       "Gemini 30% 5h, Resets in 3h 11m",
+       "Gemini 37% wk, Resets in 5d 2h",
+       "Other models 0% 5h",
+       "Other models 0% wk"
+      ],
+      "controls": 0
+     }
+    ],
+    "resting": "Antigravity. Example Tier plan. Gemini 30% 5h, Resets in 3h 11m. Gemini 37% wk, Resets in 5d 2h. Other models 0% 5h. Other models 0% wk",
+    "kept": "{\"v\":1,\"h\":\"6655d54f99a1a090c6fdc05b8faf6d35ef972aa233ee29a04ce33f7a415ca613\",\"e\":\"p375-c0ffee0a-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:27:39Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:16:39Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:30:59Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:30:59Z\",\"d\":null,\"a\":false}}}",
+    "want": "30% 5h · 37% wk"
+   }
+  },
+  "SETTINGS": {
+   "A": "p375-c0ffee0a-a@example.invalid",
+   "reported": true,
+   "parentOn": [
+    {
+     "provider": "claude",
+     "label": "Claude",
+     "text": "ClaudeYour own sign in · Account not known yet · Chosen",
+     "caption": null,
+     "controls": 0
+    },
+    {
+     "provider": "codex",
+     "label": "Codex",
+     "text": "CodexYour own sign in · Account not known yet · Chosen",
+     "caption": null,
+     "controls": 0
+    }
+   ],
+   "headOn": [
+    {
+     "provider": "claude",
+     "label": "Claude",
+     "text": "ClaudeYour own sign in · Account not known yet · Chosen",
+     "caption": null,
+     "controls": 0
+    },
+    {
+     "provider": "codex",
+     "label": "Codex",
+     "text": "CodexYour own sign in · Account not known yet · Chosen",
+     "caption": null,
+     "controls": 0
+    },
+    {
+     "provider": "antigravity",
+     "label": "Antigravity",
+     "text": "Antigravityp375-c0ffee0a-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+     "caption": "p375-c0ffee0a-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+     "controls": 0
+    }
+   ],
+   "headOff": [
+    {
+     "provider": "claude",
+     "label": "Claude",
+     "text": "ClaudeYour own sign in · Account not known yet · Chosen",
+     "caption": null,
+     "controls": 0
+    },
+    {
+     "provider": "codex",
+     "label": "Codex",
+     "text": "CodexYour own sign in · Account not known yet · Chosen",
+     "caption": null,
+     "controls": 0
+    }
+   ]
+  },
+  "TWO": {
+   "A": "p375-c0ffee0a-a@example.invalid",
+   "B": "p375-c0ffee0b-b@example.invalid",
+   "aFaces": [
+    "29% 5h · 36% wk",
+    "30% 5h · 37% wk"
+   ],
+   "bFaces": [
+    "47% 5h · 16% wk"
+   ],
+   "aFirst": true,
+   "samples": [
+    {
+     "at": 1795637819722,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637819875,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637820028,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637820180,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637820332,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637820483,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637820636,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637820788,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637820940,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637821093,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637821246,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637821398,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637821551,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637821704,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637821857,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637822010,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637822162,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637822315,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637822468,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637822619,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637822771,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637822923,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637823074,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637823225,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637823377,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637823528,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637823680,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637823831,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637823984,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637824136,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637824289,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637824440,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637824592,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637824744,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637824896,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637825049,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637825200,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637825353,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637825506,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637825658,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637825811,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637825964,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637826116,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637826268,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637826420,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637826573,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637826726,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637826878,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637827029,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637827181,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637827333,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637827486,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637827639,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637827792,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637827944,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637828097,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637828250,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637828401,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637828553,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637828706,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637828858,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637829011,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637829164,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637829318,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637829470,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637829623,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637829778,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637829933,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637830087,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637830240,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637830393,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637830547,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637830700,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637830853,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637831007,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637831160,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637831313,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637831465,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637831618,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637831771,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637831923,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637832076,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637832229,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637832382,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637832535,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637832688,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637832841,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637832995,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637833149,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637833302,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637833453,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637833606,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637833759,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637833912,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637834065,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637834218,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637834372,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637834525,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637834679,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637834832,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637834985,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637835139,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637835292,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637835445,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637835597,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637835750,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637835902,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637836055,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637836209,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637836362,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637836514,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637836668,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637836821,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637836975,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637837129,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637837282,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637837435,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637837590,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637837743,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637837894,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637838047,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637838199,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637838353,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637838505,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-c0ffee0b-b@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637838661,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637838813,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637838968,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637839123,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637839275,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637839428,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637839583,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637839735,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637839887,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637840040,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637840195,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637840348,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637840501,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637840654,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637840808,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637840959,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637841111,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637841263,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637841414,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637841567,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637841721,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637841871,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637842025,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637842178,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637842331,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637842484,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637842637,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637842792,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637842946,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637843099,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637843253,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637843405,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637843557,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637843711,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637843864,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637844017,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637844169,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637844323,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637844475,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637844627,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637844779,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637844931,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637845084,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637845238,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    },
+    {
+     "at": 1795637845391,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-c0ffee0a-a@example.invalid",
+     "pid": 51515
+    }
+   ],
+   "bLandedAt": 1795637822812,
+   "aAgainAt": 1795637836505,
+   "finalFace": "30% 5h · 37% wk",
+   "finalLogin": "Login: p375-c0ffee0a-a@example.invalid",
+   "wantFinal": "30% 5h · 37% wk",
+   "pid": 51515
+  },
+  "SEARCH": {
+   "files": 92,
+   "control": true,
+   "unread": [],
+   "hits": [
+    {
+     "path": "/p/gmux/antigravity-usage/8de49cb8-2aaa-453b-91fa-44b41c4469fd.json",
+     "label": "A",
+     "form": "A",
+     "slotE": true
+    },
+    {
+     "path": "/p/gmux/antigravity-usage/8de49cb8-2aaa-453b-91fa-44b41c4469fd.json",
+     "label": "A",
+     "form": "A local part",
+     "slotE": true
+    },
+    {
+     "path": "/p/gmux/antigravity-usage/e9f77e1f-2255-4c40-a746-60c256bb351e.json",
+     "label": "A",
+     "form": "A",
+     "slotE": true
+    },
+    {
+     "path": "/p/gmux/antigravity-usage/e9f77e1f-2255-4c40-a746-60c256bb351e.json",
+     "label": "A",
+     "form": "A local part",
+     "slotE": true
+    },
+    {
+     "path": "/p/gmux/antigravity-usage/eadf8f8f-b4fd-4662-8bf3-201cede0348b.json",
+     "label": "B",
+     "form": "B",
+     "slotE": true
+    },
+    {
+     "path": "/p/gmux/antigravity-usage/eadf8f8f-b4fd-4662-8bf3-201cede0348b.json",
+     "label": "B",
+     "form": "B local part",
+     "slotE": true
+    }
+   ],
+   "manifest": {
+    "dumped": true,
+    "hits": [],
+    "control": true
+   },
+   "ps": {
+    "read": true,
+    "control": true,
+    "hits": []
+   },
+   "env": {
+    "read": true,
+    "pids": 14,
+    "control": true,
+    "hits": []
+   },
+   "ipc": {
+    "pushes": 14,
+    "answers": 4,
+    "allowed": 18,
+    "other": [],
+    "keyed": [],
+    "account": "p375-c0ffee0a-a@example.invalid",
+    "settingsAccount": "p375-c0ffee0a-a@example.invalid"
+   },
+   "A": "p375-c0ffee0a-a@example.invalid",
+   "B": "p375-c0ffee0b-b@example.invalid"
+  },
+  "OLDER": {
+   "A": "p375-c0ffee0a-a@example.invalid",
+   "head1": {
+    "kept": "{\"v\":1,\"h\":\"3a7f4fb1551dccfcab8cd9171fe3b418cafa5adfde0ae51b8a4dd0ed10554113\",\"e\":\"p375-c0ffee0a-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2026-11-25T23:30:04Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2026-11-30T22:19:04Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:19:04Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:19:04Z\",\"d\":null,\"a\":false}}}",
+    "login": "Login: p375-c0ffee0a-a@example.invalid",
+    "lines": [
+     "Antigravity",
+     "Example Tier plan",
+     "Login: p375-c0ffee0a-a@example.invalid",
+     "Gemini 29% 5h, Resets in 3h 11m",
+     "Gemini 36% wk, Resets in 5d 2h",
+     "Other models 0% 5h",
+     "Other models 0% wk"
+    ]
+   },
+   "parent": {
+    "want": "29% 5h · 36% wk",
+    "face": "29% 5h · 36% wk",
+    "lines": [
+     "Antigravity",
+     "Example Tier plan",
+     "Gemini 29% 5h, Resets in 3h 10m",
+     "Gemini 36% wk, Resets in 5d 1h",
+     "Other models 0% 5h",
+     "Other models 0% wk"
+    ],
+    "live": {
+     "landed": true,
+     "want": "30% 5h · 37% wk",
+     "face": "30% 5h · 37% wk",
+     "lines": [
+      "Antigravity",
+      "Example Tier plan",
+      "Gemini 30% 5h, Resets in 3h 10m",
+      "Gemini 37% wk, Resets in 5d 1h",
+      "Other models 0% 5h",
+      "Other models 0% wk"
+     ]
+    },
+    "alive": true,
+    "dumpsNew": 0
+   },
+   "head2": {
+    "lines": [
+     "Antigravity",
+     "Example Tier plan",
+     "Login: p375-c0ffee0a-a@example.invalid",
+     "Gemini 30% 5h, Resets in 3h 10m",
+     "Gemini 37% wk, Resets in 5d 1h",
+     "Other models 0% 5h",
+     "Other models 0% wk"
+    ],
+    "ms": 1818
+   }
+  },
+  "NEWER": {
+   "A": "p375-c0ffee0a-a@example.invalid",
+   "parent": {
+    "kept": "{\"v\":1,\"h\":\"7dcf38b1ab56d1021600bd65bd9ae0909eda4e48b9389e083d4e101fd78acd6d\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2026-11-25T23:30:37Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2026-11-30T22:19:37Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:19:37Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:19:37Z\",\"d\":null,\"a\":false}}}",
+    "salt": "3d2795a9fd94752fff78174e8f26da2d"
+   },
+   "head": {
+    "before": {
+     "face": "29% 5h · 36% wk",
+     "lines": [
+      "Antigravity",
+      "Example Tier plan",
+      "Gemini 29% 5h, Resets in 3h 10m",
+      "Gemini 36% wk, Resets in 5d 1h",
+      "Other models 0% 5h",
+      "Other models 0% wk"
+     ]
+    },
+    "script": {
+     "rewritten": true,
+     "salt": "3d2795a9fd94752fff78174e8f26da2d"
+    },
+    "keptAfter": "{\"v\":1,\"h\":\"7dcf38b1ab56d1021600bd65bd9ae0909eda4e48b9389e083d4e101fd78acd6d\",\"e\":\"p375-c0ffee0a-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2026-11-25T23:30:37Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2026-11-30T22:19:37Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:19:37Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:19:37Z\",\"d\":null,\"a\":false}}}",
+    "landed": true,
+    "afterMs": 5345,
+    "after": {
+     "face": "29% 5h · 36% wk",
+     "lines": [
+      "Antigravity",
+      "Example Tier plan",
+      "Login: p375-c0ffee0a-a@example.invalid",
+      "Gemini 29% 5h, Resets in 3h 10m",
+      "Gemini 36% wk, Resets in 5d 1h",
+      "Other models 0% 5h",
+      "Other models 0% wk"
+     ]
+    }
+   }
+  },
+  "STATUS": {
+   "parent": {
+    "plain": {
+     "argvShown": true,
+     "settled": true,
+     "samples": 134,
+     "working": 0,
+     "held": {
+      "aliveMs": 4191,
+      "samples": 21,
+      "working": 0,
+      "seen": [
+       "idle"
+      ],
+      "stat": [
+       "S+"
+      ]
+     },
+     "seen": [
+      "idle"
+     ],
+     "runs": 100,
+     "nonZero": 0
+    },
+    "setsid": {
+     "argvShown": true,
+     "settled": true,
+     "samples": 134,
+     "working": 0,
+     "held": {
+      "aliveMs": 4155,
+      "samples": 21,
+      "working": 0,
+      "seen": [
+       "idle"
+      ],
+      "stat": [
+       "Ss"
+      ]
+     },
+     "seen": [
+      "idle"
+     ],
+     "runs": 100,
+     "nonZero": 0
+    }
+   },
+   "head": {
+    "plain": {
+     "argvShown": true,
+     "settled": true,
+     "samples": 134,
+     "working": 0,
+     "held": {
+      "aliveMs": 4189,
+      "samples": 21,
+      "working": 0,
+      "seen": [
+       "idle"
+      ],
+      "stat": [
+       "S+"
+      ]
+     },
+     "seen": [
+      "idle"
+     ],
+     "runs": 100,
+     "nonZero": 0
+    },
+    "setsid": {
+     "argvShown": true,
+     "settled": true,
+     "samples": 134,
+     "working": 0,
+     "held": {
+      "aliveMs": 4184,
+      "samples": 21,
+      "working": 0,
+      "seen": [
+       "idle"
+      ],
+      "stat": [
+       "Ss"
+      ]
+     },
+     "seen": [
+      "idle"
+     ],
+     "runs": 100,
+     "nonZero": 0
+    }
+   }
+  },
+  "RUN": {
+   "launches": 7,
+   "returned": 7,
+   "socketed": 4,
+   "censused": 4,
+   "scans": 7,
+   "agentsHeld": true,
+   "fixtures": 7,
+   "socketSamples": 14,
+   "peers": [],
+   "census": "no change",
+   "tableRead": true,
+   "left": 0,
+   "electrons": 0,
+   "history": true
+  }
+ },
+ "broken": {
+  "OFF": [
+   {
+    "name": "both cards were read with the two other meters on",
+    "why": "a parent run missing, both cards empty, graded equal",
+    "ops": [
+     {
+      "set": "parent.groups",
+      "to": []
+     },
+     {
+      "set": "head.groups",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "both builds created the session and the stand-in said how it was started",
+    "why": "the parent launch never created its session",
+    "ops": [
+     {
+      "del": "parent.spawned"
+     }
+    ]
+   },
+   {
+    "name": "spawned as the parent spawned it",
+    "why": "HEAD hands the flag with the switch off",
+    "ops": [
+     {
+      "set": "head.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{}}"
+      ]
+     }
+    ]
+   }
+  ],
+  "ON": [
+   {
+    "name": "both builds’ sessions said hello",
+    "why": "a parent run missing",
+    "ops": [
+     {
+      "del": "parent"
+     }
+    ]
+   },
+   {
+    "name": "the line is the parent’s with \"e\":A after the hash",
+    "why": "the slot holds another account than the one planted",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"6655d54f99a1a090c6fdc05b8faf6d35ef972aa233ee29a04ce33f7a415ca613\",\"e\":\"p375-c0ffee0b-b@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:27:39Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:16:39Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:30:59Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:30:59Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the line is the parent’s with \"e\":A after the hash",
+    "why": "the slot holds no address at all",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"6655d54f99a1a090c6fdc05b8faf6d35ef972aa233ee29a04ce33f7a415ca613\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:27:39Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:16:39Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:30:59Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:30:59Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   }
+  ],
+  "CARD": [
+   {
+    "name": "the address drawn is the slot line’s",
+    "why": "an address drawn from a seed: the slot says null and the card names A",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"6655d54f99a1a090c6fdc05b8faf6d35ef972aa233ee29a04ce33f7a415ca613\",\"e\":null,\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:27:39Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:16:39Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:30:59Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:30:59Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the address drawn is the slot line’s",
+    "why": "an address drawn from a seed: the slot line has no e and the card names A",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"6655d54f99a1a090c6fdc05b8faf6d35ef972aa233ee29a04ce33f7a415ca613\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2026-11-25T23:27:39Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2026-11-30T22:16:39Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2026-11-26T01:30:59Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2026-12-02T20:30:59Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "both drew the reported numbers",
+    "why": "HEAD’s card read before it was drawn",
+    "ops": [
+     {
+      "set": "head.groups.2.lines",
+      "to": [
+       "Antigravity",
+       "Example Tier plan"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the parent’s card shows the line it was given",
+    "why": "the parent’s card read while an older line was drawn",
+    "ops": [
+     {
+      "set": "parent.groups.2.lines.2",
+      "to": "Gemini 29% 5h, Resets in 3h 11m"
+     }
+    ]
+   },
+   {
+    "name": "both cards were read, all three groups",
+    "why": "a parent run missing",
+    "ops": [
+     {
+      "del": "parent"
+     }
+    ]
+   },
+   {
+    "name": "the resting row was read",
+    "why": "the resting row not found: a null that names no address",
+    "ops": [
+     {
+      "set": "head.resting",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the slot line was read beside the card",
+    "why": "the slot line not read",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": null
+     }
+    ]
+   }
+  ],
+  "SETTINGS": [
+   {
+    "name": "both builds’ logins were read, Claude’s and Codex’s",
+    "why": "a parent run missing, graded equal",
+    "ops": [
+     {
+      "del": "parentOn"
+     }
+    ]
+   },
+   {
+    "name": "the address had reported before the row was read",
+    "why": "the slot never held the address, so the row came from elsewhere",
+    "ops": [
+     {
+      "set": "reported",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the row is there with its words",
+    "why": "the row names another account",
+    "ops": [
+     {
+      "set": "headOn.2.caption",
+      "to": "p375-c0ffee0b-b@example.invalid · Signed in to the Antigravity CLI. Switch accounts there."
+     }
+    ]
+   }
+  ],
+  "TWO": [
+   {
+    "name": "every sample is of one launch",
+    "why": "two accounts read in different launches, graded as one",
+    "ops": [
+     {
+      "set": "samples.60.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.61.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.62.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.63.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.64.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.65.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.66.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.67.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.68.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.69.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.70.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.71.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.72.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.73.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.74.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.75.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.76.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.77.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.78.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.79.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.80.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.81.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.82.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.83.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.84.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.85.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.86.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.87.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.88.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.89.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.90.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.91.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.92.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.93.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.94.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.95.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.96.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.97.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.98.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.99.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.100.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.101.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.102.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.103.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.104.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.105.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.106.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.107.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.108.pid",
+      "to": 61616
+     },
+     {
+      "set": "samples.109.pid",
+      "to": 61616
+     }
+    ]
+   },
+   {
+    "name": "and while B was the last writer",
+    "why": "B’s window never sampled, so its clause asked nothing",
+    "ops": [
+     {
+      "set": "samples",
+      "to": [
+       {
+        "at": 1795637819722,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637819875,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637820028,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637820180,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637820332,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637820483,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637820636,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637820788,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637820940,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637821093,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637821246,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637821398,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637821551,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637821704,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637821857,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637822010,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637822162,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637822315,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637822468,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637822619,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637822771,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637822923,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637823074,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637823225,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637823377,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637823528,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637823680,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637823831,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637823984,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637824136,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637824289,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637824440,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637824592,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637824744,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637824896,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637825049,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637825200,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637825353,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637825506,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637825658,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637825811,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637825964,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637826116,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637826268,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637826420,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637826573,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637826726,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637826878,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637827029,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637827181,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637827333,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637827486,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637827639,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637827792,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637827944,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637828097,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637828250,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637828401,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637828553,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637828706,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637836514,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637836668,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637836821,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637836975,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637837129,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637837282,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637837435,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637837590,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637837743,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637837894,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637838047,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637838199,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637838353,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637838505,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-c0ffee0b-b@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637838661,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637838813,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637838968,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637839123,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637839275,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637839428,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637839583,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637839735,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637839887,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637840040,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637840195,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637840348,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637840501,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637840654,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637840808,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637840959,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637841111,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637841263,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637841414,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637841567,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637841721,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637841871,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637842025,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637842178,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637842331,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637842484,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637842637,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637842792,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637842946,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637843099,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637843253,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637843405,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637843557,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637843711,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637843864,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637844017,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637844169,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637844323,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637844475,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637844627,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637844779,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637844931,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637845084,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637845238,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       },
+       {
+        "at": 1795637845391,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-c0ffee0a-a@example.invalid",
+        "pid": 51515
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every sample’s address and numbers are one file’s",
+    "why": "A’s address with B’s numbers",
+    "ops": [
+     {
+      "set": "samples.150.face",
+      "to": "47% 5h · 16% wk"
+     }
+    ]
+   },
+   {
+    "name": "the card was sampled throughout, every sample a reading",
+    "why": "a card read before it was drawn",
+    "ops": [
+     {
+      "set": "samples.60.face",
+      "to": ""
+     }
+    ]
+   }
+  ],
+  "SEARCH": [
+   {
+    "name": "every file of the world was read, and a byte that is there was found",
+    "why": "a search that searched nothing",
+    "ops": [
+     {
+      "set": "files",
+      "to": 0
+     },
+     {
+      "set": "control",
+      "to": false
+     },
+     {
+      "set": "hits",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "every file of the world was read, and a byte that is there was found",
+    "why": "a search of the profile alone: the control in HOME not found",
+    "ops": [
+     {
+      "set": "control",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a copy of the manifest was dumped, this launch’s sessions in it",
+    "why": "a copy that missed its WAL: no rows, so no address",
+    "ops": [
+     {
+      "set": "manifest.control",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "both accounts are in their slot lines",
+    "why": "the files were read and nothing was found, not even the slot lines",
+    "ops": [
+     {
+      "set": "hits",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "on disk, only in a slot line’s \"e\"",
+    "why": "a stand-in’s seed under HOME holds the address",
+    "ops": [
+     {
+      "push": "hits",
+      "to": {
+       "path": "/h/.gemini/antigravity-cli/accounts.json",
+       "label": "A",
+       "form": "A",
+       "slotE": false
+      }
+     }
+    ]
+   },
+   {
+    "name": "on disk, only in a slot line’s \"e\"",
+    "why": "app.log names it",
+    "ops": [
+     {
+      "push": "hits",
+      "to": {
+       "path": "/p/logs/app.log",
+       "label": "B",
+       "form": "B local part",
+       "slotE": false
+      }
+     }
+    ]
+   },
+   {
+    "name": "on disk, only in a slot line’s \"e\"",
+    "why": "in a slot file, but outside its \"e\"",
+    "ops": [
+     {
+      "push": "hits",
+      "to": {
+       "path": "/p/gmux/antigravity-usage/8de49cb8-2aaa-453b-91fa-44b41c4469fd.json",
+       "label": "A",
+       "form": "A base64",
+       "slotE": false
+      }
+     }
+    ]
+   },
+   {
+    "name": "usage:account answers the last writer",
+    "why": "the account answer is the first writer’s",
+    "ops": [
+     {
+      "set": "ipc.account",
+      "to": "p375-c0ffee0b-b@example.invalid"
+     }
+    ]
+   }
+  ],
+  "OLDER": [
+   {
+    "name": "the parent was launched on that profile and its card read",
+    "why": "the parent’s card read before it was drawn: no numbers, so no login line either",
+    "ops": [
+     {
+      "set": "parent.lines",
+      "to": [
+       "Antigravity",
+       "Example Tier plan"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the parent’s card was read after the live write",
+    "why": "no card after the live write: a null that names no login",
+    "ops": [
+     {
+      "set": "parent.live.lines",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the parent was launched on that profile and its card read",
+    "why": "a parent run missing",
+    "ops": [
+     {
+      "set": "parent",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "and no login line",
+    "why": "the parent draws the address",
+    "ops": [
+     {
+      "set": "parent.lines",
+      "to": [
+       "Antigravity",
+       "Example Tier plan",
+       "Login: p375-c0ffee0a-a@example.invalid",
+       "Gemini 29% 5h, Resets in 3h 10m",
+       "Gemini 36% wk, Resets in 5d 1h",
+       "Other models 0% 5h",
+       "Other models 0% wk"
+      ]
+     }
+    ]
+   }
+  ],
+  "NEWER": [
+   {
+    "name": "the parent wrote its own shape",
+    "why": "a parent run missing",
+    "ops": [
+     {
+      "set": "parent",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "before the next run: no login line",
+    "why": "an address drawn before any line held one: from a seed, not the slot",
+    "ops": [
+     {
+      "set": "head.before.lines",
+      "to": [
+       "Antigravity",
+       "Example Tier plan",
+       "Login: p375-c0ffee0a-a@example.invalid",
+       "Gemini 29% 5h, Resets in 3h 10m",
+       "Gemini 36% wk, Resets in 5d 1h",
+       "Other models 0% 5h",
+       "Other models 0% wk"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "HEAD drew the parent’s numbers first",
+    "why": "HEAD’s first card read before it was drawn",
+    "ops": [
+     {
+      "set": "head.before.face",
+      "to": ""
+     },
+     {
+      "set": "head.before.lines",
+      "to": [
+       "Antigravity"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the card says Login: A within 6000 ms",
+    "why": "too slow",
+    "ops": [
+     {
+      "set": "head.afterMs",
+      "to": 6001
+     }
+    ]
+   }
+  ],
+  "STATUS": [
+   {
+    "name": "the command line showed the flag, as a real agy’s does",
+    "why": "a parent run missing",
+    "ops": [
+     {
+      "del": "parent"
+     }
+    ]
+   },
+   {
+    "name": "no worse than the parent",
+    "why": "one look read working at HEAD alone",
+    "ops": [
+     {
+      "set": "head.plain.working",
+      "to": 1
+     }
+    ]
+   }
+  ],
+  "RUN": [
+   {
+    "name": "every launch was read",
+    "why": "a launch whose agents list was never read",
+    "ops": [
+     {
+      "set": "scans",
+      "to": 6
+     }
+    ]
+   },
+   {
+    "name": "no peer but this Mac",
+    "why": "a request left the Mac",
+    "ops": [
+     {
+      "set": "peers",
+      "to": [
+       "192.0.2.7:443"
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

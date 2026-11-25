@@ -33,6 +33,15 @@
  * NO HASH LEAVES MAIN. It is compared nowhere, because rule 1 makes comparing
  * it unnecessary: a newer file from another account replaces the whole reading.
  * It is what makes a file a reading, and the row does not carry it.
+ *
+ * THE ADDRESS DOES LEAVE MAIN, on this row alone (Phase 375, on the person's
+ * word). The script keeps it as `e` only when it is a plain address, and it is
+ * asked `usageAddress` again here like every other field, so a file somebody
+ * else wrote can put nothing else on the card. It rides with the numbers of
+ * the SAME file (rule 1): a newer file from another account replaces both in
+ * one step, and a newer file that names no address draws none, never an older
+ * file's. A `waiting` row carries none, because it says nothing has arrived.
+ * The hash, not the address, is still what makes a file a reading.
  */
 
 import type {
@@ -46,6 +55,7 @@ import {
   boundUsageReset,
   clampUsagePercent,
   emptyUsageProvider,
+  usageAddress,
   usagePlanWord
 } from '@shared/usage';
 import type { AntigravityFile } from './folder';
@@ -77,6 +87,13 @@ export interface AntigravityBucket {
 export interface AntigravityReading {
   /** Which account, as a salted hash the script made. Never leaves main. */
   hash: string;
+  /**
+   * The account's address as the file names it, when it passes `usageAddress`
+   * (Phase 375 D5), else null. A file with an address and no valid hash is not
+   * a reading at all; a hash with no address, or an odd one, is a reading with
+   * this null and its numbers kept.
+   */
+  email: string | null;
   plan: string | null;
   /** When the kept numbers last CHANGED, being the file's own time. */
   at: number;
@@ -152,7 +169,7 @@ export function parseAntigravityFile(text: string): AntigravityReading | null {
     const bucket = bucketOf(q[id]);
     if (bucket !== null) buckets[id] = bucket;
   }
-  return { hash, plan: usagePlanWord(obj['p']), at: 0, buckets };
+  return { hash, email: usageAddress(obj['e']), plan: usagePlanWord(obj['p']), at: 0, buckets };
 }
 
 /**
@@ -250,6 +267,9 @@ export function antigravityRow(
     waitingFor
   });
   if (reading === null) return waiting();
+  // PHASE 375 D6. Spread, so a reading with no address adds no key at all and
+  // the row is Phase 374's JSON byte for byte. Never `email: null` or undefined.
+  const account = reading.email === null ? {} : { email: reading.email };
   const b = reading.buckets;
   const five = drawnOf(b['gemini-5h'], FIVE_HOURS_MS, reading.at, now);
   const week = drawnOf(b['gemini-weekly'], SEVEN_DAYS_MS, reading.at, now);
@@ -261,7 +281,8 @@ export function antigravityRow(
     return {
       ...emptyUsageProvider('antigravity', 'no-windows'),
       plan: reading.plan,
-      readAt: reading.at
+      readAt: reading.at,
+      ...account
     };
   }
   const second: UsageSecondGroup = {
@@ -275,6 +296,7 @@ export function antigravityRow(
     sevenDay: windowOf(week),
     second: second.fiveHour === null && second.sevenDay === null ? null : second,
     plan: reading.plan,
-    readAt: reading.at
+    readAt: reading.at,
+    ...account
   };
 }

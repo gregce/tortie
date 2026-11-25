@@ -9,6 +9,13 @@
  *
  * The expected line is composed here from `JSON.parse` and `node:crypto`, which
  * share no code with the script's awk and openssl.
+ *
+ * PHASE 375 MOVED THIS FILE ON PURPOSE, AND ONLY THIS FAR (build/p375/SPEC.md
+ * D17): the script now also keeps the account's plain address as `"e"`, so a
+ * kept line carries it straight after the hash and "no address byte left
+ * anywhere" reads "no address byte anywhere but as the `e` of a slot line or
+ * of its unrenamed write". The row names are the ones Phase 374 gave them, so
+ * `ablation:p374` still finds them. The new rows are p375-script.test.ts's.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -103,6 +110,22 @@ function run(sh: string, payload: string | Buffer, env: NodeJS.ProcessEnv = ENV,
 /** The hash the kept line must hold: the salt, then the RAW token of the address. */
 const hashOf = (rawToken: string): string => createHash('sha256').update(`${SALT}${rawToken}`).digest('hex');
 
+/**
+ * Phase 375: what the line keeps as `"e"` for a RAW top level token, written
+ * here from build/p375/SPEC.md D2 and not from the awk: the token itself when it
+ * is a plain ASCII address of at most 256 characters with its quotes and its
+ * `@` at index 2 to 65, and `null` for anything else.
+ */
+const PLAIN_TOKEN = /^"[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+"$/;
+function keptE(rawToken: string): string {
+  if (rawToken.length > 256 || !PLAIN_TOKEN.test(rawToken)) return 'null';
+  const at = rawToken.indexOf('@');
+  return at >= 2 && at <= 65 ? rawToken : 'null';
+}
+
+/** A kept line with its hash and its `"e"` taken off, being Phase 374's tail. */
+const HEAD = /^\{"v":1,"h":"[0-9a-f]{64}","e":(null|"[^"\\]*"),/;
+
 /** The kept line for a payload object, by `JSON.parse` alone. */
 function expected(p: Record<string, any>, rawMail = JSON.stringify(p['email'])): string {
   const q: string[] = [];
@@ -114,16 +137,23 @@ function expected(p: Record<string, any>, rawMail = JSON.stringify(p['email'])):
         `"d":${b.disabled === undefined ? 'null' : String(b.disabled)},"a":${String(b.remaining_amount !== undefined)}}`
     );
   }
-  return `{"v":1,"h":"${hashOf(rawMail)}","p":${p['plan_tier'] === undefined ? 'null' : JSON.stringify(p['plan_tier'])},"q":{${q.join(',')}}}\n`;
+  return `{"v":1,"h":"${hashOf(rawMail)}","e":${keptE(rawMail)},"p":${p['plan_tier'] === undefined ? 'null' : JSON.stringify(p['plan_tier'])},"q":{${q.join(',')}}}\n`;
 }
 
-/** Every byte Tortie's script left anywhere it could. */
+/**
+ * Every byte Tortie's script left anywhere it could, with the one place an
+ * address may stand since Phase 375 taken out: the `"e"` of a slot line, or of
+ * its unrenamed write, in exactly the shape the line begins with. An address
+ * anywhere else, or in any other file, is still found.
+ */
 function everything(): string {
   const out: string[] = [];
+  const slotName = new RegExp(`^${SID}\\.json(\\.\\d+\\.tmp)?$`);
   for (const d of [dir, tmp, home]) {
     for (const name of readdirSync(d)) {
       if (join(d, name) === SCRIPT) continue;
-      out.push(name, readFileSync(join(d, name), 'utf8'));
+      const text = readFileSync(join(d, name), 'utf8');
+      out.push(name, d === dir && slotName.test(name) ? text.replace(/^(\{"v":1,"h":"[0-9a-f]{64}","e":)"[^"\\]*",/, '$1"KEPT",') : text);
     }
   }
   return out.join('\n');
@@ -425,6 +455,7 @@ describe('S1: the committed recording and the committed hostile payloads', () =>
         const runs = readFileSync(join(FIXTURES, `${which}.jsonl`), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
         expect(runs).toHaveLength(want[which].runs);
         let writes = 0;
+        let keptBy: string | undefined;
         for (const [i, one] of runs.entries()) {
           const before = statSync(SLOT, { bigint: true }).ino;
           const r = run(sh, JSON.stringify(one.payload));
@@ -433,7 +464,12 @@ describe('S1: the committed recording and the committed hostile payloads', () =>
           const held = want[which].perRun[i];
           expect([which, held.run, r.rc, r.out, wrote]).toEqual([which, held.run, 0, '', held.wrote]);
           if (held.held === null) expect([which, held.run, r.line]).toEqual([which, held.run, '{}\n']);
-          else expect([which, held.run, r.line.replace(/^\{"v":1,"h":"[0-9a-f]{64}",/, '')]).toEqual([which, held.run, `${held.held}\n`]);
+          else {
+            expect([which, held.run, r.line.replace(HEAD, '')]).toEqual([which, held.run, `${held.held}\n`]);
+            // Phase 375: the address beside them is that of the run that wrote them, by D2's rule.
+            if (wrote) keptBy = keptE(JSON.stringify(one.payload.email));
+            expect([which, held.run, HEAD.exec(r.line)?.[1]]).toEqual([which, held.run, keptBy]);
+          }
         }
         expect([which, writes]).toEqual([which, want[which].writes]);
       }
@@ -448,7 +484,7 @@ describe('S1: the committed recording and the committed hostile payloads', () =>
         // A payload that says nothing of its line is no expectation.
         expect([one.name, one.tail === null || typeof one.tail === 'string']).toEqual([one.name, true]);
         if (one.tail === null) expect([one.name, r.line]).toEqual([one.name, '{}\n']);
-        else expect([one.name, r.line.replace(/^\{"v":1,"h":"[0-9a-f]{64}",/, '')]).toEqual([one.name, `${one.tail}\n`]);
+        else expect([one.name, r.line.replace(HEAD, '')]).toEqual([one.name, `${one.tail}\n`]);
         expect([one.name, everything().includes('@')]).toEqual([one.name, false]);
       }
     }, 120_000);
@@ -601,7 +637,8 @@ describe('S4: killed at any step', () => {
     expect(killed - wroteThenKilled).toBeGreaterThan(5);
     // No process of a killed run outlives it.
     expect(slowestEnd).toBeLessThan(5000);
-    // What a kill can leave is one temporary name, and it holds no address.
+    // What a kill can leave is one temporary name, and it holds no address but
+    // as the `e` of the one whole line (Phase 375).
     for (const name of readdirSync(dir)) {
       expect([`${SID}.json`, 'status.sh'].includes(name) || new RegExp(`^${SID}\\.json\\.\\d+\\.tmp$`).test(name)).toBe(true);
     }
@@ -638,7 +675,8 @@ describe('S5: the text itself', () => {
     expect(bare.startsWith('unset ')).toBe(true);
     expect(bare.split('\n').slice(1, 3)).toEqual(['set +a', 'umask 077']);
     expect(bare).toContain('while IFS= read -r tt_l || [ -n "$tt_l" ]; do');
-    expect(bare).toContain('[ ${#tt_p} -le 16384 ] || exit 0');
+    // Phase 375 D3: the bound is the sum of the lines' own lengths, as 374 counted it.
+    expect(bare).toContain('[ $tt_c -le 16384 ] || exit 0');
     expect(bare).toContain('[ ${#tt_h} -eq 64 ] || exit 0');
     expect(bare).toContain('>"$tt_t" && [ -f "$tt_f" ] && /bin/mv -f "$tt_t" "$tt_f" && exit 0\n/bin/rm -f "$tt_t"\nexit 0\n');
   });

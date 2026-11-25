@@ -37,6 +37,15 @@
  * a domain that reads credentials. The row's second model group is drawn on
  * the card alone, because the face has room for two numbers and the bar must
  * go on agreeing with the first of them.
+ *
+ * PHASE 375 NAMES THAT ROW'S ACCOUNT, and still offers no control for it. The
+ * row carries the address its own sessions handed Tortie's script, and only
+ * that row ever does, so the card draws Phase 203's `Login: <address>` from
+ * it in the place Claude's and Codex's login line goes. The address is asked
+ * of `usageAddress` once more here, is drawn on the hover card alone and never
+ * in a row's resting accessible text, and a Claude or Codex row's own `email`
+ * is never read: their addresses come from the logins store, as before.
+ * Switching the account is the Antigravity CLI's, so no Choose login is drawn.
  */
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -44,6 +53,7 @@ import { createPortal } from 'react-dom';
 import type { UsageProviderId, UsageProviderSnapshot, UsageWindow } from '@shared/usage';
 import {
   clampUsagePercent,
+  usageAddress,
   usageHasNumbers,
   usageIsReceiver,
   usageLoginProvider
@@ -209,6 +219,11 @@ export function cardLines(
    * PHASE 203. The address of the login these numbers came from, when the
    * vendor's own file names one. Null is ordinary and means the card names the
    * login the way it did before.
+   *
+   * PHASE 375. For a provider with no login it is the account the row's own
+   * sessions reported, and it is drawn only when it is handed here: a row's
+   * resting accessible text calls this with none, so the address is on the
+   * hover card alone.
    */
   email: string | null = null
 ): string[] {
@@ -222,8 +237,10 @@ export function cardLines(
   // sign in gets no line, because naming it would put a word on the card of
   // every install that has only ever had one login.
   // PHASE 374. A provider with no login names none, whatever a snapshot holds.
+  // PHASE 375. It names its account when one is handed, and still never the
+  // login name a snapshot holds.
   const hasLogin = usageLoginProvider(p.provider) !== null;
-  const login = hasLogin ? usageLoginLine(p.login, email) : '';
+  const login = usageLoginLine(hasLogin ? p.login : null, email);
   if (login !== '') out.push(login);
   const first = windowLines(p.fiveHour, p.sevenDay, now);
   out.push(...(p.second != null ? first.map((text) => `${USAGE_FIRST_GROUP_LABEL} ${text}`) : first));
@@ -311,15 +328,20 @@ export function sessionsElsewhere(
  * than by widening what the meter sends.
  *
  * A NULL NAME IS THE DEFAULT LOGIN, which is why the match is against
- * `isDefault` rather than against a word. A provider with no login has no
- * address, and the list is not asked about one (Phase 374).
+ * `isDefault` rather than against a word. A provider with no login is not
+ * asked about on the list (Phase 374).
+ *
+ * PHASE 375. Its address is the one its own row carries, asked of the shared
+ * shape check again, so a value main should never have sent is drawn as no
+ * line. A login provider's row is never read for one: those addresses are the
+ * logins store's, and a stray `email` there is ignored.
  */
 export function loginEmailOf(
   snapshot: LoginsSnapshot,
   p: UsageProviderSnapshot
 ): string | null {
   const provider = usageLoginProvider(p.provider);
-  if (provider === null) return null;
+  if (provider === null) return usageAddress(p.email);
   const rows = loginsOf(snapshot, provider);
   const row =
     p.login === null || p.login.length === 0

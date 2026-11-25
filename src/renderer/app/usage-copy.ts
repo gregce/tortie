@@ -76,6 +76,10 @@ export const USAGE_FIRST_GROUP_LABEL = 'Gemini';
  * the default that is no line at all, which is the Phase 202 rule: naming the
  * default would put a word on the card of every install that has only ever had
  * one login.
+ *
+ * PHASE 375. It also names the account a received row reported (Antigravity),
+ * with no login name beside it: such a row has none, so it is called with a
+ * null login and draws the address or nothing.
  */
 export function usageLoginLine(
   login: string | null,

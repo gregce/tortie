@@ -87,8 +87,14 @@ export const USAGE_ABOUT_WHERE =
   'Claude and Codex ask only the vendor that issued your login. Both addresses are built in and no setting changes them. Antigravity asks nobody.';
 export const USAGE_ABOUT_READONLY =
   'Your login is read, never written, refreshed or copied. Run the agent once to refresh a stale login.';
+/**
+ * PHASE 375 NARROWED THIS ONE AGAIN. Its last sentence, `No part of a login
+ * reaches a log or a file`, became false once the account an Antigravity
+ * session reports is kept beside its numbers, so the sentence names that place
+ * and says no part of a login reaches any other file.
+ */
 export const USAGE_ABOUT_KEPT =
-  "Claude and Codex numbers stay in memory until you quit. Antigravity's stay in Tortie's own folder until you turn that meter off or remove the session. No part of a login reaches a log or a file.";
+  "Claude and Codex numbers stay in memory until you quit. Antigravity's numbers and the account they belong to stay in Tortie's own folder until you turn that meter off or remove the session. No part of a login reaches a log or any other file.";
 export const USAGE_ABOUT_WHEN =
   'Claude and Codex ask every fifteen minutes, and only while this window is in front. The refresh control asks now. Antigravity updates as its sessions work.';
 
@@ -101,6 +107,13 @@ export const USAGE_ABOUT_WHEN =
  * Tortie never touches it.
  */
 export const USAGE_LOGINS_LABEL = 'Logins';
+/**
+ * PHASE 375. The Antigravity row under the logins, read only. It says whose
+ * account it is and where it is switched, and nothing else: Tortie cannot
+ * choose or remove that account, so the row has no control.
+ */
+export const USAGE_ANTIGRAVITY_ACCOUNT_NOTE =
+  'Signed in to the Antigravity CLI. Switch accounts there.';
 export const USAGE_LOGINS_CAPTION =
   'Which sign in a new session runs under. Choose one from the usage meter. Running sessions keep the one they started with.';
 

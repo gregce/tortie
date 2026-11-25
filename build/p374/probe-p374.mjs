@@ -77,7 +77,8 @@
  *          every time. The same two readings of a person's own status line at
  *          the parent are printed beside it
  *   ACCT   signed out, then in as another: never a mixture, never the first
- *          again, and no byte of either address anywhere
+ *          again, and no byte of either address anywhere but as a slot
+ *          line's "e" (Phase 375 moved this on purpose, build/p375/SPEC.md D17)
  *   LIFE   the app closed while the sessions report, reopened on the last
  *          number with its age; a removed session, the boot sweep, off
  *   RECT   three rows: the first two where the parent draws them
@@ -182,6 +183,10 @@ export function spliceProblems(argv, scriptUnder) {
   }
   return out;
 }
+
+/** Where Phase 375 lets an address stand on disk: a slot line or its unrenamed write, relative to the world, and only as its `"e"`. */
+export const SLOT_PATH = /^\/p\/gmux\/antigravity-usage\/[0-9a-f-]{36}\.json(?:\.\d+\.tmp)?$/;
+const SLOT_HEAD = /^(\{"v":1,"h":"[0-9a-f]{64}",)"e":("[^"\\]*"|null),/;
 
 // ---------------------------------------------------------------------------
 // The graders. Each is `{ title, needs, clauses }` over one plain reading.
@@ -373,7 +378,7 @@ export const GRADERS = {
       }],
       [`the first is gone within ${String(FACE_MS)} ms of the second's first file`, (r) => r.samples.filter((s) => s.at > r.secondFileAt + FACE_MS).every((s) => r.secondFaces.includes(s.face))],
       ['the second’s last numbers are drawn', (r) => r.finalFace === r.wantFinal],
-      ['no address byte in any file', (r) => same(r.hits, [])],
+      ['no address byte in any file but a slot line’s "e"', (r) => r.hits.every((h) => h !== null && typeof h === 'object' && h.slotE === true && SLOT_PATH.test(String(h.path)))],
       ['the two hashes differ', (r) => typeof r.hashes?.[0] === 'string' && typeof r.hashes?.[1] === 'string' && r.hashes[0] !== r.hashes[1]]
     ]
   },
@@ -821,7 +826,8 @@ const keptOf = (id) => {
     return null;
   }
 };
-const tailIn = (kept) => (kept === null ? null : kept.replace(/^\{"v":1,"h":"[0-9a-f]{64}",/, ''));
+// Since Phase 375 the line carries `"e"` straight after the hash; the tail is what follows either shape.
+const tailIn = (kept) => (kept === null ? null : kept.replace(/^\{"v":1,"h":"[0-9a-f]{64}",(?:"e":(?:null|"[^"\\]*"),)?/, ''));
 const hashIn = (kept) => /^\{"v":1,"h":"([0-9a-f]{64})"/.exec(kept ?? '')?.[1] ?? null;
 function walk(dir, visit, skip = () => false) {
   let names = [];
@@ -842,6 +848,33 @@ function walk(dir, visit, skip = () => false) {
     if (st.isDirectory()) walk(p, visit, skip);
     else if (st.isFile()) visit(p);
   }
+}
+/**
+ * The same search for ACCT, each hit an object: the file, the needle and
+ * whether it stood ONLY as a slot line's `"e"` (the line with its `"e"` taken
+ * out no longer holds it).
+ */
+function searchAddresses(needles) {
+  const hits = [];
+  const unread = [];
+  let files = 0;
+  let control = false;
+  walk(W, (p) => {
+    let b;
+    try {
+      b = readFileSync(p);
+    } catch (err) {
+      if (err?.code !== 'ENOENT') unread.push(`${p.slice(W.length)}: ${String(err?.code)}`);
+      return;
+    }
+    files += 1;
+    if (b.includes(SEARCH_CONTROL)) control = true;
+    const rel = p.slice(W.length);
+    const text = SLOT_PATH.test(rel) ? b.toString('utf8') : '';
+    const left = SLOT_HEAD.test(text) ? Buffer.from(text.replace(SLOT_HEAD, '$1')) : null;
+    for (const n of needles) if (b.includes(n)) hits.push({ path: rel, needle: n, slotE: left !== null && !left.includes(n) });
+  });
+  return { hits, files, control, unread };
 }
 /** Every file under the world holding one of `needles`, as `path: needle`; whether the byte that IS there was found; and what could not be read. */
 function search(needles) {
@@ -1562,7 +1595,7 @@ async function headOn(k) {
       await sleep(120);
     }
     await k.done(s.hello, seq, 10_000);
-    const found = search([PERSON, OTHER, 'person@', 'other@', 'example.com', 'example.org', Buffer.from(PERSON).toString('base64').slice(0, 16)]);
+    const found = searchAddresses([PERSON, OTHER, 'person@', 'other@', 'example.com', 'example.org', Buffer.from(PERSON).toString('base64').slice(0, 16)]);
     R.ACCT = { firstDrawn, firstKept, signedOut, secondFileAt, samples, searched: found.files, searchedControl: found.control, unread: found.unread, signedOutSame, firstFaces, secondFaces, finalFace: await k.face(), wantFinal: faceOf(rebase(resumeLines.at(-1), s.hello.origin), Date.now()), hits: found.hits, hashes: [firstHash, hashIn(keptOf(s.id))] };
     await k.kill(s.id);
   });

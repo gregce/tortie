@@ -1,0 +1,3295 @@
+{
+ "note": "Phase 375. The graders of build/p375/probe-p375.mjs, each over an honest reading and readings broken one clause at a time. Every address is invented under example.invalid.",
+ "OFF": {
+  "honest": {
+   "parent": {
+    "spawned": [],
+    "recorded": [
+     "/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "asked": true,
+    "runs": 0,
+    "folder": false,
+    "groups": [
+     {
+      "lines": [
+       "Claude",
+       "Plan: Max",
+       "Five hour 37%, Resets in 2h 59m",
+       "Seven day 12%, Resets in 3d 23h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Codex",
+       "Plan: Pro",
+       "Five hour 41%, Resets in 59m",
+       "Seven day 9%, Resets in 23h 59m"
+      ],
+      "controls": 1
+     }
+    ],
+    "settings": [
+     {
+      "provider": "claude",
+      "label": "Claude",
+      "text": "ClaudeDefault · your own sign in",
+      "caption": null,
+      "controls": 0
+     },
+     {
+      "provider": "codex",
+      "label": "Codex",
+      "text": "CodexDefault · your own sign in",
+      "caption": null,
+      "controls": 0
+     }
+    ]
+   },
+   "head": {
+    "spawned": [],
+    "recorded": [
+     "/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "asked": true,
+    "runs": 0,
+    "folder": false,
+    "groups": [
+     {
+      "lines": [
+       "Claude",
+       "Plan: Max",
+       "Five hour 37%, Resets in 2h 41m",
+       "Seven day 12%, Resets in 3d 23h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Codex",
+       "Plan: Pro",
+       "Five hour 41%, Resets in 59m",
+       "Seven day 9%, Resets in 23h 59m"
+      ],
+      "controls": 1
+     }
+    ],
+    "settings": [
+     {
+      "provider": "claude",
+      "label": "Claude",
+      "text": "ClaudeDefault · your own sign in",
+      "caption": null,
+      "controls": 0
+     },
+     {
+      "provider": "codex",
+      "label": "Codex",
+      "text": "CodexDefault · your own sign in",
+      "caption": null,
+      "controls": 0
+     }
+    ]
+   }
+  },
+  "broken": [
+   {
+    "name": "both builds created the session and the stand-in said how it was started",
+    "why": "no hello at HEAD",
+    "ops": [
+     {
+      "set": "head.spawned",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "both builds created the session and the stand-in said how it was started",
+    "why": "no row at the parent",
+    "ops": [
+     {
+      "del": "parent.recorded"
+     }
+    ]
+   },
+   {
+    "name": "the stand-in answered the run it was asked for",
+    "why": "never answered",
+    "ops": [
+     {
+      "set": "head.asked",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "both cards were read with the two other meters on",
+    "why": "no Codex group",
+    "ops": [
+     {
+      "set": "head.groups",
+      "to": [
+       {
+        "lines": [
+         "Claude",
+         "Plan: Max",
+         "Five hour 37%, Resets in 2h 59m",
+         "Seven day 12%, Resets in 3d 23h"
+        ],
+        "controls": 1
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "both Settings pages drew their logins",
+    "why": "no logins at the parent",
+    "ops": [
+     {
+      "set": "parent.settings",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "the folder was read",
+    "why": "not read",
+    "ops": [
+     {
+      "del": "head.folder"
+     }
+    ]
+   },
+   {
+    "name": "spawned as the parent spawned it",
+    "why": "a flag spliced with the switch off",
+    "ops": [
+     {
+      "set": "head.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "recorded as the parent recorded it",
+    "why": "the row differs",
+    "ops": [
+     {
+      "set": "head.recorded",
+      "to": [
+       "/w/h/.local/bin/agy",
+       "--x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "recorded as the parent recorded it",
+    "why": "the resume differs",
+    "ops": [
+     {
+      "set": "head.resume",
+      "to": [
+       "/w/h/.local/bin/agy",
+       "--resume",
+       "x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no argv holds --settings",
+    "why": "the recorded row names the flag, and so does the parent",
+    "ops": [
+     {
+      "set": "head.recorded",
+      "to": [
+       "/w/h/.local/bin/agy",
+       "--settings"
+      ]
+     },
+     {
+      "set": "parent.recorded",
+      "to": [
+       "/w/h/.local/bin/agy",
+       "--settings"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the folder was never made",
+    "why": "made",
+    "ops": [
+     {
+      "set": "head.folder",
+      "to": true
+     }
+    ]
+   },
+   {
+    "name": "no status line run",
+    "why": "a run",
+    "ops": [
+     {
+      "set": "head.runs",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "no Antigravity group on the card",
+    "why": "a group with the switch off",
+    "ops": [
+     {
+      "push": "head.groups",
+      "to": {
+       "lines": [
+        "Antigravity",
+        "Plan: Example Tier",
+        "Login: p375-0000aaaa-a@example.invalid",
+        "Gemini 30% 5h, Resets in 4h 58m",
+        "Gemini 37% wk, Resets in 3d 23h",
+        "Other models 0% 5h",
+        "Other models 0% wk"
+       ],
+       "controls": 0
+      }
+     }
+    ]
+   },
+   {
+    "name": "no Antigravity row in Settings",
+    "why": "a row with the switch off",
+    "ops": [
+     {
+      "push": "head.settings",
+      "to": {
+       "provider": "antigravity",
+       "label": "Antigravity",
+       "text": "Antigravityp375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+       "caption": "p375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+       "controls": 0
+      }
+     }
+    ]
+   },
+   {
+    "name": "the card’s groups are the parent’s",
+    "why": "Codex’s numbers moved",
+    "ops": [
+     {
+      "set": "head.groups.1.lines.2",
+      "to": "Five hour 42%, Resets in 59m"
+     }
+    ]
+   }
+  ]
+ },
+ "ON": {
+  "honest": {
+   "A": "p375-0000aaaa-a@example.invalid",
+   "parent": {
+    "pid": 101,
+    "kept": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "want": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "face": "30% 5h · 37% wk",
+    "wantFace": "30% 5h · 37% wk",
+    "runs": {
+     "sent": 42,
+     "logged": 42,
+     "codes": [
+      0
+     ],
+     "nonZero": 0,
+     "outBytes": 0,
+     "errBytes": 0,
+     "killedByNext": 0,
+     "errorBlocks": 0,
+     "ms": {
+      "max": 31,
+      "p50": 11
+     }
+    }
+   },
+   "head": {
+    "pid": 202,
+    "kept": "{\"v\":1,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"e\":\"p375-0000aaaa-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "want": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "face": "30% 5h · 37% wk",
+    "wantFace": "30% 5h · 37% wk",
+    "runs": {
+     "sent": 42,
+     "logged": 42,
+     "codes": [
+      0
+     ],
+     "nonZero": 0,
+     "outBytes": 0,
+     "errBytes": 0,
+     "killedByNext": 0,
+     "errorBlocks": 0,
+     "ms": {
+      "max": 31,
+      "p50": 11
+     }
+    }
+   }
+  },
+  "broken": [
+   {
+    "name": "both builds’ sessions said hello",
+    "why": "no pid",
+    "ops": [
+     {
+      "del": "head.pid"
+     }
+    ]
+   },
+   {
+    "name": "every replayed run was logged",
+    "why": "one run missing",
+    "ops": [
+     {
+      "set": "head.runs.logged",
+      "to": 41
+     }
+    ]
+   },
+   {
+    "name": "every replayed run was logged",
+    "why": "too few sent at the parent",
+    "ops": [
+     {
+      "set": "parent.runs.sent",
+      "to": 10
+     },
+     {
+      "set": "parent.runs.logged",
+      "to": 10
+     }
+    ]
+   },
+   {
+    "name": "both slot lines were read, each with its hash",
+    "why": "no slot line",
+    "ops": [
+     {
+      "set": "parent.kept",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "both slot lines were read, each with its hash",
+    "why": "no hash",
+    "ops": [
+     {
+      "set": "head.hash",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "there is a tail and a face to want",
+    "why": "nothing to want",
+    "ops": [
+     {
+      "set": "head.wantFace",
+      "to": ""
+     }
+    ]
+   },
+   {
+    "name": "the address was planted",
+    "why": "his own address shape",
+    "ops": [
+     {
+      "set": "A",
+      "to": "someone@example.com"
+     }
+    ]
+   },
+   {
+    "name": "every run exits 0",
+    "why": "a run exited 1",
+    "ops": [
+     {
+      "set": "head.runs.codes",
+      "to": [
+       0,
+       1
+      ]
+     },
+     {
+      "set": "head.runs.nonZero",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "no run wrote a byte",
+    "why": "a byte out",
+    "ops": [
+     {
+      "set": "head.runs.outBytes",
+      "to": 22
+     }
+    ]
+   },
+   {
+    "name": "no error block",
+    "why": "a block",
+    "ops": [
+     {
+      "set": "head.runs.errorBlocks",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "no run over the 300 ms overlap",
+    "why": "one killed",
+    "ops": [
+     {
+      "set": "head.runs.killedByNext",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "the parent’s line is the parent’s shape",
+    "why": "the parent wrote an e",
+    "ops": [
+     {
+      "set": "parent.kept",
+      "to": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"e\":\"p375-0000aaaa-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the line is the parent’s with \"e\":A after the hash",
+    "why": "no address",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the line is the parent’s with \"e\":A after the hash",
+    "why": "the address after the buckets",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}},\"e\":\"p375-0000aaaa-a@example.invalid\"}"
+     }
+    ]
+   },
+   {
+    "name": "the line is the parent’s with \"e\":A after the hash",
+    "why": "another address",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"e\":\"p375-0000bbbb-b@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the line is the parent’s with \"e\":A after the hash",
+    "why": "a version moved",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":2,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"e\":\"p375-0000aaaa-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the face draws the last numbers",
+    "why": "an older face",
+    "ops": [
+     {
+      "set": "head.face",
+      "to": "29% 5h · 36% wk"
+     }
+    ]
+   }
+  ]
+ },
+ "CARD": {
+  "honest": {
+   "A": "p375-0000aaaa-a@example.invalid",
+   "parent": {
+    "groups": [
+     {
+      "lines": [
+       "Claude",
+       "Plan: Max",
+       "Five hour 37%, Resets in 2h 59m",
+       "Seven day 12%, Resets in 3d 23h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Codex",
+       "Plan: Pro",
+       "Five hour 41%, Resets in 59m",
+       "Seven day 9%, Resets in 23h 59m"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Antigravity",
+       "Plan: Example Tier",
+       "Gemini 30% 5h, Resets in 4h 59m",
+       "Gemini 37% wk, Resets in 3d 23h",
+       "Other models 0% 5h",
+       "Other models 0% wk"
+      ],
+      "controls": 0
+     }
+    ],
+    "resting": "Antigravity. 30% 5h · 37% wk",
+    "kept": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "want": "30% 5h · 37% wk"
+   },
+   "head": {
+    "groups": [
+     {
+      "lines": [
+       "Claude",
+       "Plan: Max",
+       "Five hour 37%, Resets in 2h 41m",
+       "Seven day 12%, Resets in 3d 23h"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Codex",
+       "Plan: Pro",
+       "Five hour 41%, Resets in 59m",
+       "Seven day 9%, Resets in 23h 59m"
+      ],
+      "controls": 1
+     },
+     {
+      "lines": [
+       "Antigravity",
+       "Plan: Example Tier",
+       "Login: p375-0000aaaa-a@example.invalid",
+       "Gemini 30% 5h, Resets in 4h 58m",
+       "Gemini 37% wk, Resets in 3d 23h",
+       "Other models 0% 5h",
+       "Other models 0% wk"
+      ],
+      "controls": 0
+     }
+    ],
+    "resting": "Antigravity. 30% 5h · 37% wk",
+    "kept": "{\"v\":1,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"e\":\"p375-0000aaaa-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "want": "30% 5h · 37% wk"
+   }
+  },
+  "broken": [
+   {
+    "name": "both cards were read, all three groups",
+    "why": "no Antigravity group at HEAD",
+    "ops": [
+     {
+      "set": "head.groups",
+      "to": [
+       {
+        "lines": [
+         "Claude",
+         "Plan: Max",
+         "Five hour 37%, Resets in 2h 41m",
+         "Seven day 12%, Resets in 3d 23h"
+        ],
+        "controls": 1
+       },
+       {
+        "lines": [
+         "Codex",
+         "Plan: Pro",
+         "Five hour 41%, Resets in 59m",
+         "Seven day 9%, Resets in 23h 59m"
+        ],
+        "controls": 1
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "both drew the reported numbers",
+    "why": "no numbers at the parent",
+    "ops": [
+     {
+      "set": "parent.groups.2.lines",
+      "to": [
+       "Antigravity",
+       "Plan: Example Tier"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Antigravity’s lines are the parent’s with Login: A after the plan",
+    "why": "no login line",
+    "ops": [
+     {
+      "set": "head.groups.2.lines",
+      "to": [
+       "Antigravity",
+       "Plan: Example Tier",
+       "Gemini 30% 5h, Resets in 4h 59m",
+       "Gemini 37% wk, Resets in 3d 23h",
+       "Other models 0% 5h",
+       "Other models 0% wk"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Antigravity’s lines are the parent’s with Login: A after the plan",
+    "why": "the login line last",
+    "ops": [
+     {
+      "set": "head.groups.2.lines",
+      "to": [
+       "Antigravity",
+       "Plan: Example Tier",
+       "Gemini 30% 5h, Resets in 4h 59m",
+       "Gemini 37% wk, Resets in 3d 23h",
+       "Other models 0% 5h",
+       "Other models 0% wk",
+       "Login: p375-0000aaaa-a@example.invalid"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Antigravity’s lines are the parent’s with Login: A after the plan",
+    "why": "another account named",
+    "ops": [
+     {
+      "set": "head.groups.2.lines.2",
+      "to": "Login: p375-0000bbbb-b@example.invalid"
+     }
+    ]
+   },
+   {
+    "name": "Antigravity’s lines are the parent’s with Login: A after the plan",
+    "why": "a window’s number moved",
+    "ops": [
+     {
+      "set": "head.groups.2.lines.3",
+      "to": "Gemini 31% 5h, Resets in 4h 58m"
+     }
+    ]
+   },
+   {
+    "name": "no control in its group",
+    "why": "a Choose login",
+    "ops": [
+     {
+      "set": "head.groups.2.controls",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "Claude’s group is the parent’s",
+    "why": "Claude’s login line",
+    "ops": [
+     {
+      "set": "head.groups.0.lines",
+      "to": [
+       "Claude",
+       "Plan: Max",
+       "Five hour 37%, Resets in 2h 59m",
+       "Seven day 12%, Resets in 3d 23h",
+       "Login: p375-0000aaaa-a@example.invalid"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Codex’s group is the parent’s",
+    "why": "Codex lost its control",
+    "ops": [
+     {
+      "set": "head.groups.1.controls",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "the parent’s card names no address",
+    "why": "the parent named one",
+    "ops": [
+     {
+      "set": "parent.groups.2.lines",
+      "to": [
+       "Antigravity",
+       "Login: p375-0000aaaa-a@example.invalid",
+       "Gemini 30% 5h, Resets in 4h 59m",
+       "Gemini 37% wk, Resets in 3d 23h",
+       "Other models 0% 5h",
+       "Other models 0% wk"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the resting row names no address",
+    "why": "the resting row names it",
+    "ops": [
+     {
+      "set": "head.resting",
+      "to": "Antigravity. Login: p375-0000aaaa-a@example.invalid. 30% 5h"
+     }
+    ]
+   },
+   {
+    "name": "the parent’s card shows the line it was given",
+    "why": "the parent card was read while an older line was still drawn",
+    "ops": [
+     {
+      "set": "parent.groups.2.lines.2",
+      "to": "Gemini 29% 5h, Resets in 4h 58m"
+     },
+     {
+      "set": "parent.groups.2.lines.3",
+      "to": "Gemini 36% wk, Resets in 3d 23h"
+     }
+    ]
+   },
+   {
+    "name": "the resting row was read",
+    "why": "the resting row was never found",
+    "ops": [
+     {
+      "set": "head.resting",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the resting row was read",
+    "why": "the resting row was read before it drew numbers",
+    "ops": [
+     {
+      "set": "head.resting",
+      "to": "Antigravity"
+     }
+    ]
+   },
+   {
+    "name": "the slot line was read beside the card",
+    "why": "no slot line",
+    "ops": [
+     {
+      "del": "head.kept"
+     }
+    ]
+   },
+   {
+    "name": "the address drawn is the slot line’s",
+    "why": "the slot holds no address, so the card drew it from somewhere else",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"e\":null,\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the address drawn is the slot line’s",
+    "why": "the slot holds another account",
+    "ops": [
+     {
+      "set": "head.kept",
+      "to": "{\"v\":1,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"e\":\"p375-0000bbbb-b@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   }
+  ]
+ },
+ "SETTINGS": {
+  "honest": {
+   "A": "p375-0000aaaa-a@example.invalid",
+   "reported": true,
+   "parentOn": [
+    {
+     "provider": "claude",
+     "label": "Claude",
+     "text": "ClaudeDefault · your own sign in",
+     "caption": null,
+     "controls": 0
+    },
+    {
+     "provider": "codex",
+     "label": "Codex",
+     "text": "CodexDefault · your own sign in",
+     "caption": null,
+     "controls": 0
+    }
+   ],
+   "headOn": [
+    {
+     "provider": "claude",
+     "label": "Claude",
+     "text": "ClaudeDefault · your own sign in",
+     "caption": null,
+     "controls": 0
+    },
+    {
+     "provider": "codex",
+     "label": "Codex",
+     "text": "CodexDefault · your own sign in",
+     "caption": null,
+     "controls": 0
+    },
+    {
+     "provider": "antigravity",
+     "label": "Antigravity",
+     "text": "Antigravityp375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+     "caption": "p375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+     "controls": 0
+    }
+   ],
+   "headOff": [
+    {
+     "provider": "claude",
+     "label": "Claude",
+     "text": "ClaudeDefault · your own sign in",
+     "caption": null,
+     "controls": 0
+    },
+    {
+     "provider": "codex",
+     "label": "Codex",
+     "text": "CodexDefault · your own sign in",
+     "caption": null,
+     "controls": 0
+    }
+   ]
+  },
+  "broken": [
+   {
+    "name": "both builds’ logins were read, Claude’s and Codex’s",
+    "why": "no Codex row when off",
+    "ops": [
+     {
+      "set": "headOff",
+      "to": [
+       {
+        "provider": "claude",
+        "label": "Claude",
+        "text": "ClaudeDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "both builds’ logins were read, Claude’s and Codex’s",
+    "why": "nothing at the parent",
+    "ops": [
+     {
+      "set": "parentOn",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "the address had reported before the row was read",
+    "why": "never reported",
+    "ops": [
+     {
+      "set": "reported",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the row is there with its words",
+    "why": "no row",
+    "ops": [
+     {
+      "set": "headOn",
+      "to": [
+       {
+        "provider": "claude",
+        "label": "Claude",
+        "text": "ClaudeDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       },
+       {
+        "provider": "codex",
+        "label": "Codex",
+        "text": "CodexDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the row is there with its words",
+    "why": "other words",
+    "ops": [
+     {
+      "set": "headOn.2.caption",
+      "to": "p375-0000aaaa-a@example.invalid · Choose login"
+     }
+    ]
+   },
+   {
+    "name": "the row is there with its words",
+    "why": "another label",
+    "ops": [
+     {
+      "set": "headOn.2.label",
+      "to": "Gemini"
+     }
+    ]
+   },
+   {
+    "name": "it has no control",
+    "why": "a Remove on it",
+    "ops": [
+     {
+      "set": "headOn.2.controls",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "it follows Codex’s",
+    "why": "drawn first",
+    "ops": [
+     {
+      "set": "headOn",
+      "to": [
+       {
+        "provider": "antigravity",
+        "label": "Antigravity",
+        "text": "Antigravityp375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+        "caption": "p375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+        "controls": 0
+       },
+       {
+        "provider": "claude",
+        "label": "Claude",
+        "text": "ClaudeDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       },
+       {
+        "provider": "codex",
+        "label": "Codex",
+        "text": "CodexDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Claude’s and Codex’s rows are the parent’s",
+    "why": "Codex’s row moved",
+    "ops": [
+     {
+      "set": "headOn.1.text",
+      "to": "CodexDefault"
+     }
+    ]
+   },
+   {
+    "name": "Claude’s and Codex’s rows are the parent’s",
+    "why": "Claude’s row moved when off",
+    "ops": [
+     {
+      "set": "headOff.0.controls",
+      "to": 2
+     }
+    ]
+   },
+   {
+    "name": "switched off: no row",
+    "why": "drawn while off",
+    "ops": [
+     {
+      "set": "headOff",
+      "to": [
+       {
+        "provider": "claude",
+        "label": "Claude",
+        "text": "ClaudeDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       },
+       {
+        "provider": "codex",
+        "label": "Codex",
+        "text": "CodexDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       },
+       {
+        "provider": "antigravity",
+        "label": "Antigravity",
+        "text": "Antigravityp375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+        "caption": "p375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+        "controls": 0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the parent: no row",
+    "why": "the parent drew one",
+    "ops": [
+     {
+      "set": "parentOn",
+      "to": [
+       {
+        "provider": "claude",
+        "label": "Claude",
+        "text": "ClaudeDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       },
+       {
+        "provider": "codex",
+        "label": "Codex",
+        "text": "CodexDefault · your own sign in",
+        "caption": null,
+        "controls": 0
+       },
+       {
+        "provider": "antigravity",
+        "label": "Antigravity",
+        "text": "Antigravityp375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+        "caption": "p375-0000aaaa-a@example.invalid · Signed in to the Antigravity CLI. Switch accounts there.",
+        "controls": 0
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "TWO": {
+  "honest": {
+   "A": "p375-0000aaaa-a@example.invalid",
+   "B": "p375-0000bbbb-b@example.invalid",
+   "aFaces": [
+    "29% 5h · 36% wk",
+    "30% 5h · 37% wk"
+   ],
+   "bFaces": [
+    "47% 5h · 16% wk",
+    "45% 5h · 15% wk"
+   ],
+   "aFirst": true,
+   "samples": [
+    {
+     "at": 1000,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 1150,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 1300,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 1450,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 1600,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 1750,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 1900,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 2050,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 2200,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 2350,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 2500,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 2650,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 2800,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 2950,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 3100,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 3250,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 3400,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 3550,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 3700,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 3850,
+     "face": "29% 5h · 36% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 4000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 4500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 5000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 5500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 6000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 6500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 7000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 7500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 8000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 8500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 9000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 9500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 10000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 10500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 11000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 11500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 12000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 12500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 13000,
+     "face": "47% 5h · 16% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 13500,
+     "face": "45% 5h · 15% wk",
+     "login": "Login: p375-0000bbbb-b@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 16000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 16500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 17000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 17500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 18000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 18500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 19000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 19500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 20000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 20500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 21000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 21500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 22000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 22500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 23000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 23500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 24000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 24500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 25000,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    },
+    {
+     "at": 25500,
+     "face": "30% 5h · 37% wk",
+     "login": "Login: p375-0000aaaa-a@example.invalid",
+     "pid": 4242
+    }
+   ],
+   "bLandedAt": 4000,
+   "aAgainAt": 16000,
+   "finalFace": "30% 5h · 37% wk",
+   "finalLogin": "Login: p375-0000aaaa-a@example.invalid",
+   "wantFinal": "30% 5h · 37% wk",
+   "pid": 4242
+  },
+  "broken": [
+   {
+    "name": "two addresses were planted",
+    "why": "the same twice",
+    "ops": [
+     {
+      "set": "B",
+      "to": "p375-0000aaaa-a@example.invalid"
+     }
+    ]
+   },
+   {
+    "name": "the two accounts draw different numbers",
+    "why": "a shared face",
+    "ops": [
+     {
+      "set": "bFaces",
+      "to": [
+       "29% 5h · 36% wk",
+       "45% 5h · 15% wk"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the two accounts draw different numbers",
+    "why": "no face for B",
+    "ops": [
+     {
+      "set": "bFaces",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "A was drawn first",
+    "why": "never",
+    "ops": [
+     {
+      "set": "aFirst",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "each writer’s file landed, B then A again",
+    "why": "B never landed",
+    "ops": [
+     {
+      "set": "bLandedAt",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "each writer’s file landed, B then A again",
+    "why": "A again before B’s time was up",
+    "ops": [
+     {
+      "set": "aAgainAt",
+      "to": 5000
+     }
+    ]
+   },
+   {
+    "name": "the card was sampled throughout, every sample a reading",
+    "why": "too few",
+    "ops": [
+     {
+      "set": "samples",
+      "to": [
+       {
+        "at": 1000,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 1150,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 1300,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 1450,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 1600,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 1750,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 1900,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 2050,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 2200,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 2350,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 2500,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 2650,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 2800,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 2950,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 3100,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 3250,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 3400,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 3550,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 3700,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 3850,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid"
+       },
+       {
+        "at": 4000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 4500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 5000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 5500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 6000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 6500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 7000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 7500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 8000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       },
+       {
+        "at": 8500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the card was sampled throughout, every sample a reading",
+    "why": "a sample with no card",
+    "ops": [
+     {
+      "set": "samples.5.face",
+      "to": ""
+     }
+    ]
+   },
+   {
+    "name": "and after the last writer’s time was up",
+    "why": "stopped too soon",
+    "ops": [
+     {
+      "set": "aAgainAt",
+      "to": 25000
+     }
+    ]
+   },
+   {
+    "name": "every sample’s address and numbers are one file’s",
+    "why": "A’s address with B’s numbers",
+    "ops": [
+     {
+      "set": "samples.25.login",
+      "to": "Login: p375-0000aaaa-a@example.invalid"
+     }
+    ]
+   },
+   {
+    "name": "every sample’s address and numbers are one file’s",
+    "why": "no address with numbers",
+    "ops": [
+     {
+      "set": "samples.3.login",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "B is drawn within 6000 ms of its file",
+    "why": "A held after B’s time",
+    "ops": [
+     {
+      "set": "samples.35.login",
+      "to": "Login: p375-0000aaaa-a@example.invalid"
+     },
+     {
+      "set": "samples.35.face",
+      "to": "29% 5h · 36% wk"
+     }
+    ]
+   },
+   {
+    "name": "A is drawn again within 6000 ms of its file",
+    "why": "B held after A’s time",
+    "ops": [
+     {
+      "set": "samples.55.login",
+      "to": "Login: p375-0000bbbb-b@example.invalid"
+     },
+     {
+      "set": "samples.55.face",
+      "to": "47% 5h · 16% wk"
+     }
+    ]
+   },
+   {
+    "name": "the last writer’s last numbers are drawn",
+    "why": "B last",
+    "ops": [
+     {
+      "set": "finalLogin",
+      "to": "Login: p375-0000bbbb-b@example.invalid"
+     }
+    ]
+   },
+   {
+    "name": "the last writer’s last numbers are drawn",
+    "why": "old numbers",
+    "ops": [
+     {
+      "set": "finalFace",
+      "to": "29% 5h · 36% wk"
+     }
+    ]
+   },
+   {
+    "name": "every sample is of one launch",
+    "why": "B was read by another launch",
+    "ops": [
+     {
+      "set": "samples.33.pid",
+      "to": 4343
+     },
+     {
+      "set": "samples.34.pid",
+      "to": 4343
+     },
+     {
+      "set": "samples.35.pid",
+      "to": 4343
+     },
+     {
+      "set": "samples.36.pid",
+      "to": 4343
+     },
+     {
+      "set": "samples.37.pid",
+      "to": 4343
+     },
+     {
+      "set": "samples.38.pid",
+      "to": 4343
+     },
+     {
+      "set": "samples.39.pid",
+      "to": 4343
+     }
+    ]
+   },
+   {
+    "name": "every sample is of one launch",
+    "why": "no launch named",
+    "ops": [
+     {
+      "del": "pid"
+     }
+    ]
+   },
+   {
+    "name": "and while B was the last writer",
+    "why": "no sample in B’s window, so its clause asked nothing",
+    "ops": [
+     {
+      "set": "samples",
+      "to": [
+       {
+        "at": 1000,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 1150,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 1300,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 1450,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 1600,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 1750,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 1900,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 2050,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 2200,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 2350,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 2500,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 2650,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 2800,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 2950,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 3100,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 3250,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 3400,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 3550,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 3700,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 3850,
+        "face": "29% 5h · 36% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 4000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 4500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 5000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 5500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 6000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 6500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 7000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 7500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 8000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 8500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 9000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 9500,
+        "face": "45% 5h · 15% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 10000,
+        "face": "47% 5h · 16% wk",
+        "login": "Login: p375-0000bbbb-b@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 16000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 16500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 17000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 17500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 18000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 18500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 19000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 19500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 20000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 20500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 21000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 21500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 22000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 22500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 23000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 23500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 24000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 24500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 25000,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       },
+       {
+        "at": 25500,
+        "face": "30% 5h · 37% wk",
+        "login": "Login: p375-0000aaaa-a@example.invalid",
+        "pid": 4242
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "SEARCH": {
+  "honest": {
+   "A": "p375-0000aaaa-a@example.invalid",
+   "B": "p375-0000bbbb-b@example.invalid",
+   "files": 240,
+   "control": true,
+   "unread": [],
+   "hits": [
+    {
+     "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a375.json",
+     "label": "A",
+     "form": "A",
+     "slotE": true
+    },
+    {
+     "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a375.json",
+     "label": "A",
+     "form": "A local part",
+     "slotE": true
+    },
+    {
+     "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000b375.json",
+     "label": "B",
+     "form": "B",
+     "slotE": true
+    }
+   ],
+   "manifest": {
+    "dumped": true,
+    "hits": [],
+    "control": true
+   },
+   "ps": {
+    "read": true,
+    "control": true,
+    "hits": []
+   },
+   "env": {
+    "read": true,
+    "control": true,
+    "pids": 14,
+    "hits": []
+   },
+   "ipc": {
+    "pushes": 9,
+    "answers": 4,
+    "allowed": 12,
+    "other": [],
+    "keyed": [],
+    "account": "p375-0000aaaa-a@example.invalid",
+    "settingsAccount": "p375-0000aaaa-a@example.invalid"
+   }
+  },
+  "broken": [
+   {
+    "name": "every file of the world was read, and a byte that is there was found",
+    "why": "the control not found",
+    "ops": [
+     {
+      "set": "control",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "every file of the world was read, and a byte that is there was found",
+    "why": "a file unread",
+    "ops": [
+     {
+      "set": "unread",
+      "to": [
+       "/p/x: EACCES"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every file of the world was read, and a byte that is there was found",
+    "why": "too few files",
+    "ops": [
+     {
+      "set": "files",
+      "to": 3
+     }
+    ]
+   },
+   {
+    "name": "a copy of the manifest was dumped, this launch’s sessions in it",
+    "why": "not dumped",
+    "ops": [
+     {
+      "set": "manifest.dumped",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the process table and this run’s environments were read",
+    "why": "no environment",
+    "ops": [
+     {
+      "set": "env.read",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the process table and this run’s environments were read",
+    "why": "the control not on any command line",
+    "ops": [
+     {
+      "set": "ps.control",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the process table and this run’s environments were read",
+    "why": "one pid",
+    "ops": [
+     {
+      "set": "env.pids",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "the windows’ usage answers and pushes were recorded",
+    "why": "no push",
+    "ops": [
+     {
+      "set": "ipc.pushes",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "the windows’ usage answers and pushes were recorded",
+    "why": "too few answers",
+    "ops": [
+     {
+      "set": "ipc.answers",
+      "to": 2
+     }
+    ]
+   },
+   {
+    "name": "on disk, only in a slot line’s \"e\"",
+    "why": "in app.log",
+    "ops": [
+     {
+      "push": "hits",
+      "to": {
+       "path": "/p/app.log",
+       "label": "A",
+       "form": "A",
+       "slotE": false
+      }
+     }
+    ]
+   },
+   {
+    "name": "on disk, only in a slot line’s \"e\"",
+    "why": "in a slot file outside its e",
+    "ops": [
+     {
+      "set": "hits.0.slotE",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "on disk, only in a slot line’s \"e\"",
+    "why": "a file that is no slot claims an e",
+    "ops": [
+     {
+      "push": "hits",
+      "to": {
+       "path": "/p/Local Storage/leveldb/000003.log",
+       "label": "B",
+       "form": "B UTF-16",
+       "slotE": true
+      }
+     }
+    ]
+   },
+   {
+    "name": "on disk, only in a slot line’s \"e\"",
+    "why": "the script holds it",
+    "ops": [
+     {
+      "push": "hits",
+      "to": {
+       "path": "/p/gmux/antigravity-usage/status.sh",
+       "label": "A",
+       "form": "A",
+       "slotE": true
+      }
+     }
+    ]
+   },
+   {
+    "name": "both accounts are in their slot lines",
+    "why": "B in none",
+    "ops": [
+     {
+      "set": "hits",
+      "to": [
+       {
+        "path": "/p/gmux/antigravity-usage/7d0f4e0a-0000-4000-8000-00000000a375.json",
+        "label": "A",
+        "form": "A",
+        "slotE": true
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "not in the manifest",
+    "why": "in the manifest",
+    "ops": [
+     {
+      "set": "manifest.hits",
+      "to": [
+       "A"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "not on any command line",
+    "why": "on a command line",
+    "ops": [
+     {
+      "set": "ps.hits",
+      "to": [
+       "A local part"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "not in any environment",
+    "why": "in an environment",
+    "ops": [
+     {
+      "set": "env.hits",
+      "to": [
+       "B"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "in the usage answers only as the Antigravity row’s email",
+    "why": "as a plan",
+    "ops": [
+     {
+      "set": "ipc.other",
+      "to": [
+       "read: providers.2.plan"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "in the usage answers only as the Antigravity row’s email",
+    "why": "never as its email",
+    "ops": [
+     {
+      "set": "ipc.allowed",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "no Claude or Codex row carries an email",
+    "why": "Claude’s does",
+    "ops": [
+     {
+      "set": "ipc.keyed",
+      "to": [
+       "push 0: claude"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "usage:account answers the last writer",
+    "why": "B",
+    "ops": [
+     {
+      "set": "ipc.account",
+      "to": "p375-0000bbbb-b@example.invalid"
+     }
+    ]
+   },
+   {
+    "name": "usage:account answers the last writer",
+    "why": "Settings had none",
+    "ops": [
+     {
+      "set": "ipc.settingsAccount",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "a copy of the manifest was dumped, this launch’s sessions in it",
+    "why": "a copy with no rows (its WAL missed) finds no address",
+    "ops": [
+     {
+      "set": "manifest.control",
+      "to": false
+     }
+    ]
+   }
+  ]
+ },
+ "OLDER": {
+  "honest": {
+   "A": "p375-0000aaaa-a@example.invalid",
+   "head1": {
+    "kept": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"e\":\"p375-0000aaaa-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "login": "Login: p375-0000aaaa-a@example.invalid",
+    "lines": [
+     "Antigravity",
+     "Plan: Example Tier",
+     "Login: p375-0000aaaa-a@example.invalid",
+     "Gemini 29% 5h, Resets in 4h 59m",
+     "Gemini 36% wk, Resets in 3d 23h"
+    ]
+   },
+   "parent": {
+    "want": "29% 5h · 36% wk",
+    "face": "29% 5h · 36% wk",
+    "lines": [
+     "Antigravity",
+     "Plan: Example Tier",
+     "Gemini 29% 5h, Resets in 4h 58m",
+     "Gemini 36% wk, Resets in 3d 23h"
+    ],
+    "live": {
+     "landed": true,
+     "want": "30% 5h · 37% wk",
+     "face": "30% 5h · 37% wk",
+     "lines": [
+      "Antigravity",
+      "Plan: Example Tier",
+      "Gemini 30% 5h, Resets in 4h 58m",
+      "Gemini 37% wk, Resets in 3d 23h"
+     ]
+    },
+    "alive": true,
+    "dumpsNew": 0
+   },
+   "head2": {
+    "lines": [
+     "Antigravity",
+     "Plan: Example Tier",
+     "Login: p375-0000aaaa-a@example.invalid",
+     "Gemini 30% 5h, Resets in 4h 57m",
+     "Gemini 37% wk, Resets in 3d 23h"
+    ],
+    "ms": 4100
+   }
+  },
+  "broken": [
+   {
+    "name": "HEAD drew the account first, from a line holding it",
+    "why": "no login line at HEAD first",
+    "ops": [
+     {
+      "set": "head1.login",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "HEAD drew the account first, from a line holding it",
+    "why": "its line had no address",
+    "ops": [
+     {
+      "set": "head1.kept",
+      "to": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the parent was launched on that profile and its card read",
+    "why": "no card",
+    "ops": [
+     {
+      "set": "parent.lines",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the live write landed while the parent was up",
+    "why": "not landed",
+    "ops": [
+     {
+      "set": "parent.live.landed",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the live write landed while the parent was up",
+    "why": "the same numbers",
+    "ops": [
+     {
+      "set": "parent.live.want",
+      "to": "29% 5h · 36% wk"
+     }
+    ]
+   },
+   {
+    "name": "the crash dumps were counted",
+    "why": "not counted",
+    "ops": [
+     {
+      "del": "parent.dumpsNew"
+     }
+    ]
+   },
+   {
+    "name": "HEAD’s card was read again",
+    "why": "not read",
+    "ops": [
+     {
+      "set": "head2.lines",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the parent draws the numbers",
+    "why": "no numbers",
+    "ops": [
+     {
+      "set": "parent.face",
+      "to": ""
+     }
+    ]
+   },
+   {
+    "name": "and no login line",
+    "why": "the parent names it",
+    "ops": [
+     {
+      "set": "parent.lines",
+      "to": [
+       "Antigravity",
+       "Login: p375-0000aaaa-a@example.invalid",
+       "Gemini 29% 5h, Resets in 4h 58m"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a line that lands under it is read too, and still no login line",
+    "why": "old numbers after the live write",
+    "ops": [
+     {
+      "set": "parent.live.face",
+      "to": "29% 5h · 36% wk"
+     }
+    ]
+   },
+   {
+    "name": "a line that lands under it is read too, and still no login line",
+    "why": "a login line after it",
+    "ops": [
+     {
+      "set": "parent.live.lines",
+      "to": [
+       "Antigravity",
+       "Login: p375-0000aaaa-a@example.invalid",
+       "Gemini 30% 5h, Resets in 4h 58m",
+       "Gemini 37% wk, Resets in 3d 23h"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no crash",
+    "why": "a dump",
+    "ops": [
+     {
+      "set": "parent.dumpsNew",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "no crash",
+    "why": "gone",
+    "ops": [
+     {
+      "set": "parent.alive",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "HEAD again: Login: A",
+    "why": "no login",
+    "ops": [
+     {
+      "set": "head2.lines",
+      "to": [
+       "Antigravity",
+       "Gemini 30% 5h, Resets in 4h 57m",
+       "Gemini 37% wk, Resets in 3d 23h"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "HEAD again: Login: A",
+    "why": "old numbers",
+    "ops": [
+     {
+      "set": "head2.lines",
+      "to": [
+       "Antigravity",
+       "Login: p375-0000aaaa-a@example.invalid",
+       "Gemini 29% 5h, Resets in 4h 57m",
+       "Gemini 36% wk, Resets in 3d 23h"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the parent was launched on that profile and its card read",
+    "why": "the card was read before it drew",
+    "ops": [
+     {
+      "set": "parent.lines",
+      "to": [
+       "Antigravity",
+       "Plan: Example Tier"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the parent’s card was read after the live write",
+    "why": "no card after the live write",
+    "ops": [
+     {
+      "set": "parent.live.lines",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the parent’s card was read after the live write",
+    "why": "that card had not drawn",
+    "ops": [
+     {
+      "set": "parent.live.lines",
+      "to": [
+       "Antigravity"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "NEWER": {
+  "honest": {
+   "A": "p375-0000aaaa-a@example.invalid",
+   "parent": {
+    "kept": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "salt": "cccccccccccccccccccccccccccccccc"
+   },
+   "head": {
+    "before": {
+     "face": "30% 5h · 37% wk",
+     "lines": [
+      "Antigravity",
+      "Plan: Example Tier",
+      "Gemini 30% 5h, Resets in 4h 59m",
+      "Gemini 37% wk, Resets in 3d 23h"
+     ]
+    },
+    "script": {
+     "rewritten": true,
+     "salt": "cccccccccccccccccccccccccccccccc"
+    },
+    "keptAfter": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"e\":\"p375-0000aaaa-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}",
+    "landed": true,
+    "afterMs": 4300,
+    "after": {
+     "face": "30% 5h · 37% wk",
+     "lines": [
+      "Antigravity",
+      "Plan: Example Tier",
+      "Login: p375-0000aaaa-a@example.invalid",
+      "Gemini 30% 5h, Resets in 4h 58m",
+      "Gemini 37% wk, Resets in 3d 23h"
+     ]
+    },
+    "afterDoneMs": 4800
+   }
+  },
+  "broken": [
+   {
+    "name": "the parent wrote its own shape",
+    "why": "the parent wrote an e",
+    "ops": [
+     {
+      "set": "parent.kept",
+      "to": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"e\":\"p375-0000aaaa-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the parent wrote its own shape",
+    "why": "no salt",
+    "ops": [
+     {
+      "set": "parent.salt",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "HEAD drew the parent’s numbers first",
+    "why": "no numbers",
+    "ops": [
+     {
+      "set": "head.before.face",
+      "to": ""
+     }
+    ]
+   },
+   {
+    "name": "the next run landed",
+    "why": "not landed",
+    "ops": [
+     {
+      "set": "head.landed",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "before the next run: no login line",
+    "why": "an address from nowhere",
+    "ops": [
+     {
+      "set": "head.before.lines",
+      "to": [
+       "Antigravity",
+       "Login: p375-0000aaaa-a@example.invalid",
+       "Gemini 30% 5h, Resets in 4h 59m"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the script was rewritten at boot, keeping its salt",
+    "why": "not rewritten",
+    "ops": [
+     {
+      "set": "head.script.rewritten",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the script was rewritten at boot, keeping its salt",
+    "why": "a fresh salt",
+    "ops": [
+     {
+      "set": "head.script.salt",
+      "to": "dddddddddddddddddddddddddddddddd"
+     }
+    ]
+   },
+   {
+    "name": "the next run names the account",
+    "why": "still no address",
+    "ops": [
+     {
+      "set": "head.keptAfter",
+      "to": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the next run names the account",
+    "why": "another hash",
+    "ops": [
+     {
+      "set": "head.keptAfter",
+      "to": "{\"v\":1,\"h\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"e\":\"p375-0000aaaa-a@example.invalid\",\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T05:00:00.000Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-05T00:00:00.000Z\",\"d\":null,\"a\":false}}}"
+     }
+    ]
+   },
+   {
+    "name": "the card says Login: A within 6000 ms",
+    "why": "too slow",
+    "ops": [
+     {
+      "set": "head.afterMs",
+      "to": 9000
+     }
+    ]
+   },
+   {
+    "name": "the card says Login: A within 6000 ms",
+    "why": "never",
+    "ops": [
+     {
+      "set": "head.after.lines",
+      "to": [
+       "Antigravity",
+       "Gemini 30% 5h, Resets in 4h 58m"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the numbers did not move",
+    "why": "moved",
+    "ops": [
+     {
+      "set": "head.after.face",
+      "to": "29% 5h · 36% wk"
+     }
+    ]
+   }
+  ]
+ },
+ "STATUS": {
+  "honest": {
+   "parent": {
+    "plain": {
+     "argvShown": true,
+     "settled": true,
+     "samples": 120,
+     "working": 0,
+     "runs": 100,
+     "nonZero": 0,
+     "seen": [
+      "idle"
+     ],
+     "held": {
+      "aliveMs": 4200,
+      "samples": 18,
+      "working": 0,
+      "seen": [
+       "idle"
+      ],
+      "stat": [
+       "S"
+      ]
+     }
+    },
+    "setsid": {
+     "argvShown": true,
+     "settled": true,
+     "samples": 120,
+     "working": 0,
+     "runs": 100,
+     "nonZero": 0,
+     "seen": [
+      "idle"
+     ],
+     "held": {
+      "aliveMs": 4200,
+      "samples": 18,
+      "working": 0,
+      "seen": [
+       "idle"
+      ],
+      "stat": [
+       "Ss"
+      ]
+     }
+    }
+   },
+   "head": {
+    "plain": {
+     "argvShown": true,
+     "settled": true,
+     "samples": 120,
+     "working": 0,
+     "runs": 100,
+     "nonZero": 0,
+     "seen": [
+      "idle"
+     ],
+     "held": {
+      "aliveMs": 4200,
+      "samples": 18,
+      "working": 0,
+      "seen": [
+       "idle"
+      ],
+      "stat": [
+       "S"
+      ]
+     }
+    },
+    "setsid": {
+     "argvShown": true,
+     "settled": true,
+     "samples": 120,
+     "working": 0,
+     "runs": 100,
+     "nonZero": 0,
+     "seen": [
+      "idle"
+     ],
+     "held": {
+      "aliveMs": 4200,
+      "samples": 18,
+      "working": 0,
+      "seen": [
+       "idle"
+      ],
+      "stat": [
+       "Ss"
+      ]
+     }
+    }
+   }
+  },
+  "broken": [
+   {
+    "name": "the command line showed the flag, as a real agy’s does",
+    "why": "not shown at the parent",
+    "ops": [
+     {
+      "set": "parent.plain.argvShown",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "both flavours settled idle first",
+    "why": "never settled",
+    "ops": [
+     {
+      "set": "head.setsid.settled",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a hundred runs each were logged",
+    "why": "too few",
+    "ops": [
+     {
+      "set": "head.plain.runs",
+      "to": 60
+     }
+    ]
+   },
+   {
+    "name": "the status was read throughout",
+    "why": "too few samples at the parent",
+    "ops": [
+     {
+      "set": "parent.setsid.samples",
+      "to": 5
+     }
+    ]
+   },
+   {
+    "name": "a run was seen alive for longer than the app’s slowest look",
+    "why": "too short",
+    "ops": [
+     {
+      "set": "head.plain.held.aliveMs",
+      "to": 1200
+     }
+    ]
+   },
+   {
+    "name": "the held run was of its own flavour",
+    "why": "the wrong flavour",
+    "ops": [
+     {
+      "set": "head.setsid.held.stat",
+      "to": [
+       "S"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "plain: never working",
+    "why": "working",
+    "ops": [
+     {
+      "set": "head.plain.seen",
+      "to": [
+       "idle",
+       "running"
+      ]
+     },
+     {
+      "set": "head.plain.working",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "plain: never working",
+    "why": "working while held",
+    "ops": [
+     {
+      "set": "head.plain.held.seen",
+      "to": [
+       "running"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a session of its own: never working",
+    "why": "working",
+    "ops": [
+     {
+      "set": "head.setsid.seen",
+      "to": [
+       "running"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a session of its own: never working",
+    "why": "working while held",
+    "ops": [
+     {
+      "set": "head.setsid.held.seen",
+      "to": [
+       "idle",
+       "running"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no worse than the parent",
+    "why": "more working samples than the parent",
+    "ops": [
+     {
+      "set": "head.setsid.held.working",
+      "to": 3
+     }
+    ]
+   },
+   {
+    "name": "every run exited 0",
+    "why": "a run exited 1",
+    "ops": [
+     {
+      "set": "head.setsid.nonZero",
+      "to": 1
+     }
+    ]
+   }
+  ]
+ },
+ "RUN": {
+  "honest": {
+   "launches": 7,
+   "returned": 7,
+   "socketed": 4,
+   "censused": 4,
+   "scans": 7,
+   "agentsHeld": true,
+   "fixtures": 7,
+   "socketSamples": 14,
+   "peers": [],
+   "census": "no change",
+   "tableRead": true,
+   "left": 0,
+   "electrons": 0,
+   "history": true
+  },
+  "broken": [
+   {
+    "name": "every launch was read",
+    "why": "a scan missing",
+    "ops": [
+     {
+      "set": "scans",
+      "to": 6
+     }
+    ]
+   },
+   {
+    "name": "every launch came back from its own teardown",
+    "why": "one did not",
+    "ops": [
+     {
+      "set": "returned",
+      "to": 6
+     }
+    ]
+   },
+   {
+    "name": "the census was read around every launch that named its socket",
+    "why": "one not",
+    "ops": [
+     {
+      "set": "censused",
+      "to": 3
+     }
+    ]
+   },
+   {
+    "name": "the app’s sockets were sampled",
+    "why": "too few",
+    "ops": [
+     {
+      "set": "socketSamples",
+      "to": 2
+     }
+    ]
+   },
+   {
+    "name": "the process table was read",
+    "why": "not",
+    "ops": [
+     {
+      "set": "tableRead",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the agents were hidden at every launch",
+    "why": "not",
+    "ops": [
+     {
+      "set": "agentsHeld",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the usage fixture answered at every launch",
+    "why": "one missed",
+    "ops": [
+     {
+      "set": "fixtures",
+      "to": 6
+     }
+    ]
+   },
+   {
+    "name": "no peer but this Mac",
+    "why": "a peer",
+    "ops": [
+     {
+      "set": "peers",
+      "to": [
+       "192.0.2.1:443"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no census change",
+    "why": "a change",
+    "ops": [
+     {
+      "set": "census",
+      "to": "a session APPEARED on gmux"
+     },
+     {
+      "set": "returned",
+      "to": 6
+     }
+    ]
+   },
+   {
+    "name": "no process of this run is left",
+    "why": "a stand-in left",
+    "ops": [
+     {
+      "set": "left",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "no Electron of this run is left",
+    "why": "one left",
+    "ops": [
+     {
+      "set": "electrons",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "his shell history is unmoved",
+    "why": "moved",
+    "ops": [
+     {
+      "set": "history",
+      "to": false
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -224,10 +224,17 @@ describe('R1: the card', () => {
 describe('R1: no login for a provider that has none', () => {
   it('draws no login line, even over a snapshot that names one', () => {
     const named = { ...antigravity, login: 'Work', loginChanged: true };
-    const lines = cardLines(named, NOW, new Map([['Work', 2]]), 'a@example.com');
+    const lines = cardLines(named, NOW, new Map([['Work', 2]]), null);
     expect(lines.join(' | ')).not.toContain('Login');
     expect(lines.join(' | ')).not.toContain('@');
     expect(lines.join(' | ')).not.toContain('session');
+    // PHASE 375 (build/p375/SPEC.md D8) moved this on purpose: a handed
+    // address is the account the row's sessions reported, and it is drawn.
+    // The login NAME a snapshot holds still never is.
+    const handed = cardLines(named, NOW, new Map([['Work', 2]]), 'a@example.com');
+    expect(handed).toContain('Login: a@example.com');
+    expect(handed.join(' | ')).not.toContain('Work');
+    expect(handed.join(' | ')).not.toContain('session');
   });
 
   it('asks the login list for no address', () => {

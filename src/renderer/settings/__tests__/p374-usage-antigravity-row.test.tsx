@@ -122,8 +122,10 @@ describe('R4: what How this works says now', () => {
     expect(USAGE_ABOUT_WHERE).toBe(
       'Claude and Codex ask only the vendor that issued your login. Both addresses are built in and no setting changes them. Antigravity asks nobody.'
     );
+    // PHASE 375 (build/p375/SPEC.md §5, D15) narrowed this one again, on
+    // purpose: the account an Antigravity session reports is kept too.
     expect(USAGE_ABOUT_KEPT).toBe(
-      "Claude and Codex numbers stay in memory until you quit. Antigravity's stay in Tortie's own folder until you turn that meter off or remove the session. No part of a login reaches a log or a file."
+      "Claude and Codex numbers stay in memory until you quit. Antigravity's numbers and the account they belong to stay in Tortie's own folder until you turn that meter off or remove the session. No part of a login reaches a log or any other file."
     );
     expect(USAGE_ABOUT_WHEN).toBe(
       'Claude and Codex ask every fifteen minutes, and only while this window is in front. The refresh control asks now. Antigravity updates as its sessions work.'
