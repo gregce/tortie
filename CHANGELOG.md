@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Added
 
-- The Antigravity usage card, and its line in Settings then Agents, now name the account the Antigravity CLI is signed in to, as Claude's and Codex's do; you still switch that account in the Antigravity CLI
+- The Antigravity usage card, and its line in Settings then Agents, now name the account the Antigravity CLI is signed in to, as Claude's and Codex's do; you still switch that account in the Antigravity CLI ([`efcf1b9c`](https://github.com/gregce/tortie/commit/efcf1b9c))
 
 ### Changed
 
