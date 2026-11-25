@@ -1941,6 +1941,25 @@ export const CHECKS = [
     'probe:p370',
     `${NEEDS.electron}; a built parent checkout (P370_PARENT_CHECKOUT); an arm whose input is absent reads UNREADABLE`
   ),
+  // PHASE 371 (build/p371/SPEC.md §8): what a saved file asks git, and whether
+  // History, Branches, the remotes or a file's history ever show something the
+  // parent would have refreshed. Electrons through build/electron-run.mjs ONE AT
+  // A TIME and never at once, the parent first in every pair
+  // (P371_PARENT_CHECKOUT, a built e424fc64, required), each launch on its own
+  // scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null and SHELL=/bin/sh
+  // and the socket gmux-p371…, over scratch repositories whose remotes are bare
+  // ones on this disk. The git first on the app's PATH is
+  // build/p371/stand-in.zsh, which logs each call from outside the app, sleeps
+  // for the hold with no child and no CPU and then runs /usr/bin/git with HOME
+  // in scratch and neither git config file of his read; at 420 held children the
+  // probe ends that launch. No session and no agent is started: every probed
+  // registry row is hidden through build/hidden-agents.mjs and `agents:list` read
+  // back. `--grader-self-test` grades build/p371/fixtures/ and starts nothing;
+  // `--preflight` and `--list-graders` start nothing.
+  electron(
+    'probe:p371',
+    `${NEEDS.electron}; a built parent checkout (P371_PARENT_CHECKOUT); an arm whose input is absent reads UNREADABLE`
+  ),
   // PHASE 374 (build/p374/SPEC.md §8): the meter reading the Antigravity plan
   // from its status line. Electrons through build/electron-run.mjs ONE AT A
   // TIME and never at once, the parent first (P374_PARENT_CHECKOUT, a built

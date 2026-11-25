@@ -10,6 +10,10 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 - The usage meter can show your Antigravity plan beside Claude and Codex: turn it on in Settings then Agents, and an Antigravity session you start on this Mac afterwards fills it in. Restored sessions, sessions SpecStory captures and sessions on another machine do not report, and Google has not said whether showing it is allowed ([`2a014f5a`](https://github.com/gregce/tortie/commit/2a014f5a))
 
+### Fixed
+
+- Saving a file, or an agent writing many, no longer makes Tortie ask git for history, branches and remotes again; they refresh when git itself changes, and a remote or upstream you change in a terminal now shows at once. A linked worktree, or a folder inside a repository, still refreshes on every change
+
 ## 0.116.0 (2026-11-24)
 
 This release keeps Tortie from slowing your Mac while agents are writing files, and moves it to Electron 45, which keeps its security fixes coming.

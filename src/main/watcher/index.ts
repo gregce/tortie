@@ -23,6 +23,10 @@
  * at a time and never subscribes to a folder that is not there
  * (./process/queue.ts), and every site that watches a folder asks
  * `watchFolder` in ./host.ts, which forwards to that process.
+ *
+ * Phase 371: each flush says whether git's own data may have moved, and what no
+ * stream carries of that is read by ./git-data.ts, which repo-watcher.ts alone
+ * asks. It adds no watch.
  */
 
 export {

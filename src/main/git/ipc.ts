@@ -102,8 +102,13 @@ function isDirectory(path: string): boolean {
   }
 }
 
-function broadcastGitChanged(repoPath: string): void {
-  broadcastEvent(EVT_GIT_CHANGED, repoPath);
+/**
+ * Phase 371: `gitMoved` is false only for a watcher flush that knows git's own
+ * data did not move. Every other caller here passes the repository alone,
+ * because what it just did is a move.
+ */
+function broadcastGitChanged(repoPath: string, gitMoved = true): void {
+  broadcastEvent(EVT_GIT_CHANGED, repoPath, gitMoved);
 }
 
 // Phase 14 (research 19 §2.5, O3): the watcher callback below now feeds the

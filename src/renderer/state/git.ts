@@ -205,13 +205,14 @@ export const useGit = create<GitState>((set, get) => {
       // Debounced once for the whole renderer (state/repo-changed.ts): this
       // store used to keep its own 200 ms timer map, one of four windows that
       // made the sidebar contradict itself for 150 ms after every commit.
-      onRepoChanged((repoPath) => {
+      onRepoChanged((repoPath, gitMoved) => {
         // Only repos something has looked at — ignore unknown paths.
         if (get().repos[repoPath] === undefined) return;
         void get().refreshStatus(repoPath);
         // HEAD may have moved (commit from a session terminal) — keep
-        // History honest when it has been loaded.
-        if (get().repos[repoPath]?.log !== null) {
+        // History honest when it has been loaded. A saved file cannot move it,
+        // so it is asked for only when git's own data may have moved.
+        if (gitMoved && get().repos[repoPath]?.log !== null) {
           void get().refreshLog(repoPath);
         }
       });

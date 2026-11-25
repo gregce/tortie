@@ -71,14 +71,36 @@
  * comes back `null` is "no `.git` yet" and is asked again on the next flush, and
  * a watch that waited longer than the debounce window for its turn schedules one
  * flush, because an edit made while it waited was seen by no stream.
+ *
+ * PHASE 371. Each flush says whether GIT'S OWN DATA MAY HAVE MOVED, the second
+ * value handed to `onChange`, so History can tell a commit from a saved file and
+ * a saved file starts no git process that could only answer what it answered
+ * before. UNKNOWN IS ALWAYS TRUE, and `false` is said only when all of it is
+ * known: a `.git` stream is attached and has not died, everything git's refs
+ * live in is under the directory it watches, no relevant event, drop, long wait
+ * or attach has happened since the last flush, and the files no stream carries
+ * (./git-data.ts) read exactly as they did at it. A linked worktree, a folder
+ * inside a repository, a `.git` that was replaced and a stream that may have
+ * died all read true on every flush, which is what every flush was before this
+ * phase.
+ *
+ * Two of its rules are the kind a later round would tidy away. A DEAD `.git`
+ * STREAM SAYS NOTHING: after `rm -rf .git` and `git init`, or `.git` renamed
+ * away and back, the subscription stays set, no error comes and no event ever
+ * comes again (measured, build/p371/SPEC.md 2.3), so `dotgitLost` is latched and
+ * never un-set. And the bit is TAKEN at the flush and nowhere else, beside the
+ * call that hands it over: a worktree batch must not clear what a ref set in the
+ * same window.
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { planWorktreeIgnore, readIgnoredRoots } from './ignored-roots';
 import type { WorktreeIgnorePlan } from './ignored-roots';
-import { watchFolder } from './host';
+import { WATCHER_RESTART_ERROR, watchFolder } from './host';
 import type { FolderEvent, FolderWatch } from './host';
+import { createGitDataReader } from './git-data';
+import type { GitDataReading } from './git-data';
 import { getLog } from '../log';
 // PHASE 274. The ONE canonicalising realpath. `fs.realpathSync` is Node's own
 // JavaScript walk and returns the case it was handed, which is not the
@@ -97,8 +119,12 @@ const watcherLog = getLog('watcher');
 export interface RepoWatcherOptions {
   /** Coalescing window for change events. Default 300 ms. */
   debounceMs?: number;
-  /** Called once per debounce window when anything relevant changed. */
-  onChange: (repoPath: string) => void;
+  /**
+   * Called once per debounce window when anything relevant changed.
+   * `gitMoved` (Phase 371) is false only when it is known that git's own data
+   * did not move; true means it may have.
+   */
+  onChange: (repoPath: string, gitMoved: boolean) => void;
   /** Watcher-level errors (never thrown async). Default: console.warn. */
   onError?: (err: Error) => void;
 }
@@ -114,7 +140,16 @@ export interface RepoWatcherOptions {
  */
 export const DEFAULT_DEBOUNCE_MS = 300;
 
-/** dotgit files whose change means "HEAD/refs/index moved — re-status". */
+/**
+ * dotgit files whose change means "HEAD/refs/index moved — re-status".
+ *
+ * PHASE 371 added the last three, so the things that live in them no longer wait
+ * for an unrelated save to be shown: `config` and `config.worktree` hold the
+ * remotes and every branch's upstream, and `reftable/tables.list` is rewritten
+ * once for each ref update in a reftable repository, which has no `refs/` to
+ * see. It is that one file and not the `reftable/` folder, whose table files
+ * come and go several at a time for one update.
+ */
 const DOTGIT_FILES = new Set([
   'HEAD',
   'ORIG_HEAD',
@@ -124,7 +159,10 @@ const DOTGIT_FILES = new Set([
   'REBASE_HEAD',
   'FETCH_HEAD',
   'packed-refs',
-  'index'
+  'index',
+  'config',
+  'config.worktree',
+  'reftable/tables.list'
 ]);
 
 const DOTGIT_PREFIXES = ['refs', 'rebase-merge', 'rebase-apply', 'sequencer'];
@@ -295,7 +333,7 @@ export class RepoWatcher {
   private readonly watchRoot: string;
 
   private readonly debounceMs: number;
-  private readonly onChange: (repoPath: string) => void;
+  private readonly onChange: (repoPath: string, gitMoved: boolean) => void;
   private readonly onError: (err: Error) => void;
 
   private worktreeSub: FolderWatch | null = null;
@@ -311,6 +349,24 @@ export class RepoWatcher {
 
   private flushTimer: NodeJS.Timeout | null = null;
   private disposed = false;
+
+  /**
+   * PHASE 371. Something since the last flush says git's own data may have
+   * moved. True at construction, because nothing is known before the first one.
+   * Taken and cleared by `takeGitMoved` alone.
+   */
+  private gitMovePending = true;
+  /**
+   * PHASE 371. The `.git` stream may have died, or may be watching a directory
+   * that is no longer this repository's. Never un-set: nothing re-attaches it,
+   * so nothing it could say again would be the whole truth.
+   */
+  private dotgitLost = false;
+  /** PHASE 371. The identity of the git directory the `.git` watch was asked for. */
+  private dotgitId: string | null = null;
+  /** PHASE 371. The stamp of the files no stream carries, at the last flush. */
+  private gitStamp: string | null = null;
+  private readonly readGitData: (gitDir: string | null) => GitDataReading;
 
   /**
    * PHASE 347. The exclusion plan the worktree subscription was started with,
@@ -336,6 +392,7 @@ export class RepoWatcher {
   private constructor(repoPath: string, options: RepoWatcherOptions) {
     this.repoPath = repoPath;
     this.watchRoot = canonicalPathSync(repoPath);
+    this.readGitData = createGitDataReader(this.watchRoot, process.env);
     this.debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
     this.onChange = options.onChange;
     this.onError =
@@ -400,7 +457,11 @@ export class RepoWatcher {
     // watch waited longer than one debounce window (behind a burst of other
     // watches at a boot, or a restarted watcher process), one re-read covers an
     // edit made while it waited. A short wait is today's few milliseconds.
-    if (worktree.startedAfterMs > rw.debounceMs) rw.scheduleFlush();
+    // Phase 371: nor is it known what git's data did meanwhile.
+    if (worktree.startedAfterMs > rw.debounceMs) {
+      rw.gitMovePending = true;
+      rw.scheduleFlush();
+    }
     return rw;
   }
 
@@ -496,11 +557,21 @@ export class RepoWatcher {
    * than filtered by `isRelevantDotGitPath`, because a dropped batch tells us
    * nothing about which paths were in it. A ref may have moved and we cannot
    * know, so the only honest answer is to re-status.
+   *
+   * PHASE 371 latches `dotgitLost` here for the three ways this stream can die.
+   * A fatal error is one. The restart notice is another, and it IS a re-scan
+   * notice: the new watcher process re-binds each watch, and a re-bind that comes
+   * back with no watch says nothing to anybody. The third is an event that
+   * deletes the git directory itself, after which the library stops the stream.
+   * Every event is read, so a delete behind a relevant event is not missed.
    */
   private handleDotgitEvents(err: Error | null, events: FolderEvent[]): void {
     if (this.disposed) return;
     if (err) {
       this.onError(err);
+      if (!isRescanRequired(err) || err.message === WATCHER_RESTART_ERROR) {
+        this.dotgitLost = true;
+      }
       if (isRescanRequired(err)) this.noteDrop();
       return;
     }
@@ -508,9 +579,10 @@ export class RepoWatcher {
     if (gitDir === null) return;
     for (const e of events) {
       const rel = relative(gitDir, e.path).split(sep).join('/');
+      if (rel === '' && e.type === 'delete') this.dotgitLost = true;
       if (isRelevantDotGitPath(rel)) {
+        this.gitMovePending = true;
         this.scheduleFlush();
-        return;
       }
     }
   }
@@ -520,6 +592,9 @@ export class RepoWatcher {
    * the same window an ordinary event uses, and the one alarm fires when
    * drops keep arriving and no re-read completes. The alarm is a log line
    * and never a number on a surface.
+   *
+   * Phase 371: on either stream a dropped batch may have held a ref, so git's
+   * data may have moved.
    */
   private noteDrop(): void {
     const now = Date.now();
@@ -540,6 +615,7 @@ export class RepoWatcher {
       this.lastRescanScheduledAt = now;
     }
     this.rescanPending = true;
+    this.gitMovePending = true;
     this.scheduleFlush();
   }
 
@@ -558,14 +634,35 @@ export class RepoWatcher {
         this.observation.rescansCompleted += 1;
         this.unservedDrops = 0;
       }
+      // Phase 371: taken before the attach below, which sets it again.
+      const gitMoved = this.takeGitMoved();
       // `git init` after the fact: attach the dotgit watcher when it appears.
       void this.tryStartDotgitWatcher();
       try {
-        this.onChange(this.repoPath);
+        this.onChange(this.repoPath, gitMoved);
       } catch (err) {
         this.onError(err as Error);
       }
     }, this.debounceMs);
+  }
+
+  /**
+   * PHASE 371. May git's own data have moved since the last flush? Every operand
+   * is read on every flush, so the stamp never goes stale behind a pending bit.
+   *
+   * The git directory is resolved again here rather than taken from the watch,
+   * because a directory made again in the same place, another one moved onto it
+   * and a `.git` file that now points elsewhere all leave a watch that is set
+   * and deaf.
+   */
+  private takeGitMoved(): boolean {
+    const pending = this.gitMovePending;
+    this.gitMovePending = false;
+    const now = this.readGitData(this.resolveDotgitDir());
+    if (this.dotgitSub !== null && now.id !== this.dotgitId) this.dotgitLost = true;
+    const changed = this.gitStamp !== now.stamp;
+    this.gitStamp = now.stamp;
+    return pending || changed || !now.whole || this.dotgitSub === null || this.dotgitLost;
   }
 
   /** Attach the dotgit watcher if `.git` exists and none is attached yet. */
@@ -584,6 +681,9 @@ export class RepoWatcher {
       const gitDir = this.resolveDotgitDir();
       if (gitDir === null) return;
       this.dotgitDir = gitDir;
+      // Phase 371: before the watch is asked for, so a directory replaced while
+      // the watch waits its turn is not the one this says is watched.
+      this.dotgitId = this.readGitData(gitDir).id;
       const sub = await watchFolder(
         gitDir,
         {
@@ -610,10 +710,16 @@ export class RepoWatcher {
         return;
       }
       this.dotgitSub = sub;
+      // Phase 371: a ref that moved between the flush that asked for this watch
+      // and the moment it began reached no stream.
+      this.gitMovePending = true;
       // Phase 365, D9, for this stream too: a `.git` watch attached after a
       // long wait for its turn re-reads once, because a ref that moved while it
       // waited reached no stream (the worktree watch excludes `.git`).
-      if (sub.startedAfterMs > this.debounceMs) this.scheduleFlush();
+      if (sub.startedAfterMs > this.debounceMs) {
+        this.gitMovePending = true;
+        this.scheduleFlush();
+      }
     } catch (err) {
       this.onError(err as Error);
     }

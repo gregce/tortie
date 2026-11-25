@@ -693,6 +693,15 @@ const HELPER = 'electron-run.mjs';
  * the app's PATH, every probed registry row hidden before every launch and
  * `agents:list` read back, no session and no agent started, and every writer,
  * stand-in and app ended by pid in its `finally`.
+ * PHASE 371 RAISED IT BY ONE (193 TO 194, LANDED SECOND SO 194 TO 195), for build/p371/probe-p371.mjs
+ * (`probe:p371`), History read when git's own data moves and not when a file is
+ * saved: Electrons through the helper ONE AT A TIME, the parent's
+ * (`P371_PARENT_CHECKOUT`, required) FIRST in every pair, each launch on its own
+ * scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null and the socket
+ * gmux-p371… named as its `tmuxSocket` (his ruling of 2026-11-02), a counting
+ * git first on the app's PATH, every probed registry row hidden before every
+ * launch and `agents:list` read back, no session and no agent started, and
+ * every writer, stand-in and app ended by pid in its `finally`.
  * PHASE 374 RAISED IT BY ONE (193 TO 194), for build/p374/probe-p374.mjs
  * (`probe:p374`), the meter reading the Antigravity plan from its status line:
  * Electrons through the helper ONE AT A TIME, the parent's
@@ -709,7 +718,7 @@ const HELPER = 'electron-run.mjs';
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 194;
+const HELPER_USER_FLOOR = 195;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

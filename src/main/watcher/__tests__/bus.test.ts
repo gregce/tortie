@@ -52,6 +52,40 @@ describe('repo-changed bus', () => {
     warn.mockRestore();
   });
 
+  // PHASE 371, B1: the one bit it carries beside the repository.
+  it('says git\'s own data may have moved unless the caller says it did not', () => {
+    const heard: unknown[][] = [];
+    onRepoChanged((...args) => heard.push(args));
+
+    emitRepoChanged('/a');
+    emitRepoChanged('/b', false);
+    emitRepoChanged('/c', true);
+
+    expect(heard).toEqual([
+      ['/a', true],
+      ['/b', false],
+      ['/c', true]
+    ]);
+  });
+
+  it('a throwing subscriber costs no other its value', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const heard: unknown[][] = [];
+    onRepoChanged(() => {
+      throw new Error('boom');
+    });
+    onRepoChanged((...args) => heard.push(args));
+
+    emitRepoChanged('/a', false);
+    emitRepoChanged('/a');
+
+    expect(heard).toEqual([
+      ['/a', false],
+      ['/a', true]
+    ]);
+    warn.mockRestore();
+  });
+
   it('emitting with no subscribers is a no-op', () => {
     expect(() => emitRepoChanged('/a')).not.toThrow();
   });

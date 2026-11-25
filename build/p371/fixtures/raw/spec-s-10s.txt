@@ -1,0 +1,1810 @@
+S 1795558810.8084 62644 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558810.8092 62646 62314 rev-parse --verify,--quiet
+S 1795558810.8093 62642 62314 rev-parse --verify,--quiet
+S 1795558810.8094 62643 62314 symbolic-ref --quiet,HEAD
+S 1795558810.8094 62641 62314 status --porcelain=v2,--branch
+S 1795558810.8095 62645 62314 remote 
+S 1795558810.8096 62647 62314 symbolic-ref --quiet,HEAD
+S 1795558810.8106 62649 62314 remote 
+S 1795558810.8116 62650 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558810.8117 62652 62314 remote -v
+S 1795558810.8118 62648 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558810.8119 62653 62314 show HEAD:README.md
+S 1795558810.8119 62651 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558811.2589 62663 62314 remote 
+S 1795558811.2592 62660 62314 rev-parse --verify,--quiet
+S 1795558811.2592 62662 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558811.2593 62664 62314 rev-parse --verify,--quiet
+S 1795558811.2594 62666 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558811.2597 62667 62314 remote 
+S 1795558811.2597 62665 62314 symbolic-ref --quiet,HEAD
+S 1795558811.2599 62661 62314 symbolic-ref --quiet,HEAD
+S 1795558811.2604 62668 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558811.2608 62669 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558811.2609 62670 62314 remote -v
+S 1795558811.7197 62691 62314 remote 
+S 1795558811.7197 62690 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558811.7199 62689 62314 symbolic-ref --quiet,HEAD
+S 1795558811.7200 62688 62314 rev-parse --verify,--quiet
+S 1795558811.7205 62692 62314 rev-parse --verify,--quiet
+S 1795558811.7208 62693 62314 symbolic-ref --quiet,HEAD
+S 1795558811.7208 62694 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558811.7213 62697 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558811.7214 62695 62314 remote 
+S 1795558811.7215 62696 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558811.7215 62698 62314 remote -v
+S 1795558812.2219 62708 62314 symbolic-ref --quiet,HEAD
+S 1795558812.2219 62707 62314 rev-parse --verify,--quiet
+S 1795558812.2222 62710 62314 remote 
+S 1795558812.2223 62709 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558812.2224 62714 62314 remote 
+S 1795558812.2224 62713 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558812.2224 62711 62314 rev-parse --verify,--quiet
+S 1795558812.2227 62712 62314 symbolic-ref --quiet,HEAD
+S 1795558812.2227 62716 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558812.2229 62715 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558812.2230 62717 62314 remote -v
+S 1795558812.6638 62733 62314 symbolic-ref --quiet,HEAD
+S 1795558812.6638 62730 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558812.6638 62728 62314 rev-parse --verify,--quiet
+S 1795558812.6640 62731 62314 remote 
+S 1795558812.6642 62734 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558812.6642 62732 62314 rev-parse --verify,--quiet
+S 1795558812.6643 62729 62314 symbolic-ref --quiet,HEAD
+S 1795558812.6646 62735 62314 remote 
+S 1795558812.6648 62736 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558812.6653 62738 62314 remote -v
+S 1795558812.6653 62737 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558813.0659 62764 62314 symbolic-ref --quiet,HEAD
+S 1795558813.0662 62760 62314 symbolic-ref --quiet,HEAD
+S 1795558813.0662 62765 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558813.0662 62761 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558813.0663 62763 62314 rev-parse --verify,--quiet
+S 1795558813.0663 62759 62314 rev-parse --verify,--quiet
+S 1795558813.0664 62767 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558813.0665 62766 62314 remote 
+S 1795558813.0666 62762 62314 remote 
+S 1795558813.0667 62769 62314 remote -v
+S 1795558813.0668 62768 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558813.4652 62789 62314 rev-parse --verify,--quiet
+S 1795558813.4654 62790 62314 symbolic-ref --quiet,HEAD
+S 1795558813.4656 62792 62314 remote 
+S 1795558813.4656 62794 62314 symbolic-ref --quiet,HEAD
+S 1795558813.4657 62791 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558813.4658 62793 62314 rev-parse --verify,--quiet
+S 1795558813.4660 62795 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558813.4661 62796 62314 remote 
+S 1795558813.4665 62797 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558813.4665 62799 62314 remote -v
+S 1795558813.4666 62798 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558813.7890 62824 62314 remote 
+S 1795558813.7892 62821 62314 rev-parse --verify,--quiet
+S 1795558813.7892 62822 62314 symbolic-ref --quiet,HEAD
+S 1795558813.7894 62825 62314 rev-parse --verify,--quiet
+S 1795558813.7894 62826 62314 symbolic-ref --quiet,HEAD
+S 1795558813.7894 62823 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558813.7895 62827 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558813.7897 62828 62314 remote 
+S 1795558813.7899 62830 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558813.7900 62831 62314 remote -v
+S 1795558813.7903 62829 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558814.2118 62836 62314 rev-parse --verify,--quiet
+S 1795558814.2119 62839 62314 remote 
+S 1795558814.2120 62837 62314 symbolic-ref --quiet,HEAD
+S 1795558814.2123 62842 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558814.2123 62838 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558814.2124 62841 62314 symbolic-ref --quiet,HEAD
+S 1795558814.2125 62844 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558814.2126 62840 62314 rev-parse --verify,--quiet
+S 1795558814.2127 62843 62314 remote 
+S 1795558814.2134 62845 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558814.2135 62846 62314 remote -v
+S 1795558814.7562 62880 62314 symbolic-ref --quiet,HEAD
+S 1795558814.7562 62879 62314 rev-parse --verify,--quiet
+S 1795558814.7564 62883 62314 rev-parse --verify,--quiet
+S 1795558814.7564 62881 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558814.7566 62884 62314 symbolic-ref --quiet,HEAD
+S 1795558814.7567 62882 62314 remote 
+S 1795558814.7567 62886 62314 remote 
+S 1795558814.7569 62885 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558814.7574 62888 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558814.7575 62887 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558814.7575 62889 62314 remote -v
+S 1795558815.2439 62910 62314 rev-parse --verify,--quiet
+S 1795558815.2440 62911 62314 symbolic-ref --quiet,HEAD
+S 1795558815.2446 62914 62314 rev-parse --verify,--quiet
+S 1795558815.2447 62915 62314 symbolic-ref --quiet,HEAD
+S 1795558815.2449 62913 62314 remote 
+S 1795558815.2449 62912 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558815.2449 62916 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558815.2450 62920 62314 remote -v
+S 1795558815.2451 62918 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558815.2452 62919 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558815.2452 62917 62314 remote 
+S 1795558815.7534 62934 62314 symbolic-ref --quiet,HEAD
+S 1795558815.7535 62936 62314 remote 
+S 1795558815.7537 62935 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558815.7537 62933 62314 rev-parse --verify,--quiet
+S 1795558815.7538 62937 62314 rev-parse --verify,--quiet
+S 1795558815.7542 62939 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558815.7543 62941 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558815.7548 62938 62314 symbolic-ref --quiet,HEAD
+S 1795558815.7549 62940 62314 remote 
+S 1795558815.7549 62942 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558815.7549 62943 62314 remote -v
+S 1795558816.2572 62955 62314 symbolic-ref --quiet,HEAD
+S 1795558816.2572 62954 62314 rev-parse --verify,--quiet
+S 1795558816.2573 62956 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558816.2579 62960 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558816.2585 62964 62314 remote -v
+S 1795558816.2574 62957 62314 remote 
+S 1795558816.2581 62961 62314 remote 
+S 1795558816.2582 62963 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558816.2575 62959 62314 symbolic-ref --quiet,HEAD
+S 1795558816.2580 62958 62314 rev-parse --verify,--quiet
+S 1795558816.2583 62962 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558816.6827 62974 62314 symbolic-ref --quiet,HEAD
+S 1795558816.6831 62976 62314 remote 
+S 1795558816.6832 62978 62314 symbolic-ref --quiet,HEAD
+S 1795558816.6832 62973 62314 rev-parse --verify,--quiet
+S 1795558816.6833 62977 62314 rev-parse --verify,--quiet
+S 1795558816.6833 62980 62314 remote 
+S 1795558816.6835 62981 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558816.6835 62975 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558816.6837 62983 62314 remote -v
+S 1795558816.6837 62979 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558816.6839 62982 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558817.0853 62988 62314 symbolic-ref --quiet,HEAD
+S 1795558817.0853 62987 62314 rev-parse --verify,--quiet
+S 1795558817.0855 62990 62314 remote 
+S 1795558817.0856 62993 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558817.0856 62989 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558817.0859 62992 62314 symbolic-ref --quiet,HEAD
+S 1795558817.0859 62991 62314 rev-parse --verify,--quiet
+S 1795558817.0862 62996 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558817.0864 62994 62314 remote 
+S 1795558817.0865 62995 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558817.0868 62997 62314 remote -v
+S 1795558817.5097 63005 62314 remote 
+S 1795558817.5103 63003 62314 symbolic-ref --quiet,HEAD
+S 1795558817.5107 63004 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558817.5107 63002 62314 rev-parse --verify,--quiet
+S 1795558817.5108 63006 62314 rev-parse --verify,--quiet
+S 1795558817.5111 63007 62314 symbolic-ref --quiet,HEAD
+S 1795558817.5111 63009 62314 remote 
+S 1795558817.5112 63012 62314 remote -v
+S 1795558817.5112 63011 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558817.5112 63010 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558817.5113 63008 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558818.0127 63036 62314 symbolic-ref --quiet,HEAD
+S 1795558818.0129 63037 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558818.0132 63038 62314 remote 
+S 1795558818.0133 63035 62314 rev-parse --verify,--quiet
+S 1795558818.0133 63039 62314 rev-parse --verify,--quiet
+S 1795558818.0134 63041 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558818.0134 63040 62314 symbolic-ref --quiet,HEAD
+S 1795558818.0135 63043 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558818.0141 63042 62314 remote 
+S 1795558818.0151 63044 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558818.0152 63045 62314 remote -v
+S 1795558818.4939 63082 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558818.4940 63081 62314 symbolic-ref --quiet,HEAD
+S 1795558818.4940 63080 62314 rev-parse --verify,--quiet
+S 1795558818.4941 63083 62314 remote 
+S 1795558818.4943 63084 62314 rev-parse --verify,--quiet
+S 1795558818.4948 63085 62314 symbolic-ref --quiet,HEAD
+S 1795558818.4949 63086 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558818.4952 63087 62314 remote 
+S 1795558818.4952 63088 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558818.4955 63089 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558818.4955 63090 62314 remote -v
+S 1795558818.9955 63110 62314 rev-parse --verify,--quiet
+S 1795558818.9956 63115 62314 symbolic-ref --quiet,HEAD
+S 1795558818.9958 63111 62314 symbolic-ref --quiet,HEAD
+S 1795558818.9960 63114 62314 rev-parse --verify,--quiet
+S 1795558818.9962 63116 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558818.9963 63119 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558818.9966 63117 62314 remote 
+S 1795558818.9968 63120 62314 remote -v
+S 1795558818.9970 63118 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558818.9971 63112 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558818.9971 63113 62314 remote 
+S 1795558819.5177 63129 62314 rev-parse --verify,--quiet
+S 1795558819.5180 63131 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558819.5180 63133 62314 rev-parse --verify,--quiet
+S 1795558819.5181 63130 62314 symbolic-ref --quiet,HEAD
+S 1795558819.5187 63134 62314 symbolic-ref --quiet,HEAD
+S 1795558819.5188 63132 62314 remote 
+S 1795558819.5191 63136 62314 remote 
+S 1795558819.5195 63135 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558819.5196 63137 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558819.5197 63139 62314 remote -v
+S 1795558819.5198 63138 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558820.0166 63156 62314 remote 
+S 1795558820.0166 63154 62314 symbolic-ref --quiet,HEAD
+S 1795558820.0167 63155 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558820.0171 63158 62314 symbolic-ref --quiet,HEAD
+S 1795558820.0172 63157 62314 rev-parse --verify,--quiet
+S 1795558820.0172 63153 62314 rev-parse --verify,--quiet
+S 1795558820.0181 63159 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558820.0181 63160 62314 remote 
+S 1795558820.0181 63161 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558820.0183 63162 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558820.0183 63163 62314 remote -v
+S 1795558820.4991 63175 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558820.4992 63173 62314 rev-parse --verify,--quiet
+S 1795558820.4995 63174 62314 symbolic-ref --quiet,HEAD
+S 1795558820.4997 63176 62314 remote 
+S 1795558820.5001 63177 62314 rev-parse --verify,--quiet
+S 1795558820.5002 63178 62314 symbolic-ref --quiet,HEAD
+S 1795558820.5006 63182 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558820.5008 63181 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558820.5009 63183 62314 remote -v
+S 1795558820.5010 63180 62314 remote 
+S 1795558820.5010 63179 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+E 1795558820.8888 62646 0
+E 1795558820.8979 62642 0
+E 1795558820.8996 62645 0
+E 1795558820.9003 62653 0
+E 1795558820.9015 62641 0
+E 1795558820.9016 62649 0
+E 1795558820.9026 62647 0
+E 1795558820.9029 62652 0
+E 1795558820.9036 62643 0
+E 1795558820.9044 62650 0
+E 1795558820.9045 62651 0
+E 1795558820.9050 62648 0
+E 1795558820.9052 62644 0
+S 1795558820.9074 63212 62314 status --porcelain=v2,--branch
+S 1795558820.9078 63213 62314 symbolic-ref --quiet,--short
+S 1795558820.9079 63214 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558820.9088 63215 62314 log -z,--topo-order
+S 1795558820.9091 63216 62314 log -z,--decorate=full
+S 1795558820.9093 63217 62314 show HEAD:README.md
+S 1795558821.0218 63227 62314 symbolic-ref --quiet,HEAD
+S 1795558821.0218 63229 62314 remote 
+S 1795558821.0220 63228 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558821.0221 63226 62314 rev-parse --verify,--quiet
+S 1795558821.0225 63230 62314 rev-parse --verify,--quiet
+S 1795558821.0225 63231 62314 symbolic-ref --quiet,HEAD
+S 1795558821.0229 63235 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558821.0230 63233 62314 remote 
+S 1795558821.0231 63236 62314 remote -v
+S 1795558821.0231 63232 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558821.0232 63234 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+E 1795558821.3378 62667 0
+E 1795558821.3404 62665 0
+E 1795558821.3407 62663 0
+E 1795558821.3418 62668 0
+E 1795558821.3417 62662 0
+E 1795558821.3456 62660 0
+E 1795558821.3457 62664 0
+E 1795558821.3475 62670 0
+E 1795558821.3490 62666 0
+E 1795558821.3522 62661 0
+E 1795558821.3527 62669 0
+S 1795558821.3532 63261 62314 symbolic-ref --quiet,--short
+S 1795558821.3532 63262 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558821.3533 63263 62314 log -z,--topo-order
+S 1795558821.3589 63264 62314 log -z,--decorate=full
+S 1795558821.5013 63269 62314 rev-parse --verify,--quiet
+S 1795558821.5015 63270 62314 symbolic-ref --quiet,HEAD
+S 1795558821.5016 63272 62314 remote 
+S 1795558821.5016 63274 62314 symbolic-ref --quiet,HEAD
+S 1795558821.5019 63273 62314 rev-parse --verify,--quiet
+S 1795558821.5019 63271 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558821.5019 63276 62314 remote 
+S 1795558821.5020 63275 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558821.5021 63278 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558821.5022 63277 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558821.5023 63279 62314 remote -v
+E 1795558821.7861 62698 0
+E 1795558821.7862 62693 0
+E 1795558821.7871 62697 0
+E 1795558821.7887 62695 0
+S 1795558821.7917 63293 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558821.7917 63292 62314 symbolic-ref --quiet,--short
+E 1795558821.7942 62688 0
+E 1795558821.7942 62694 0
+E 1795558821.7990 62689 0
+E 1795558821.7990 62691 0
+E 1795558821.7996 62692 0
+E 1795558821.8006 62690 0
+S 1795558821.8041 63296 62314 log -z,--topo-order
+S 1795558821.8041 63297 62314 log -z,--decorate=full
+E 1795558821.8049 62696 0
+S 1795558822.0140 63300 62314 symbolic-ref --quiet,HEAD
+S 1795558822.0141 63299 62314 rev-parse --verify,--quiet
+S 1795558822.0142 63303 62314 rev-parse --verify,--quiet
+S 1795558822.0145 63301 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558822.0145 63304 62314 symbolic-ref --quiet,HEAD
+S 1795558822.0145 63302 62314 remote 
+S 1795558822.0145 63305 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558822.0146 63306 62314 remote 
+S 1795558822.0149 63308 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558822.0150 63307 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558822.0150 63309 62314 remote -v
+E 1795558822.2899 62715 0
+E 1795558822.2908 62708 0
+E 1795558822.2915 62707 0
+E 1795558822.2976 62716 0
+E 1795558822.2994 62710 0
+E 1795558822.3002 62713 0
+E 1795558822.3064 62714 0
+E 1795558822.3064 62717 0
+E 1795558822.3064 62712 0
+E 1795558822.3072 62711 0
+E 1795558822.3074 62709 0
+S 1795558822.3124 63332 62314 symbolic-ref --quiet,--short
+S 1795558822.3125 63334 62314 log -z,--topo-order
+S 1795558822.3125 63333 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558822.3146 63335 62314 log -z,--decorate=full
+S 1795558822.5159 63339 62314 rev-parse --verify,--quiet
+S 1795558822.5161 63340 62314 symbolic-ref --quiet,HEAD
+S 1795558822.5167 63341 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558822.5172 63342 62314 remote 
+S 1795558822.5176 63343 62314 rev-parse --verify,--quiet
+S 1795558822.5178 63344 62314 symbolic-ref --quiet,HEAD
+S 1795558822.5181 63345 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558822.5183 63347 62314 remote 
+S 1795558822.5184 63348 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558822.5194 63349 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558822.5194 63350 62314 remote -v
+E 1795558822.7376 62735 0
+E 1795558822.7412 62729 0
+E 1795558822.7413 62733 0
+E 1795558822.7430 62737 0
+E 1795558822.7435 62734 0
+E 1795558822.7436 62730 0
+E 1795558822.7452 62732 0
+E 1795558822.7473 62728 0
+S 1795558822.7510 63377 62314 log -z,--topo-order
+E 1795558822.7522 62731 0
+E 1795558822.7541 62738 0
+S 1795558822.7571 63379 62314 log -z,--decorate=full
+E 1795558822.7584 62736 0
+S 1795558822.7591 63381 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558822.7592 63380 62314 symbolic-ref --quiet,--short
+S 1795558823.0312 63389 62314 symbolic-ref --quiet,HEAD
+S 1795558823.0315 63391 62314 remote 
+S 1795558823.0316 63390 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558823.0323 63388 62314 rev-parse --verify,--quiet
+S 1795558823.0326 63393 62314 symbolic-ref --quiet,HEAD
+S 1795558823.0327 63395 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558823.0330 63392 62314 rev-parse --verify,--quiet
+S 1795558823.0331 63399 62314 remote -v
+S 1795558823.0332 63398 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558823.0334 63397 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558823.0334 63396 62314 remote 
+E 1795558823.1553 62763 0
+E 1795558823.1554 62769 0
+E 1795558823.1556 62765 0
+E 1795558823.1558 62762 0
+E 1795558823.1561 62759 0
+E 1795558823.1562 62761 0
+E 1795558823.1566 62760 0
+E 1795558823.1588 62764 0
+E 1795558823.1604 62768 0
+S 1795558823.1648 63420 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558823.1648 63419 62314 symbolic-ref --quiet,--short
+S 1795558823.1648 63421 62314 log -z,--decorate=full
+E 1795558823.1671 62766 0
+E 1795558823.1692 62767 0
+S 1795558823.1726 63422 62314 log -z,--topo-order
+S 1795558823.5146 63426 62314 symbolic-ref --quiet,HEAD
+S 1795558823.5148 63425 62314 rev-parse --verify,--quiet
+S 1795558823.5148 63428 62314 remote 
+S 1795558823.5150 63427 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558823.5151 63429 62314 rev-parse --verify,--quiet
+S 1795558823.5152 63431 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558823.5159 63430 62314 symbolic-ref --quiet,HEAD
+S 1795558823.5159 63433 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558823.5160 63432 62314 remote 
+S 1795558823.5160 63434 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558823.5162 63435 62314 remote -v
+E 1795558823.5523 62799 0
+E 1795558823.5524 62790 0
+E 1795558823.5531 62789 0
+E 1795558823.5533 62791 0
+E 1795558823.5536 62796 0
+E 1795558823.5553 62797 0
+E 1795558823.5558 62798 0
+E 1795558823.5558 62792 0
+E 1795558823.5562 62795 0
+S 1795558823.5593 63449 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558823.5593 63447 62314 symbolic-ref --quiet,--short
+S 1795558823.5603 63450 62314 log -z,--decorate=full
+E 1795558823.5633 62794 0
+E 1795558823.5672 62793 0
+S 1795558823.5719 63452 62314 log -z,--topo-order
+E 1795558823.8769 62824 0
+E 1795558823.8770 62821 0
+E 1795558823.8774 62822 0
+E 1795558823.8776 62823 0
+E 1795558823.8776 62825 0
+E 1795558823.8796 62827 0
+E 1795558823.8807 62828 0
+E 1795558823.8874 62831 0
+E 1795558823.8879 62830 0
+E 1795558823.8885 62829 0
+E 1795558823.8886 62826 0
+S 1795558823.8905 63468 62314 log -z,--decorate=full
+S 1795558823.8941 63473 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558823.8942 63472 62314 symbolic-ref --quiet,--short
+S 1795558823.8942 63474 62314 log -z,--topo-order
+S 1795558824.0170 63489 62314 rev-parse --verify,--quiet
+S 1795558824.0170 63485 62314 rev-parse --verify,--quiet
+S 1795558824.0172 63486 62314 symbolic-ref --quiet,HEAD
+S 1795558824.0174 63487 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558824.0175 63491 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558824.0175 63488 62314 remote 
+S 1795558824.0176 63490 62314 symbolic-ref --quiet,HEAD
+S 1795558824.0176 63492 62314 remote 
+S 1795558824.0181 63494 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558824.0182 63493 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558824.0183 63495 62314 remote -v
+E 1795558824.2938 62841 0
+E 1795558824.2976 62840 0
+E 1795558824.2987 62844 0
+E 1795558824.2990 62837 0
+E 1795558824.3016 62842 0
+E 1795558824.3037 62846 0
+E 1795558824.3037 62839 0
+E 1795558824.3044 62845 0
+E 1795558824.3045 62838 0
+E 1795558824.3056 62843 0
+E 1795558824.3061 62836 0
+S 1795558824.3094 63516 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558824.3094 63515 62314 symbolic-ref --quiet,--short
+S 1795558824.3095 63517 62314 log -z,--topo-order
+S 1795558824.3098 63518 62314 log -z,--decorate=full
+S 1795558824.5221 63520 62314 rev-parse --verify,--quiet
+S 1795558824.5222 63522 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558824.5223 63521 62314 symbolic-ref --quiet,HEAD
+S 1795558824.5226 63523 62314 remote 
+S 1795558824.5227 63525 62314 symbolic-ref --quiet,HEAD
+S 1795558824.5228 63526 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558824.5229 63524 62314 rev-parse --verify,--quiet
+S 1795558824.5229 63527 62314 remote 
+S 1795558824.5231 63528 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558824.5235 63529 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558824.5236 63530 62314 remote -v
+E 1795558824.8344 62882 0
+E 1795558824.8359 62887 0
+E 1795558824.8379 62888 0
+E 1795558824.8386 62883 0
+E 1795558824.8390 62885 0
+E 1795558824.8393 62881 0
+E 1795558824.8442 62886 0
+E 1795558824.8443 62884 0
+E 1795558824.8443 62889 0
+E 1795558824.8453 62879 0
+E 1795558824.8460 62880 0
+S 1795558824.8492 63544 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558824.8494 63543 62314 symbolic-ref --quiet,--short
+S 1795558824.8495 63545 62314 log -z,--topo-order
+S 1795558824.8495 63546 62314 log -z,--decorate=full
+S 1795558825.0325 63552 62314 symbolic-ref --quiet,HEAD
+S 1795558825.0325 63551 62314 rev-parse --verify,--quiet
+S 1795558825.0325 63554 62314 remote 
+S 1795558825.0325 63553 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558825.0326 63555 62314 rev-parse --verify,--quiet
+S 1795558825.0329 63556 62314 symbolic-ref --quiet,HEAD
+S 1795558825.0335 63558 62314 remote 
+S 1795558825.0337 63560 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558825.0343 63561 62314 remote -v
+S 1795558825.0343 63557 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558825.0343 63559 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+E 1795558825.3032 62911 0
+E 1795558825.3221 62916 0
+E 1795558825.3231 62913 0
+E 1795558825.3275 62915 0
+E 1795558825.3276 62920 0
+E 1795558825.3276 62917 0
+E 1795558825.3279 62919 0
+E 1795558825.3281 62910 0
+E 1795558825.3284 62912 0
+E 1795558825.3288 62914 0
+E 1795558825.3303 62918 0
+S 1795558825.3331 63581 62314 symbolic-ref --quiet,--short
+S 1795558825.3332 63584 62314 log -z,--decorate=full
+S 1795558825.3333 63582 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558825.3333 63583 62314 log -z,--topo-order
+S 1795558825.5350 63597 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558825.5351 63595 62314 rev-parse --verify,--quiet
+S 1795558825.5349 63596 62314 symbolic-ref --quiet,HEAD
+S 1795558825.5352 63599 62314 rev-parse --verify,--quiet
+S 1795558825.5354 63598 62314 remote 
+S 1795558825.5354 63600 62314 symbolic-ref --quiet,HEAD
+S 1795558825.5354 63603 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558825.5356 63601 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558825.5356 63602 62314 remote 
+S 1795558825.5365 63604 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558825.5367 63605 62314 remote -v
+E 1795558825.8316 62940 0
+E 1795558825.8336 62934 0
+E 1795558825.8342 62943 0
+E 1795558825.8343 62933 0
+E 1795558825.8344 62942 0
+E 1795558825.8345 62935 0
+E 1795558825.8348 62937 0
+S 1795558825.8393 63624 62314 symbolic-ref --quiet,--short
+S 1795558825.8394 63625 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558825.8426 62939 0
+E 1795558825.8452 62938 0
+E 1795558825.8494 62936 0
+S 1795558825.8495 63628 62314 log -z,--topo-order
+E 1795558825.8504 62941 0
+S 1795558825.8536 63629 62314 log -z,--decorate=full
+S 1795558826.0326 63635 62314 symbolic-ref --quiet,HEAD
+S 1795558826.0327 63637 62314 remote 
+S 1795558826.0328 63636 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558826.0328 63640 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558826.0331 63634 62314 rev-parse --verify,--quiet
+S 1795558826.0332 63639 62314 symbolic-ref --quiet,HEAD
+S 1795558826.0334 63638 62314 rev-parse --verify,--quiet
+S 1795558826.0336 63641 62314 remote 
+S 1795558826.0337 63642 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558826.0341 63643 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558826.0342 63644 62314 remote -v
+E 1795558826.3303 62964 0
+E 1795558826.3303 62957 0
+E 1795558826.3340 62959 0
+E 1795558826.3351 62963 0
+E 1795558826.3370 62961 0
+S 1795558826.3373 63663 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558826.3375 63662 62314 symbolic-ref --quiet,--short
+E 1795558826.3388 62962 0
+E 1795558826.3442 62955 0
+E 1795558826.3448 62954 0
+E 1795558826.3450 62960 0
+E 1795558826.3451 62958 0
+E 1795558826.3460 62956 0
+S 1795558826.3502 63666 62314 log -z,--topo-order
+S 1795558826.3503 63667 62314 log -z,--decorate=full
+S 1795558826.5301 63676 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558826.5302 63678 62314 rev-parse --verify,--quiet
+S 1795558826.5301 63677 62314 remote 
+S 1795558826.5302 63679 62314 symbolic-ref --quiet,HEAD
+S 1795558826.5302 63675 62314 symbolic-ref --quiet,HEAD
+S 1795558826.5308 63680 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558826.5309 63682 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558826.5310 63674 62314 rev-parse --verify,--quiet
+S 1795558826.5311 63681 62314 remote 
+S 1795558826.5312 63684 62314 remote -v
+S 1795558826.5313 63683 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558826.7696 62978 0
+E 1795558826.7704 62981 0
+E 1795558826.7711 62976 0
+E 1795558826.7723 62977 0
+E 1795558826.7723 62980 0
+E 1795558826.7733 62979 0
+E 1795558826.7744 62983 0
+E 1795558826.7745 62975 0
+E 1795558826.7755 62974 0
+E 1795558826.7760 62973 0
+E 1795558826.7771 62982 0
+S 1795558826.7794 63709 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558826.7795 63707 62314 log -z,--topo-order
+S 1795558826.7795 63708 62314 symbolic-ref --quiet,--short
+S 1795558826.7799 63710 62314 log -z,--decorate=full
+S 1795558827.0384 63714 62314 symbolic-ref --quiet,HEAD
+S 1795558827.0386 63715 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558827.0386 63716 62314 remote 
+S 1795558827.0387 63713 62314 rev-parse --verify,--quiet
+S 1795558827.0388 63717 62314 rev-parse --verify,--quiet
+S 1795558827.0389 63719 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558827.0390 63720 62314 remote 
+S 1795558827.0390 63718 62314 symbolic-ref --quiet,HEAD
+S 1795558827.0392 63723 62314 remote -v
+S 1795558827.0394 63721 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558827.0395 63722 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558827.1829 62988 0
+E 1795558827.1837 62996 0
+E 1795558827.1844 62992 0
+E 1795558827.1845 62987 0
+E 1795558827.1850 62995 0
+E 1795558827.1850 62991 0
+E 1795558827.1854 62997 0
+E 1795558827.1857 62993 0
+E 1795558827.1864 62994 0
+E 1795558827.1892 62989 0
+S 1795558827.1913 63735 62314 symbolic-ref --quiet,--short
+S 1795558827.1913 63737 62314 log -z,--topo-order
+S 1795558827.1915 63736 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558827.1921 62990 0
+S 1795558827.1957 63738 62314 log -z,--decorate=full
+S 1795558827.5394 63744 62314 rev-parse --verify,--quiet
+S 1795558827.5395 63746 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558827.5395 63745 62314 symbolic-ref --quiet,HEAD
+S 1795558827.5396 63747 62314 remote 
+S 1795558827.5406 63749 62314 symbolic-ref --quiet,HEAD
+S 1795558827.5406 63748 62314 rev-parse --verify,--quiet
+S 1795558827.5409 63751 62314 remote 
+S 1795558827.5409 63750 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558827.5410 63752 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558827.5415 63753 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558827.5419 63754 62314 remote -v
+E 1795558827.5860 63005 0
+E 1795558827.5865 63008 0
+E 1795558827.5877 63012 0
+E 1795558827.5879 63011 0
+E 1795558827.5885 63002 0
+E 1795558827.5909 63010 0
+S 1795558827.5934 63767 62314 symbolic-ref --quiet,--short
+S 1795558827.5935 63768 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558827.5961 63009 0
+E 1795558827.5969 63004 0
+E 1795558827.5970 63003 0
+S 1795558827.6017 63771 62314 log -z,--decorate=full
+E 1795558827.6029 63007 0
+E 1795558827.6034 63006 0
+S 1795558827.6077 63772 62314 log -z,--topo-order
+S 1795558828.0491 63798 62314 rev-parse --verify,--quiet
+S 1795558828.0492 63800 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558828.0494 63799 62314 symbolic-ref --quiet,HEAD
+S 1795558828.0495 63802 62314 remote 
+S 1795558828.0496 63805 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558828.0500 63803 62314 rev-parse --verify,--quiet
+S 1795558828.0501 63810 62314 remote -v
+S 1795558828.0505 63806 62314 remote 
+S 1795558828.0505 63807 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558828.0506 63804 62314 symbolic-ref --quiet,HEAD
+S 1795558828.0507 63809 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558828.0905 63041 0
+E 1795558828.0905 63045 0
+E 1795558828.0909 63043 0
+E 1795558828.0944 63042 0
+E 1795558828.0950 63044 0
+S 1795558828.0987 63826 62314 symbolic-ref --quiet,--short
+S 1795558828.0987 63827 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558828.0989 63040 0
+E 1795558828.0989 63036 0
+E 1795558828.0995 63039 0
+E 1795558828.0997 63037 0
+E 1795558828.1028 63038 0
+E 1795558828.1032 63035 0
+S 1795558828.1038 63828 62314 log -z,--topo-order
+S 1795558828.1075 63829 62314 log -z,--decorate=full
+S 1795558828.5571 63837 62314 symbolic-ref --quiet,HEAD
+S 1795558828.5573 63835 62314 rev-parse --verify,--quiet
+S 1795558828.5597 63838 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558828.5601 63839 62314 remote 
+S 1795558828.5604 63842 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558828.5605 63840 62314 rev-parse --verify,--quiet
+S 1795558828.5604 63841 62314 symbolic-ref --quiet,HEAD
+S 1795558828.5605 63845 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558828.5606 63843 62314 remote 
+S 1795558828.5607 63844 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558828.5613 63846 62314 remote -v
+E 1795558828.5668 63083 0
+E 1795558828.5699 63084 0
+E 1795558828.5725 63087 0
+E 1795558828.5741 63088 0
+E 1795558828.5770 63082 0
+E 1795558828.5776 63089 0
+E 1795558828.5797 63085 0
+E 1795558828.5802 63080 0
+E 1795558828.5841 63090 0
+E 1795558828.5854 63081 0
+E 1795558828.5858 63086 0
+S 1795558828.5893 63859 62314 log -z,--decorate=full
+S 1795558828.5896 63860 62314 log -z,--topo-order
+S 1795558828.5896 63857 62314 symbolic-ref --quiet,--short
+S 1795558828.5896 63858 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558829.0588 63888 62314 symbolic-ref --quiet,HEAD
+S 1795558829.0591 63885 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558829.0593 63883 62314 rev-parse --verify,--quiet
+S 1795558829.0593 63884 62314 symbolic-ref --quiet,HEAD
+S 1795558829.0596 63887 62314 rev-parse --verify,--quiet
+S 1795558829.0598 63886 62314 remote 
+S 1795558829.0602 63889 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558829.0605 63890 62314 remote 
+S 1795558829.0609 63894 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558829.0610 63896 62314 remote -v
+S 1795558829.0612 63895 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558829.0695 63110 0
+E 1795558829.0696 63112 0
+E 1795558829.0699 63116 0
+E 1795558829.0763 63115 0
+E 1795558829.0769 63114 0
+E 1795558829.0772 63119 0
+E 1795558829.0774 63113 0
+E 1795558829.0795 63120 0
+E 1795558829.0802 63117 0
+S 1795558829.0846 63906 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558829.0847 63905 62314 symbolic-ref --quiet,--short
+S 1795558829.0847 63907 62314 log -z,--topo-order
+E 1795558829.0858 63111 0
+E 1795558829.0865 63118 0
+S 1795558829.0898 63908 62314 log -z,--decorate=full
+S 1795558829.5401 63925 62314 rev-parse --verify,--quiet
+S 1795558829.5403 63927 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558829.5404 63929 62314 remote 
+S 1795558829.5406 63930 62314 rev-parse --verify,--quiet
+S 1795558829.5406 63933 62314 remote 
+S 1795558829.5407 63926 62314 symbolic-ref --quiet,HEAD
+S 1795558829.5408 63931 62314 symbolic-ref --quiet,HEAD
+S 1795558829.5410 63932 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558829.5410 63935 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558829.5414 63934 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558829.5415 63936 62314 remote -v
+E 1795558829.5893 63130 0
+E 1795558829.5916 63134 0
+E 1795558829.5926 63139 0
+E 1795558829.5931 63133 0
+E 1795558829.5937 63137 0
+S 1795558829.5982 63954 62314 symbolic-ref --quiet,--short
+S 1795558829.5982 63955 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558829.5988 63132 0
+E 1795558829.5994 63138 0
+E 1795558829.5995 63131 0
+E 1795558829.6000 63129 0
+E 1795558829.6010 63136 0
+E 1795558829.6017 63135 0
+S 1795558829.6046 63956 62314 log -z,--decorate=full
+S 1795558829.6053 63957 62314 log -z,--topo-order
+S 1795558830.0573 63995 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558830.0574 63996 62314 remote 
+S 1795558830.0576 63994 62314 symbolic-ref --quiet,HEAD
+S 1795558830.0578 63997 62314 rev-parse --verify,--quiet
+S 1795558830.0578 63993 62314 rev-parse --verify,--quiet
+S 1795558830.0584 63998 62314 symbolic-ref --quiet,HEAD
+S 1795558830.0593 63999 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558830.0594 64000 62314 remote 
+S 1795558830.0595 64001 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558830.0602 64003 62314 remote -v
+S 1795558830.0602 64002 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558830.0828 63154 0
+E 1795558830.0834 63155 0
+E 1795558830.0848 63158 0
+E 1795558830.0900 63163 0
+E 1795558830.0900 63156 0
+E 1795558830.0900 63160 0
+E 1795558830.0902 63157 0
+E 1795558830.0946 63153 0
+E 1795558830.0947 63159 0
+S 1795558830.0950 64016 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558830.0951 64015 62314 symbolic-ref --quiet,--short
+S 1795558830.0987 64018 62314 log -z,--topo-order
+S 1795558830.0987 64017 62314 log -z,--decorate=full
+E 1795558830.1015 63161 0
+E 1795558830.1020 63162 0
+S 1795558830.5407 64057 62314 symbolic-ref --quiet,HEAD
+S 1795558830.5410 64053 62314 symbolic-ref --quiet,HEAD
+S 1795558830.5411 64058 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558830.5414 64055 62314 remote 
+S 1795558830.5415 64054 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558830.5415 64052 62314 rev-parse --verify,--quiet
+S 1795558830.5416 64060 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558830.5418 64062 62314 remote -v
+S 1795558830.5421 64061 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558830.5422 64059 62314 remote 
+S 1795558830.5423 64056 62314 rev-parse --verify,--quiet
+E 1795558830.5614 63178 0
+E 1795558830.5625 63175 0
+E 1795558830.5775 63176 0
+E 1795558830.5779 63180 0
+E 1795558830.5784 63173 0
+E 1795558830.5792 63183 0
+E 1795558830.5798 63182 0
+S 1795558830.5845 64074 62314 symbolic-ref --quiet,--short
+S 1795558830.5848 64075 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558830.5855 63181 0
+E 1795558830.5860 63179 0
+E 1795558830.5887 63174 0
+E 1795558830.5907 63177 0
+S 1795558830.5935 64076 62314 log -z,--decorate=full
+S 1795558830.5948 64077 62314 log -z,--topo-order
+E 1795558830.9835 63214 0
+E 1795558831.0016 63213 0
+E 1795558831.0029 63217 0
+E 1795558831.0030 63212 0
+E 1795558831.0090 63216 0
+S 1795558831.0156 64096 62314 status --porcelain=v2,--branch
+S 1795558831.0156 64097 62314 show HEAD:README.md
+S 1795558831.0484 64100 62314 rev-parse --verify,--quiet
+S 1795558831.0485 64102 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558831.0486 64103 62314 remote 
+S 1795558831.0487 64104 62314 rev-parse --verify,--quiet
+S 1795558831.0492 64101 62314 symbolic-ref --quiet,HEAD
+S 1795558831.0492 64105 62314 symbolic-ref --quiet,HEAD
+S 1795558831.0501 64107 62314 remote 
+S 1795558831.0501 64106 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558831.0505 64108 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558831.0507 64109 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558831.0511 64110 62314 remote -v
+E 1795558831.0893 63236 0
+E 1795558831.0894 63233 0
+E 1795558831.0904 63227 0
+S 1795558831.0956 64119 62314 symbolic-ref --quiet,--short
+S 1795558831.0961 64120 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558831.0976 63231 0
+E 1795558831.1036 63226 0
+E 1795558831.1040 63228 0
+E 1795558831.1049 63235 0
+E 1795558831.1059 63234 0
+E 1795558831.1117 63229 0
+E 1795558831.1125 63230 0
+E 1795558831.1127 63232 0
+S 1795558831.1179 64125 62314 log -z,--topo-order
+S 1795558831.1179 64124 62314 log -z,--decorate=full
+E 1795558831.4340 63261 0
+E 1795558831.4467 63262 0
+E 1795558831.4529 63264 0
+S 1795558831.5545 64154 62314 remote 
+S 1795558831.5550 64148 62314 symbolic-ref --quiet,HEAD
+S 1795558831.5553 64150 62314 remote 
+S 1795558831.5554 64149 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558831.5556 64153 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558831.5556 64156 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558831.5556 64151 62314 rev-parse --verify,--quiet
+S 1795558831.5557 64147 62314 rev-parse --verify,--quiet
+S 1795558831.5557 64152 62314 symbolic-ref --quiet,HEAD
+S 1795558831.5569 64155 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558831.5569 64157 62314 remote -v
+E 1795558831.5786 63274 0
+E 1795558831.5833 63270 0
+E 1795558831.5850 63277 0
+E 1795558831.5919 63278 0
+E 1795558831.5921 63276 0
+E 1795558831.5922 63273 0
+E 1795558831.5924 63279 0
+E 1795558831.5927 63269 0
+E 1795558831.5931 63275 0
+E 1795558831.5938 63272 0
+E 1795558831.5956 63271 0
+S 1795558831.5996 64172 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558831.5996 64173 62314 log -z,--topo-order
+S 1795558831.5998 64174 62314 log -z,--decorate=full
+S 1795558831.5998 64171 62314 symbolic-ref --quiet,--short
+E 1795558831.8748 63293 0
+E 1795558831.8968 63292 0
+E 1795558831.9095 63297 0
+S 1795558832.0492 64201 62314 symbolic-ref --quiet,HEAD
+S 1795558832.0492 64203 62314 remote 
+S 1795558832.0494 64204 62314 rev-parse --verify,--quiet
+S 1795558832.0496 64200 62314 rev-parse --verify,--quiet
+S 1795558832.0497 64202 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558832.0501 64207 62314 remote 
+S 1795558832.0502 64205 62314 symbolic-ref --quiet,HEAD
+S 1795558832.0507 64208 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558832.0510 64206 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558832.0511 64209 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558832.0512 64210 62314 remote -v
+E 1795558832.0873 63304 0
+E 1795558832.0911 63303 0
+E 1795558832.0961 63306 0
+E 1795558832.0970 63302 0
+E 1795558832.0982 63307 0
+E 1795558832.1010 63299 0
+E 1795558832.1017 63300 0
+E 1795558832.1031 63305 0
+E 1795558832.1044 63309 0
+E 1795558832.1059 63301 0
+E 1795558832.1066 63308 0
+S 1795558832.1087 64223 62314 log -z,--topo-order
+S 1795558832.1091 64224 62314 symbolic-ref --quiet,--short
+S 1795558832.1092 64225 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558832.1100 64226 62314 log -z,--decorate=full
+E 1795558832.3950 63333 0
+E 1795558832.3961 63335 0
+E 1795558832.4035 63332 0
+S 1795558832.5610 64266 62314 rev-parse --verify,--quiet
+S 1795558832.5611 64262 62314 rev-parse --verify,--quiet
+S 1795558832.5612 64268 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558832.5616 64270 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558832.5619 64267 62314 symbolic-ref --quiet,HEAD
+S 1795558832.5622 64269 62314 remote 
+S 1795558832.5623 64264 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558832.5625 64263 62314 symbolic-ref --quiet,HEAD
+S 1795558832.5625 64272 62314 remote -v
+S 1795558832.5626 64271 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558832.5626 64265 62314 remote 
+E 1795558832.5844 63342 0
+E 1795558832.5879 63341 0
+E 1795558832.5886 63348 0
+E 1795558832.5931 63344 0
+E 1795558832.5942 63345 0
+E 1795558832.5991 63339 0
+E 1795558832.5992 63343 0
+E 1795558832.5997 63349 0
+E 1795558832.6000 63350 0
+E 1795558832.6009 63340 0
+E 1795558832.6015 63347 0
+S 1795558832.6085 64291 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558832.6087 64293 62314 log -z,--topo-order
+S 1795558832.6087 64292 62314 log -z,--decorate=full
+S 1795558832.6088 64290 62314 symbolic-ref --quiet,--short
+E 1795558832.8484 63380 0
+E 1795558832.8536 63379 0
+E 1795558832.8590 63381 0
+S 1795558833.0557 64311 62314 symbolic-ref --quiet,HEAD
+S 1795558833.0558 64312 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558833.0559 64313 62314 remote 
+S 1795558833.0561 64316 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558833.0562 64315 62314 symbolic-ref --quiet,HEAD
+S 1795558833.0562 64310 62314 rev-parse --verify,--quiet
+S 1795558833.0564 64318 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558833.0567 64314 62314 rev-parse --verify,--quiet
+S 1795558833.0567 64317 62314 remote 
+S 1795558833.0567 64319 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558833.0568 64320 62314 remote -v
+E 1795558833.0973 63388 0
+E 1795558833.1031 63399 0
+S 1795558833.1105 64331 62314 symbolic-ref --quiet,--short
+S 1795558833.1105 64332 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558833.1126 63391 0
+E 1795558833.1127 63396 0
+E 1795558833.1128 63389 0
+E 1795558833.1134 63397 0
+E 1795558833.1137 63393 0
+E 1795558833.1143 63392 0
+E 1795558833.1143 63390 0
+E 1795558833.1153 63395 0
+S 1795558833.1190 64334 62314 log -z,--decorate=full
+S 1795558833.1190 64335 62314 log -z,--topo-order
+E 1795558833.1236 63398 0
+E 1795558833.2498 63419 0
+E 1795558833.2570 63420 0
+E 1795558833.2615 63421 0
+S 1795558833.5645 64348 62314 symbolic-ref --quiet,HEAD
+S 1795558833.5645 64349 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558833.5645 64347 62314 rev-parse --verify,--quiet
+S 1795558833.5651 64350 62314 remote 
+S 1795558833.5651 64351 62314 rev-parse --verify,--quiet
+S 1795558833.5653 64352 62314 symbolic-ref --quiet,HEAD
+S 1795558833.5654 64354 62314 remote 
+S 1795558833.5657 64353 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558833.5677 64355 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558833.5685 64358 62314 remote -v
+S 1795558833.5686 64356 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558833.5855 63432 0
+E 1795558833.5859 63435 0
+E 1795558833.5903 63430 0
+E 1795558833.5914 63427 0
+S 1795558833.5963 64374 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558833.5964 64373 62314 symbolic-ref --quiet,--short
+E 1795558833.5993 63426 0
+E 1795558833.6001 63434 0
+E 1795558833.6001 63428 0
+E 1795558833.6021 63433 0
+E 1795558833.6052 63429 0
+E 1795558833.6052 63425 0
+E 1795558833.6055 63431 0
+S 1795558833.6109 64375 62314 log -z,--decorate=full
+S 1795558833.6111 64376 62314 log -z,--topo-order
+E 1795558833.6465 63447 0
+E 1795558833.6466 63450 0
+E 1795558833.6476 63449 0
+E 1795558833.9764 63468 0
+E 1795558833.9860 63473 0
+E 1795558833.9936 63472 0
+S 1795558834.0550 64393 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558834.0550 64392 62314 symbolic-ref --quiet,HEAD
+S 1795558834.0551 64391 62314 rev-parse --verify,--quiet
+S 1795558834.0552 64394 62314 remote 
+S 1795558834.0558 64395 62314 rev-parse --verify,--quiet
+S 1795558834.0569 64398 62314 remote 
+S 1795558834.0570 64397 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558834.0572 64396 62314 symbolic-ref --quiet,HEAD
+S 1795558834.0577 64401 62314 remote -v
+S 1795558834.0578 64399 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558834.0581 64400 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558834.0809 63492 0
+E 1795558834.0847 63486 0
+E 1795558834.0945 63491 0
+E 1795558834.0946 63493 0
+E 1795558834.0967 63489 0
+E 1795558834.0981 63495 0
+E 1795558834.0990 63485 0
+E 1795558834.0998 63487 0
+E 1795558834.1037 63488 0
+E 1795558834.1038 63490 0
+S 1795558834.1041 64415 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558834.1042 64414 62314 symbolic-ref --quiet,--short
+E 1795558834.1044 63494 0
+S 1795558834.1092 64416 62314 log -z,--decorate=full
+S 1795558834.1092 64417 62314 log -z,--topo-order
+E 1795558834.3933 63515 0
+E 1795558834.3937 63516 0
+E 1795558834.3989 63518 0
+S 1795558834.5661 64436 62314 remote 
+S 1795558834.5663 64433 62314 rev-parse --verify,--quiet
+S 1795558834.5664 64434 62314 symbolic-ref --quiet,HEAD
+S 1795558834.5666 64439 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558834.5667 64435 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558834.5667 64438 62314 symbolic-ref --quiet,HEAD
+S 1795558834.5672 64440 62314 remote 
+S 1795558834.5673 64441 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558834.5673 64437 62314 rev-parse --verify,--quiet
+S 1795558834.5675 64442 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558834.5676 64443 62314 remote -v
+E 1795558834.5778 63528 0
+E 1795558834.5873 63521 0
+E 1795558834.5873 63530 0
+S 1795558834.5921 64451 62314 symbolic-ref --quiet,--short
+S 1795558834.5921 64452 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558834.5979 63527 0
+E 1795558834.5980 63529 0
+E 1795558834.5981 63520 0
+E 1795558834.5983 63526 0
+E 1795558834.6024 63523 0
+E 1795558834.6069 63525 0
+E 1795558834.6073 63524 0
+E 1795558834.6078 63522 0
+S 1795558834.6121 64458 62314 log -z,--decorate=full
+S 1795558834.6121 64457 62314 log -z,--topo-order
+E 1795558834.9350 63543 0
+E 1795558834.9429 63546 0
+E 1795558834.9430 63544 0
+S 1795558835.0678 64479 62314 symbolic-ref --quiet,HEAD
+S 1795558835.0679 64478 62314 rev-parse --verify,--quiet
+S 1795558835.0680 64483 62314 symbolic-ref --quiet,HEAD
+S 1795558835.0683 64480 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558835.0686 64481 62314 remote 
+S 1795558835.0690 64485 62314 remote 
+S 1795558835.0690 64484 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558835.0699 64487 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558835.0701 64488 62314 remote -v
+S 1795558835.0701 64482 62314 rev-parse --verify,--quiet
+S 1795558835.0703 64486 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+E 1795558835.1058 63554 0
+E 1795558835.1058 63558 0
+E 1795558835.1100 63557 0
+E 1795558835.1101 63551 0
+E 1795558835.1145 63553 0
+E 1795558835.1163 63555 0
+E 1795558835.1166 63559 0
+E 1795558835.1176 63560 0
+E 1795558835.1183 63552 0
+E 1795558835.1211 63561 0
+E 1795558835.1223 63556 0
+S 1795558835.1238 64503 62314 log -z,--decorate=full
+S 1795558835.1256 64504 62314 symbolic-ref --quiet,--short
+S 1795558835.1256 64505 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558835.1256 64506 62314 log -z,--topo-order
+E 1795558835.4182 63582 0
+E 1795558835.4234 63584 0
+E 1795558835.4270 63581 0
+S 1795558835.5695 64514 62314 symbolic-ref --quiet,HEAD
+S 1795558835.5696 64516 62314 remote 
+S 1795558835.5697 64513 62314 rev-parse --verify,--quiet
+S 1795558835.5697 64515 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558835.5701 64517 62314 rev-parse --verify,--quiet
+S 1795558835.5704 64518 62314 symbolic-ref --quiet,HEAD
+S 1795558835.5705 64520 62314 remote 
+S 1795558835.5705 64522 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558835.5706 64519 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558835.5709 64523 62314 remote -v
+S 1795558835.5710 64521 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+E 1795558835.6001 63602 0
+E 1795558835.6055 63600 0
+E 1795558835.6059 63599 0
+E 1795558835.6067 63598 0
+E 1795558835.6071 63595 0
+E 1795558835.6120 63596 0
+E 1795558835.6134 63605 0
+E 1795558835.6135 63603 0
+E 1795558835.6160 63601 0
+S 1795558835.6183 64538 62314 symbolic-ref --quiet,--short
+S 1795558835.6186 64539 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558835.6198 64540 62314 log -z,--topo-order
+E 1795558835.6245 63604 0
+E 1795558835.6248 63597 0
+S 1795558835.6297 64543 62314 log -z,--decorate=full
+E 1795558835.9254 63624 0
+E 1795558835.9255 63625 0
+E 1795558835.9451 63629 0
+S 1795558836.0710 64577 62314 rev-parse --verify,--quiet
+S 1795558836.0712 64574 62314 symbolic-ref --quiet,HEAD
+S 1795558836.0712 64573 62314 rev-parse --verify,--quiet
+S 1795558836.0714 64576 62314 remote 
+S 1795558836.0715 64578 62314 symbolic-ref --quiet,HEAD
+S 1795558836.0715 64575 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558836.0715 64580 62314 remote 
+S 1795558836.0720 64579 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558836.0774 64582 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558836.0777 64581 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558836.0778 64583 62314 remote -v
+E 1795558836.1060 63637 0
+E 1795558836.1077 63643 0
+E 1795558836.1102 63634 0
+E 1795558836.1108 63644 0
+E 1795558836.1133 63636 0
+E 1795558836.1134 63640 0
+E 1795558836.1136 63638 0
+E 1795558836.1141 63642 0
+E 1795558836.1167 63641 0
+E 1795558836.1170 63639 0
+S 1795558836.1175 64595 62314 symbolic-ref --quiet,--short
+S 1795558836.1175 64596 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558836.1194 63635 0
+S 1795558836.1217 64597 62314 log -z,--topo-order
+S 1795558836.1233 64598 62314 log -z,--decorate=full
+E 1795558836.4221 63662 0
+E 1795558836.4260 63663 0
+E 1795558836.4387 63667 0
+S 1795558836.5729 64621 62314 symbolic-ref --quiet,HEAD
+S 1795558836.5729 64617 62314 symbolic-ref --quiet,HEAD
+S 1795558836.5730 64618 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558836.5731 64616 62314 rev-parse --verify,--quiet
+S 1795558836.5732 64624 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558836.5733 64619 62314 remote 
+S 1795558836.5733 64622 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558836.5734 64620 62314 rev-parse --verify,--quiet
+S 1795558836.5736 64623 62314 remote 
+S 1795558836.5736 64626 62314 remote -v
+S 1795558836.5736 64625 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558836.5917 63678 0
+E 1795558836.5917 63677 0
+E 1795558836.5960 63684 0
+E 1795558836.5979 63679 0
+S 1795558836.6013 64635 62314 symbolic-ref --quiet,--short
+S 1795558836.6014 64636 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558836.6036 63675 0
+E 1795558836.6044 63674 0
+E 1795558836.6047 63676 0
+S 1795558836.6089 64640 62314 log -z,--decorate=full
+E 1795558836.6095 63682 0
+E 1795558836.6127 63683 0
+E 1795558836.6128 63680 0
+E 1795558836.6157 63681 0
+S 1795558836.6203 64641 62314 log -z,--topo-order
+E 1795558836.8629 63709 0
+E 1795558836.8695 63710 0
+E 1795558836.8738 63708 0
+S 1795558837.0685 64675 62314 symbolic-ref --quiet,HEAD
+S 1795558837.0688 64674 62314 rev-parse --verify,--quiet
+S 1795558837.0690 64677 62314 remote 
+S 1795558837.0690 64679 62314 symbolic-ref --quiet,HEAD
+S 1795558837.0690 64676 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558837.0691 64680 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558837.0693 64681 62314 remote 
+S 1795558837.0693 64682 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558837.0694 64678 62314 rev-parse --verify,--quiet
+S 1795558837.0700 64684 62314 remote -v
+S 1795558837.0700 64683 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558837.1093 63716 0
+E 1795558837.1096 63713 0
+E 1795558837.1097 63722 0
+E 1795558837.1121 63723 0
+E 1795558837.1163 63714 0
+E 1795558837.1165 63721 0
+E 1795558837.1184 63717 0
+E 1795558837.1185 63719 0
+S 1795558837.1194 64700 62314 symbolic-ref --quiet,--short
+S 1795558837.1199 64701 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558837.1221 63720 0
+E 1795558837.1221 63718 0
+E 1795558837.1227 63715 0
+S 1795558837.1267 64702 62314 log -z,--topo-order
+S 1795558837.1267 64703 62314 log -z,--decorate=full
+E 1795558837.2746 63736 0
+E 1795558837.2860 63735 0
+E 1795558837.2907 63738 0
+S 1795558837.5816 64724 62314 rev-parse --verify,--quiet
+S 1795558837.5817 64728 62314 rev-parse --verify,--quiet
+S 1795558837.5823 64726 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558837.5826 64729 62314 symbolic-ref --quiet,HEAD
+S 1795558837.5827 64734 62314 remote -v
+S 1795558837.5829 64725 62314 symbolic-ref --quiet,HEAD
+S 1795558837.5830 64727 62314 remote 
+S 1795558837.5831 64730 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558837.5837 64731 62314 remote 
+S 1795558837.5841 64733 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558837.5857 64732 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+E 1795558837.6038 63746 0
+E 1795558837.6040 63747 0
+E 1795558837.6100 63744 0
+E 1795558837.6101 63745 0
+E 1795558837.6104 63753 0
+E 1795558837.6157 63752 0
+S 1795558837.6158 64746 62314 log -z,--decorate=full
+E 1795558837.6158 63749 0
+E 1795558837.6170 63748 0
+E 1795558837.6226 63751 0
+E 1795558837.6229 63754 0
+E 1795558837.6233 63750 0
+S 1795558837.6275 64750 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558837.6275 64751 62314 log -z,--topo-order
+S 1795558837.6275 64749 62314 symbolic-ref --quiet,--short
+E 1795558837.6763 63767 0
+E 1795558837.6764 63768 0
+E 1795558837.6972 63771 0
+E 1795558838.1262 63803 0
+E 1795558838.1310 63807 0
+E 1795558838.1315 63805 0
+S 1795558838.1356 64809 62314 symbolic-ref --quiet,HEAD
+S 1795558838.1359 64817 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558838.1361 64810 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558838.1369 64814 62314 symbolic-ref --quiet,HEAD
+S 1795558838.1376 64808 62314 rev-parse --verify,--quiet
+S 1795558838.1376 64819 62314 remote -v
+S 1795558838.1378 64818 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558838.1380 64816 62314 remote 
+S 1795558838.1383 64815 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558838.1383 64811 62314 remote 
+E 1795558838.1385 63804 0
+S 1795558838.1391 64812 62314 rev-parse --verify,--quiet
+E 1795558838.1394 63798 0
+E 1795558838.1392 63799 0
+E 1795558838.1399 63809 0
+E 1795558838.1399 63810 0
+E 1795558838.1447 63802 0
+E 1795558838.1448 63806 0
+S 1795558838.1450 64821 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558838.1451 64820 62314 symbolic-ref --quiet,--short
+E 1795558838.1458 63800 0
+S 1795558838.1496 64823 62314 log -z,--decorate=full
+S 1795558838.1497 64822 62314 log -z,--topo-order
+E 1795558838.1821 63827 0
+E 1795558838.1895 63829 0
+E 1795558838.1988 63826 0
+S 1795558838.5978 64842 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558838.5979 64836 62314 symbolic-ref --quiet,HEAD
+S 1795558838.5979 64835 62314 rev-parse --verify,--quiet
+S 1795558838.5981 64841 62314 symbolic-ref --quiet,HEAD
+S 1795558838.5981 64840 62314 rev-parse --verify,--quiet
+S 1795558838.5982 64837 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558838.5982 64839 62314 remote 
+S 1795558838.5983 64845 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558838.5986 64843 62314 remote 
+S 1795558838.5987 64844 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558838.5988 64846 62314 remote -v
+E 1795558838.6268 63840 0
+E 1795558838.6268 63845 0
+E 1795558838.6272 63842 0
+E 1795558838.6291 63839 0
+E 1795558838.6294 63835 0
+E 1795558838.6327 63837 0
+E 1795558838.6328 63846 0
+E 1795558838.6335 63838 0
+S 1795558838.6388 64859 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558838.6389 64860 62314 log -z,--decorate=full
+S 1795558838.6389 64858 62314 symbolic-ref --quiet,--short
+E 1795558838.6404 63841 0
+E 1795558838.6411 63844 0
+E 1795558838.6449 63843 0
+S 1795558838.6492 64861 62314 log -z,--topo-order
+E 1795558838.6670 63858 0
+E 1795558838.6711 63859 0
+E 1795558838.6806 63857 0
+S 1795558839.0886 64886 62314 remote 
+S 1795558839.0889 64887 62314 rev-parse --verify,--quiet
+S 1795558839.0889 64883 62314 rev-parse --verify,--quiet
+S 1795558839.0889 64885 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558839.0889 64884 62314 symbolic-ref --quiet,HEAD
+S 1795558839.0897 64888 62314 symbolic-ref --quiet,HEAD
+S 1795558839.0900 64889 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558839.0904 64891 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558839.0904 64890 62314 remote 
+S 1795558839.0905 64893 62314 remote -v
+S 1795558839.0907 64892 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+E 1795558839.1266 63888 0
+E 1795558839.1283 63890 0
+E 1795558839.1340 63886 0
+E 1795558839.1347 63884 0
+E 1795558839.1354 63895 0
+E 1795558839.1389 63883 0
+E 1795558839.1408 63894 0
+E 1795558839.1427 63896 0
+E 1795558839.1435 63889 0
+E 1795558839.1446 63887 0
+E 1795558839.1469 63885 0
+S 1795558839.1477 64908 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558839.1477 64907 62314 symbolic-ref --quiet,--short
+S 1795558839.1485 64909 62314 log -z,--topo-order
+S 1795558839.1512 64910 62314 log -z,--decorate=full
+E 1795558839.1608 63906 0
+E 1795558839.1679 63908 0
+E 1795558839.1694 63905 0
+S 1795558839.5902 64927 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558839.5904 64928 62314 remote 
+S 1795558839.5906 64926 62314 symbolic-ref --quiet,HEAD
+S 1795558839.5907 64931 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558839.5911 64925 62314 rev-parse --verify,--quiet
+S 1795558839.5912 64935 62314 remote -v
+S 1795558839.5913 64930 62314 symbolic-ref --quiet,HEAD
+S 1795558839.5913 64934 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558839.5913 64929 62314 rev-parse --verify,--quiet
+S 1795558839.5915 64932 62314 remote 
+S 1795558839.5915 64933 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+E 1795558839.6036 63936 0
+S 1795558839.6087 64942 62314 symbolic-ref --quiet,--short
+S 1795558839.6088 64943 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558839.6126 63933 0
+E 1795558839.6130 63935 0
+E 1795558839.6169 63925 0
+E 1795558839.6174 63932 0
+E 1795558839.6183 63930 0
+E 1795558839.6202 63931 0
+E 1795558839.6237 63929 0
+E 1795558839.6237 63926 0
+S 1795558839.6247 64949 62314 log -z,--topo-order
+E 1795558839.6250 63934 0
+E 1795558839.6281 63927 0
+S 1795558839.6321 64950 62314 log -z,--decorate=full
+E 1795558839.6831 63954 0
+E 1795558839.6902 63955 0
+E 1795558839.6973 63956 0
+S 1795558840.0904 64989 62314 symbolic-ref --quiet,HEAD
+S 1795558840.0905 64992 62314 rev-parse --verify,--quiet
+S 1795558840.0907 64994 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558840.0912 64987 62314 rev-parse --verify,--quiet
+S 1795558840.0914 64990 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558840.0916 64993 62314 symbolic-ref --quiet,HEAD
+S 1795558840.0916 64991 62314 remote 
+S 1795558840.0916 64995 62314 remote 
+S 1795558840.0922 64997 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558840.0923 64996 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558840.0926 64998 62314 remote -v
+E 1795558840.1140 64000 0
+E 1795558840.1319 63998 0
+E 1795558840.1324 63994 0
+E 1795558840.1364 63995 0
+E 1795558840.1385 63993 0
+E 1795558840.1398 64003 0
+E 1795558840.1436 63999 0
+E 1795558840.1449 63997 0
+E 1795558840.1451 64002 0
+E 1795558840.1452 64001 0
+S 1795558840.1470 65015 62314 symbolic-ref --quiet,--short
+S 1795558840.1499 65016 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558840.1763 65027 62314 log -z,--topo-order
+E 1795558840.1778 63996 0
+E 1795558840.1845 64074 0
+E 1795558840.2013 64596 0
+E 1795558840.2035 64859 0
+E 1795558840.2132 64700 0
+E 1795558840.2135 64458 0
+E 1795558840.2201 64817 0
+E 1795558840.2227 64750 0
+E 1795558840.2248 64810 0
+E 1795558840.2268 64816 0
+E 1795558840.2285 64815 0
+E 1795558840.2293 64858 0
+E 1795558840.2307 65015 0
+E 1795558840.2315 64224 0
+E 1795558840.2287 64505 0
+E 1795558840.2335 65016 0
+E 1795558840.2342 64332 0
+E 1795558840.2349 64539 0
+E 1795558840.2355 64538 0
+E 1795558840.2384 64119 0
+E 1795558840.2384 64016 0
+E 1795558840.2396 64120 0
+E 1795558840.2421 64171 0
+E 1795558840.2427 64504 0
+E 1795558840.2392 64818 0
+E 1795558840.2469 64076 0
+E 1795558840.2474 64908 0
+E 1795558840.2481 64811 0
+E 1795558840.2484 64331 0
+E 1795558840.2489 64809 0
+E 1795558840.2494 64172 0
+E 1795558840.2498 64812 0
+E 1795558840.2499 64821 0
+S 1795558840.2550 65080 62314 log -z,--decorate=full
+E 1795558840.2557 64819 0
+E 1795558840.2556 64075 0
+E 1795558840.2570 64416 0
+E 1795558840.2581 64595 0
+E 1795558840.2583 64598 0
+E 1795558840.2585 64907 0
+E 1795558840.2601 64334 0
+E 1795558840.2612 64291 0
+E 1795558840.2624 64814 0
+E 1795558840.2631 64015 0
+E 1795558840.2638 64808 0
+E 1795558840.2652 64174 0
+E 1795558840.2659 64703 0
+E 1795558840.2665 64225 0
+E 1795558840.2770 64375 0
+E 1795558840.2807 64292 0
+E 1795558840.2833 64290 0
+S 1795558840.2842 65088 62314 symbolic-ref --quiet,--short
+E 1795558840.2845 64823 0
+E 1795558840.2854 64820 0
+E 1795558840.2861 64543 0
+E 1795558840.2885 64910 0
+E 1795558840.2885 64860 0
+S 1795558840.2904 65089 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558840.2908 64503 0
+S 1795558840.2911 65095 62314 log -z,--decorate=full
+S 1795558840.2919 65090 62314 log -z,--topo-order
+E 1795558840.2943 64017 0
+E 1795558840.2946 64124 0
+E 1795558840.2992 64226 0
+E 1795558840.3035 65080 0
+E 1795558840.3049 65088 0
+E 1795558840.3078 65089 0
+E 1795558840.3099 65090 0
+E 1795558840.3122 65095 0
+S 1795558840.5793 65187 62314 remote 
+S 1795558840.5795 65186 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558840.5797 65188 62314 rev-parse --verify,--quiet
+S 1795558840.5798 65184 62314 rev-parse --verify,--quiet
+S 1795558840.5798 65185 62314 symbolic-ref --quiet,HEAD
+S 1795558840.5800 65190 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+S 1795558840.5803 65192 62314 for-each-ref refs/heads,--format=%(refname:short)%1f%(HEAD)%1
+S 1795558840.5805 65193 62314 for-each-ref refs/remotes,--format=%(refname:short)%1f%(objec
+S 1795558840.5808 65189 62314 symbolic-ref --quiet,HEAD
+S 1795558840.5809 65191 62314 remote 
+S 1795558840.5809 65194 62314 remote -v
+E 1795558840.6024 65188 0
+E 1795558840.6126 65184 0
+E 1795558840.6473 65186 0
+E 1795558840.7050 65193 0
+E 1795558840.7080 65191 0
+E 1795558840.6971 65185 0
+E 1795558840.7310 65189 0
+E 1795558840.7886 64481 0
+E 1795558840.7887 64523 0
+E 1795558840.7903 64928 0
+E 1795558840.8062 64732 0
+E 1795558840.8069 64842 0
+E 1795558840.8078 64893 0
+E 1795558840.8079 64519 0
+E 1795558840.8082 64395 0
+E 1795558840.8083 64887 0
+E 1795558840.8084 64107 0
+E 1795558840.8082 64055 0
+E 1795558840.8099 64358 0
+E 1795558840.8108 64318 0
+E 1795558840.8117 64579 0
+E 1795558840.8122 64846 0
+E 1795558840.8123 64103 0
+E 1795558840.8127 64392 0
+S 1795558840.8184 65443 62314 symbolic-ref --quiet,--short
+E 1795558840.8187 64263 0
+S 1795558840.8191 65444 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558840.8205 64680 0
+S 1795558840.8214 65445 62314 symbolic-ref --quiet,--short
+S 1795558840.8217 65440 62314 symbolic-ref --quiet,--short
+S 1795558840.8226 65446 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558840.8244 65447 62314 symbolic-ref --quiet,--short
+E 1795558840.8254 64943 0
+S 1795558840.8287 65448 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558840.8388 64929 0
+S 1795558840.8442 65441 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558840.8500 64888 0
+E 1795558840.8521 64314 0
+E 1795558840.8596 64204 0
+E 1795558840.8606 64310 0
+E 1795558840.8701 64347 0
+E 1795558840.8766 64209 0
+E 1795558840.8789 64620 0
+E 1795558840.8865 64926 0
+E 1795558840.8936 64701 0
+E 1795558840.8963 64262 0
+E 1795558840.9213 64843 0
+E 1795558840.9250 64679 0
+E 1795558840.9237 64350 0
+E 1795558840.9526 65187 0
+E 1795558840.9548 64057 0
+E 1795558840.9518 64105 0
+E 1795558840.9672 64150 0
+E 1795558840.9714 64354 0
+E 1795558840.9720 64516 0
+E 1795558840.9742 64932 0
+E 1795558840.9638 64269 0
+E 1795558840.9746 64725 0
+E 1795558840.9831 64320 0
+E 1795558840.9929 64577 0
+E 1795558840.9983 64930 0
+E 1795558841.0095 64987 0
+E 1795558841.0130 64682 0
+E 1795558841.0137 64995 0
+E 1795558841.0142 64268 0
+E 1795558841.0143 64396 0
+E 1795558841.0132 64148 0
+E 1795558841.0150 64488 0
+E 1795558841.0140 64484 0
+E 1795558841.0126 64373 0
+E 1795558841.0152 64991 0
+E 1795558841.0156 64891 0
+E 1795558841.0157 64889 0
+E 1795558841.0157 64156 0
+E 1795558841.0161 64518 0
+E 1795558841.0141 64062 0
+E 1795558841.0165 64487 0
+E 1795558841.0166 64892 0
+E 1795558841.0167 64683 0
+E 1795558841.0171 64890 0
+E 1795558841.0174 64272 0
+E 1795558841.0170 64266 0
+E 1795558841.0171 64152 0
+E 1795558841.0192 64994 0
+E 1795558841.0193 64845 0
+E 1795558841.0191 64439 0
+E 1795558841.0198 64061 0
+E 1795558841.0200 64726 0
+E 1795558841.0205 64271 0
+E 1795558841.0208 65441 0
+E 1795558841.0209 65194 0
+E 1795558841.0210 64684 0
+E 1795558841.0212 64840 0
+E 1795558841.0216 65190 0
+E 1795558841.0224 64443 0
+E 1795558841.0223 64482 0
+E 1795558841.0230 64731 0
+E 1795558841.0235 64154 0
+E 1795558841.0236 64933 0
+E 1795558841.0235 64925 0
+S 1795558841.0256 65459 62314 log -z,--decorate=full
+E 1795558841.0263 64391 0
+E 1795558841.0270 64885 0
+E 1795558841.0271 65440 0
+E 1795558841.0270 64517 0
+E 1795558841.0275 64151 0
+E 1795558841.0275 64676 0
+E 1795558841.0300 65446 0
+E 1795558841.0332 65192 0
+E 1795558841.0337 64267 0
+E 1795558841.0342 64355 0
+E 1795558841.0346 64990 0
+E 1795558841.0354 64102 0
+E 1795558841.0359 64097 0
+E 1795558841.0370 64621 0
+E 1795558841.0386 64734 0
+E 1795558841.0391 64884 0
+E 1795558841.0396 64374 0
+E 1795558841.0400 64678 0
+E 1795558841.0405 64208 0
+E 1795558841.0411 64153 0
+E 1795558841.0415 65447 0
+E 1795558841.0422 65448 0
+E 1795558841.0431 64149 0
+E 1795558841.0438 64349 0
+E 1795558841.0462 64729 0
+E 1795558841.0464 64841 0
+E 1795558841.0475 64635 0
+S 1795558841.0480 65466 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.0482 64640 0
+E 1795558841.0492 64989 0
+E 1795558841.0522 64573 0
+E 1795558841.0523 64749 0
+E 1795558841.0543 64096 0
+S 1795558841.0546 65463 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.0546 64681 0
+E 1795558841.0560 64316 0
+E 1795558841.0576 64058 0
+S 1795558841.0588 65461 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.0590 64264 0
+S 1795558841.0590 65462 62314 symbolic-ref --quiet,--short
+S 1795558841.0596 65468 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.0602 64619 0
+S 1795558841.0628 65471 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558841.0629 65460 62314 symbolic-ref --quiet,--short
+S 1795558841.0631 65477 62314 for-each-ref refs/heads,--format=%(refname)%1f%(objectname)%1
+E 1795558841.0591 64616 0
+E 1795558841.0632 64618 0
+E 1795558841.0637 64400 0
+E 1795558841.0640 64056 0
+S 1795558841.0643 65464 62314 symbolic-ref --quiet,--short
+S 1795558841.0669 65473 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.0676 64996 0
+S 1795558841.0686 65479 62314 symbolic-ref --quiet,--short
+S 1795558841.0692 65476 62314 symbolic-ref --quiet,HEAD
+E 1795558841.0715 64485 0
+E 1795558841.0736 64101 0
+E 1795558841.0743 64942 0
+S 1795558841.0745 65470 62314 symbolic-ref --quiet,--short
+E 1795558841.0748 64677 0
+E 1795558841.0748 64311 0
+E 1795558841.0757 64575 0
+E 1795558841.0759 64839 0
+E 1795558841.0768 64313 0
+E 1795558841.0769 64438 0
+E 1795558841.0781 65445 0
+E 1795558841.0786 64202 0
+E 1795558841.0788 64844 0
+S 1795558841.0798 65475 62314 rev-parse --verify,--quiet
+S 1795558841.0799 65478 62314 remote 
+E 1795558841.0813 64352 0
+E 1795558841.0821 64883 0
+E 1795558841.0804 64401 0
+S 1795558841.0828 65480 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.0830 65443 0
+S 1795558841.0868 65483 62314 log -z,--decorate=full
+E 1795558841.0882 64348 0
+E 1795558841.0887 64624 0
+E 1795558841.0894 64200 0
+E 1795558841.0915 64836 0
+E 1795558841.0966 64746 0
+E 1795558841.1026 64480 0
+E 1795558841.1032 64522 0
+E 1795558841.1037 64157 0
+S 1795558841.1050 65496 62314 log -z,--topo-order
+S 1795558841.1067 65498 62314 status --porcelain=v2,--branch
+E 1795558841.1095 64625 0
+E 1795558841.1095 64479 0
+E 1795558841.1098 65466 0
+E 1795558841.1100 64935 0
+E 1795558841.1110 64394 0
+E 1795558841.1111 64147 0
+S 1795558841.1121 65502 62314 show HEAD:README.md
+S 1795558841.1130 65507 62314 log -z,--decorate=full
+E 1795558841.1137 65471 0
+E 1795558841.1146 64623 0
+E 1795558841.1135 64393 0
+E 1795558841.1166 65463 0
+E 1795558841.1166 64931 0
+E 1795558841.1172 64992 0
+S 1795558841.1176 65505 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.1184 64270 0
+E 1795558841.1186 64576 0
+S 1795558841.1187 65504 62314 symbolic-ref --quiet,--short
+E 1795558841.1188 65464 0
+E 1795558841.1200 65468 0
+E 1795558841.1201 64835 0
+E 1795558841.1203 65470 0
+E 1795558841.1233 64636 0
+E 1795558841.1248 65462 0
+E 1795558841.1273 64104 0
+E 1795558841.1281 64435 0
+E 1795558841.1283 64319 0
+E 1795558841.1295 65479 0
+E 1795558841.1316 64353 0
+S 1795558841.1324 65521 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.1323 64997 0
+E 1795558841.1333 64203 0
+E 1795558841.1336 64520 0
+E 1795558841.1340 65480 0
+E 1795558841.1353 64733 0
+E 1795558841.1356 65459 0
+S 1795558841.1360 65519 62314 log -z,--decorate=full
+S 1795558841.1368 65520 62314 symbolic-ref --quiet,--short
+E 1795558841.1376 65475 0
+E 1795558841.1392 64356 0
+S 1795558841.1405 65472 62314 symbolic-ref --quiet,--short
+S 1795558841.1448 65522 62314 log -z,--decorate=full
+E 1795558841.1451 64060 0
+E 1795558841.1457 65505 0
+E 1795558841.1475 64433 0
+E 1795558841.1512 64436 0
+E 1795558841.1532 64998 0
+S 1795558841.1548 65527 62314 symbolic-ref --quiet,--short
+E 1795558841.1558 65483 0
+E 1795558841.1574 64675 0
+E 1795558841.1572 64927 0
+E 1795558841.1611 64934 0
+E 1795558841.1616 65476 0
+E 1795558841.1620 64265 0
+E 1795558841.1624 65460 0
+S 1795558841.1632 65525 62314 log -z,--topo-order
+E 1795558841.1695 64578 0
+E 1795558841.1703 64207 0
+E 1795558841.1734 64437 0
+E 1795558841.1752 64451 0
+S 1795558841.1754 65529 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.1768 64210 0
+E 1795558841.1770 64617 0
+E 1795558841.1776 64993 0
+E 1795558841.1794 64626 0
+E 1795558841.1801 64724 0
+E 1795558841.1804 64837 0
+E 1795558841.1820 64351 0
+E 1795558841.1829 64109 0
+E 1795558841.1838 65473 0
+E 1795558841.1839 64728 0
+E 1795558841.1838 64054 0
+E 1795558841.1871 64452 0
+E 1795558841.1875 65477 0
+E 1795558841.1885 64434 0
+E 1795558841.1886 64442 0
+E 1795558841.1899 64582 0
+E 1795558841.1904 64053 0
+S 1795558841.1925 65536 62314 log -z,--decorate=full
+S 1795558841.1931 65534 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.1937 65461 0
+E 1795558841.1952 64106 0
+S 1795558841.1953 65533 62314 symbolic-ref --quiet,--short
+E 1795558841.1954 64414 0
+E 1795558841.1964 64205 0
+E 1795558841.1977 64317 0
+S 1795558841.1977 65537 62314 log -z,--decorate=full
+E 1795558841.1963 64415 0
+S 1795558841.2029 65543 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558841.2043 65542 62314 symbolic-ref --quiet,--short
+S 1795558841.2045 65539 62314 symbolic-ref --quiet,--short
+E 1795558841.2045 64312 0
+E 1795558841.2054 65522 0
+E 1795558841.2063 64052 0
+E 1795558841.2063 64574 0
+E 1795558841.2069 65472 0
+E 1795558841.2073 64397 0
+S 1795558841.2075 65540 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558841.2082 65546 62314 log -z,--decorate=full
+E 1795558841.2085 64483 0
+E 1795558841.2139 64440 0
+S 1795558841.2139 65551 62314 log -z,--topo-order
+E 1795558841.2146 64580 0
+E 1795558841.2153 64100 0
+E 1795558841.2164 64513 0
+S 1795558841.2173 65556 62314 log -z,--decorate=full
+S 1795558841.2176 65467 62314 symbolic-ref --quiet,--short
+E 1795558841.2189 64521 0
+S 1795558841.2190 65559 62314 log -z,--decorate=full
+E 1795558841.2200 64110 0
+S 1795558841.2203 65560 62314 log -z,--decorate=full
+E 1795558841.2204 64201 0
+E 1795558841.2213 64730 0
+E 1795558841.2224 64478 0
+E 1795558841.2227 65529 0
+E 1795558841.2255 64727 0
+E 1795558841.2328 64486 0
+E 1795558841.2336 65539 0
+E 1795558841.2341 64059 0
+S 1795558841.2377 65564 62314 log -z,--decorate=full
+E 1795558841.2380 65533 0
+E 1795558841.2390 65444 0
+E 1795558841.2393 65521 0
+E 1795558841.2406 65504 0
+S 1795558841.2408 65571 62314 log -z,--decorate=full
+E 1795558841.2388 64674 0
+E 1795558841.2412 65498 0
+E 1795558841.2447 64515 0
+E 1795558841.2460 64622 0
+S 1795558841.2460 65576 62314 log -z,--decorate=full
+E 1795558841.2388 65478 0
+E 1795558841.2466 65519 0
+E 1795558841.2470 64206 0
+S 1795558841.2461 65568 62314 log -z,--decorate=full
+E 1795558841.2513 64108 0
+S 1795558841.2528 65573 62314 rev-parse --abbrev-ref,--symbolic-full-name
+S 1795558841.2529 65572 62314 symbolic-ref --quiet,--short
+E 1795558841.2531 64398 0
+E 1795558841.2537 64950 0
+E 1795558841.2559 65537 0
+E 1795558841.2567 65536 0
+S 1795558841.2573 65544 62314 log -z,--decorate=full
+E 1795558841.2590 65520 0
+S 1795558841.2603 65584 62314 log -z,--decorate=full
+E 1795558841.2608 65534 0
+E 1795558841.2622 65560 0
+S 1795558841.2638 65575 62314 log -z,--decorate=full
+E 1795558841.2644 65527 0
+E 1795558841.2653 64441 0
+E 1795558841.2667 65507 0
+E 1795558841.2675 64315 0
+E 1795558841.2690 64886 0
+E 1795558841.2695 64399 0
+E 1795558841.2702 64155 0
+E 1795558841.2717 64514 0
+E 1795558841.2719 65540 0
+E 1795558841.2723 64581 0
+E 1795558841.2727 65556 0
+E 1795558841.2763 65467 0
+E 1795558841.2763 64583 0
+E 1795558841.2773 65543 0
+S 1795558841.2783 65586 62314 log -z,--topo-order
+E 1795558841.2806 65564 0
+E 1795558841.2813 65559 0
+E 1795558841.2828 65502 0
+S 1795558841.2836 65595 62314 symbolic-ref --quiet,--short
+S 1795558841.2838 65596 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.2861 65573 0
+S 1795558841.2863 65600 62314 log -z,--topo-order
+S 1795558841.2863 65601 62314 log -z,--decorate=full
+E 1795558841.2858 65572 0
+E 1795558841.2893 65546 0
+S 1795558841.2898 65602 62314 log -z,--decorate=full
+S 1795558841.2925 65606 62314 symbolic-ref --quiet,--short
+E 1795558841.2956 65571 0
+S 1795558841.2974 65609 62314 rev-parse --abbrev-ref,--symbolic-full-name
+E 1795558841.3016 65584 0
+E 1795558841.3027 65568 0
+E 1795558841.3106 65576 0
+E 1795558841.3117 65596 0
+E 1795558841.3128 65575 0
+E 1795558841.3146 65544 0
+E 1795558841.3161 65595 0
+E 1795558841.3170 65542 0
+E 1795558841.3186 65609 0
+E 1795558841.3224 65606 0
+E 1795558841.3227 65600 0
+E 1795558841.3228 65586 0
+E 1795558841.3244 65601 0
+E 1795558841.3278 65602 0

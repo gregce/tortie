@@ -1,0 +1,6663 @@
+{
+ "note": "raw/spec-*.txt are the SPEC step’s own stand-in logs of 2026-11-24 (the parent e424fc64, SPEC §2.1), the times kept to four decimals and nothing else changed; their marks are the 30 s in which the recorded counts fall. raw/rec-*.json are this probe’s own runs at the parent of 2026-11-24, paths renamed to /w. Every reading is written by hand; each `broken` fails exactly the clause it names, each `unreadable` misses exactly the need, and each `edits` breaks one recorded run. The probe review (2026-11-24) added rec-*-head.json, the integrator’s whole run at HEAD (its paths renamed to /w, its times to four decimals, the V ones trimmed to some rows and saying how many in `planned`), and rec-V-new-workdir-parent.json beside its red.",
+ "honest": {
+  "M-parent": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "cell": {
+    "id": "s-1s",
+    "holdMs": 1000
+   },
+   "seconds": 30,
+   "changes": 70,
+   "writes": 142,
+   "perWrite": 0.49,
+   "fuse": {
+    "blown": false
+   },
+   "hold": {
+    "short": 0
+   },
+   "table": {
+    "rate": 3.9,
+    "gap": 0.3,
+    "most": 4
+   },
+   "started": {
+    "five": 1042
+   },
+   "perChange": {
+    "five": 14.9
+   },
+   "alive": {
+    "log": 47
+   }
+  },
+  "M-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "cell": {
+    "id": "s-1s",
+    "holdMs": 1000
+   },
+   "seconds": 30,
+   "changes": 70,
+   "writes": 142,
+   "perWrite": 0.49,
+   "fuse": {
+    "blown": false
+   },
+   "hold": {
+    "short": 0
+   },
+   "table": {
+    "rate": 3.9,
+    "gap": 0.3,
+    "most": 4
+   },
+   "started": {
+    "for-each-ref": 0,
+    "remote": 0,
+    "rev-parse": 0,
+    "symbolic-ref": 0,
+    "log": 0,
+    "five": 0,
+    "status": 29,
+    "show": 29,
+    "check-ignore": 0
+   },
+   "perChange": {
+    "five": 0
+   },
+   "alive": {
+    "log": 2
+   },
+   "parent": {
+    "verdict": "pass",
+    "changes": 70,
+    "perWrite": 0.49,
+    "status": 29,
+    "show": 29,
+    "check-ignore": 0
+   }
+  },
+  "V-parent": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "shape": "ordinary",
+   "n": 84,
+   "rows": {
+    "commit": {
+     "n": 3,
+     "drawn": true,
+     "once": 3,
+     "save": 0,
+     "never": 0,
+     "onceMs": 640,
+     "saveMs": -1,
+     "drew": 3
+    }
+   },
+   "unexpected": [],
+   "expected": 84,
+   "five": 1200
+  },
+  "V-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "shape": "ordinary",
+   "n": 84,
+   "rows": {
+    "commit": {
+     "n": 3,
+     "drawn": true,
+     "once": 3,
+     "save": 0,
+     "never": 0,
+     "onceMs": 640,
+     "saveMs": -1,
+     "drew": 3
+    }
+   },
+   "parent": {
+    "verdict": "pass"
+   },
+   "compare": {
+    "absent": [],
+    "compared": 24,
+    "notAtOnce": [],
+    "later": [],
+    "notShown": [],
+    "laterAfterSave": []
+   }
+  },
+  "A1-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "shown": {
+    "n": 20,
+    "undrawn": 0,
+    "missing": [],
+    "worst": 2400
+   },
+   "burst": {
+    "files": 1000,
+    "inside": 20
+   }
+  },
+  "A2-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "shown": {
+    "n": 10,
+    "undrawn": 0,
+    "missing": [],
+    "worst": 3100
+   }
+  },
+  "A3-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "shown": {
+    "n": 4,
+    "undrawn": 0,
+    "missing": [],
+    "worst": 2600
+   },
+   "kills": {
+    "sent": 4,
+    "launches": 4,
+    "back": 4
+   },
+   "after": {
+    "saves": 12,
+    "reread": 12
+   }
+  },
+  "A4-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "shown": {
+    "n": 8,
+    "undrawn": 0,
+    "missing": [],
+    "worst": 820
+   }
+  },
+  "A5-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "shown": {
+    "n": 1,
+    "undrawn": 0,
+    "missing": [],
+    "worst": 820
+   },
+   "stop": {
+    "verified": true,
+    "seconds": 10.1,
+    "saves": 50,
+    "moves": 5
+   }
+  },
+  "A6-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "failing": {
+    "failed": 5,
+    "ended": 1,
+    "alone": 0,
+    "seconds": 9
+   },
+   "answering": {
+    "alone": 0,
+    "seconds": 5.8
+   },
+   "save": {
+    "shownMs": 900,
+    "before": false
+   },
+   "next": {
+    "five": 0,
+    "heard": 1,
+    "seconds": 3.5
+   }
+  },
+  "A7-parent": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "cells": {
+    "1s": {
+     "holdMs": 1000,
+     "moves": 60,
+     "alive": {
+      "walk": 1,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2
+     },
+     "started": {
+      "walk": 4,
+      "fileWalk": 4,
+      "branches": 6,
+      "remoteBranches": 6,
+      "remotes": 6,
+      "round": 8
+     },
+     "lastShownMs": 3200,
+     "fused": false,
+     "short": 0,
+     "log": 9,
+     "table": {}
+    },
+    "10s": {
+     "holdMs": 10000,
+     "moves": 60,
+     "alive": {
+      "walk": 1,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2
+     },
+     "started": {
+      "walk": 4,
+      "fileWalk": 4,
+      "branches": 6,
+      "remoteBranches": 6,
+      "remotes": 6,
+      "round": 8
+     },
+     "lastShownMs": 3200,
+     "fused": false,
+     "short": 0,
+     "log": 9,
+     "table": {}
+    }
+   }
+  },
+  "A7-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "cells": {
+    "1s": {
+     "holdMs": 1000,
+     "moves": 60,
+     "alive": {
+      "walk": 1,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2
+     },
+     "started": {
+      "walk": 4,
+      "fileWalk": 4,
+      "branches": 6,
+      "remoteBranches": 6,
+      "remotes": 6,
+      "round": 8
+     },
+     "lastShownMs": 3200,
+     "fused": false,
+     "short": 0,
+     "log": 9,
+     "table": {},
+     "afterMoves": {
+      "round": 2,
+      "walk": 2,
+      "branches": 2,
+      "remoteBranches": 2,
+      "remotes": 2,
+      "fileWalk": 2
+     },
+     "kept": true,
+     "running": 0
+    },
+    "10s": {
+     "holdMs": 10000,
+     "moves": 60,
+     "alive": {
+      "walk": 1,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2
+     },
+     "started": {
+      "walk": 4,
+      "fileWalk": 4,
+      "branches": 6,
+      "remoteBranches": 6,
+      "remotes": 6,
+      "round": 8
+     },
+     "lastShownMs": 3200,
+     "fused": false,
+     "short": 0,
+     "log": 9,
+     "table": {},
+     "afterMoves": {
+      "round": 2,
+      "walk": 2,
+      "branches": 2,
+      "remoteBranches": 2,
+      "remotes": 2,
+      "fileWalk": 2
+     },
+     "kept": true,
+     "running": 0
+    }
+   }
+  },
+  "A8-parent": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "writer": {
+    "seconds": 10,
+    "changes": 24,
+    "five": 240,
+    "least": 24
+   },
+   "block": {
+    "longestMs": 30,
+    "beats": 700
+   }
+  },
+  "A8-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "writer": {
+    "seconds": 10,
+    "changes": 24,
+    "five": 240,
+    "least": 24
+   },
+   "block": {
+    "longestMs": 35,
+    "beats": 700
+   },
+   "config": {
+    "read": true
+   },
+   "parent": {
+    "verdict": "pass",
+    "longestMs": 30
+   }
+  },
+  "P-parent": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "rows": {
+    "↻": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "Refresh branches": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "checkout": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "branch made": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "commit": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "scope": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "query": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "query cleared": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "opened while a read is out": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "Load 50 more": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    }
+   },
+   "change": {
+    "applied": true,
+    "seconds": 9,
+    "heard": 18,
+    "walks": 0
+   }
+  },
+  "P-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "failedOps": [],
+   "rows": {
+    "↻": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "Refresh branches": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "checkout": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "branch made": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "commit": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "scope": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "query": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "query cleared": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "opened while a read is out": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    },
+    "Load 50 more": {
+     "n": 3,
+     "missing": 0,
+     "ms": 2100,
+     "median": {
+      "walk": 1,
+      "search": 0,
+      "fileWalk": 1,
+      "branches": 1,
+      "remoteBranches": 1,
+      "remotes": 1,
+      "round": 2,
+      "status": 1
+     }
+    }
+   },
+   "change": {
+    "applied": true,
+    "seconds": 9,
+    "heard": 18,
+    "walks": 0
+   },
+   "parent": {
+    "verdict": "pass"
+   },
+   "compare": {
+    "absent": [],
+    "more": [],
+    "later": [],
+    "compared": 10
+   }
+  },
+  "N-parent": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "saves": 20,
+   "explorer": {
+    "n": 10,
+    "missing": 0,
+    "median": 560,
+    "most": 700
+   },
+   "editor": {
+    "n": 20,
+    "missing": 0,
+    "median": 640,
+    "most": 900
+   },
+   "changes": {
+    "n": 10,
+    "missing": 0,
+    "median": 700,
+    "most": 950
+   },
+   "heard": 1,
+   "block": {
+    "longestMs": 40,
+    "beats": 2500
+   },
+   "perSave": {
+    "status": 1,
+    "show": 1,
+    "check-ignore": 1,
+    "for-each-ref": 4,
+    "remote": 3,
+    "rev-parse": 3,
+    "symbolic-ref": 3,
+    "log": 2
+   },
+   "five": 300
+  },
+  "N-head": {
+   "app": {
+    "standIn": true
+   },
+   "log": {
+    "torn": 0
+   },
+   "saves": 20,
+   "explorer": {
+    "n": 10,
+    "missing": 0,
+    "median": 560,
+    "most": 700
+   },
+   "editor": {
+    "n": 20,
+    "missing": 0,
+    "median": 640,
+    "most": 900
+   },
+   "changes": {
+    "n": 10,
+    "missing": 0,
+    "median": 700,
+    "most": 950
+   },
+   "heard": 1,
+   "block": {
+    "longestMs": 40,
+    "beats": 2500
+   },
+   "perSave": {
+    "status": 1,
+    "show": 1,
+    "check-ignore": 1,
+    "for-each-ref": 0,
+    "remote": 0,
+    "rev-parse": 0,
+    "symbolic-ref": 0,
+    "log": 0
+   },
+   "five": 0,
+   "parent": {
+    "verdict": "pass",
+    "explorer": 700,
+    "editor": 900,
+    "changes": 950,
+    "heard": 1,
+    "perSave": {
+     "status": 1,
+     "show": 1,
+     "check-ignore": 1
+    },
+    "longestMs": 45
+   },
+   "shortest": 2.5
+  },
+  "RUN": {
+   "preflight": {
+    "ok": true
+   },
+   "launches": 2,
+   "agentsHeld": [
+    true,
+    true
+   ],
+   "censusFailures": [],
+   "processTableRead": true,
+   "otherGits": [],
+   "electronsLeft": 0,
+   "leftovers": [],
+   "socketLeft": false,
+   "history": {
+    "before": "a",
+    "after": "a",
+    "quiet": null
+   },
+   "launchesLooked": 2
+  }
+ },
+ "broken": [
+  {
+   "grader": "M-parent",
+   "name": "broken: at least five of the five a change",
+   "ops": [
+    {
+     "set": "perChange.five",
+     "value": 4.9
+    }
+   ],
+   "mustFail": [
+    "at least five of the five a change"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: no for-each-ref for a saved file",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "for-each-ref"
+     ],
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "no for-each-ref for a saved file"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: no remote for a saved file",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "remote"
+     ],
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "no remote for a saved file"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: no rev-parse for a saved file",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "rev-parse"
+     ],
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "no rev-parse for a saved file"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: no symbolic-ref for a saved file",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "symbolic-ref"
+     ],
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "no symbolic-ref for a saved file"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: no log for a saved file",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "log"
+     ],
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "no log for a saved file"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: no more status a change than the parent (2 starts of edge)",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "status"
+     ],
+     "value": 32
+    }
+   ],
+   "mustFail": [
+    "no more status a change than the parent (2 starts of edge)"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: no more show a change than the parent (2 starts of edge)",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "show"
+     ],
+     "value": 32
+    }
+   ],
+   "mustFail": [
+    "no more show a change than the parent (2 starts of edge)"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: no more check-ignore a change than the parent (2 starts of edge)",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "check-ignore"
+     ],
+     "value": 3
+    }
+   ],
+   "mustFail": [
+    "no more check-ignore a change than the parent (2 starts of edge)"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "broken: changes delivered a write within 15 percent of the parent’s",
+   "ops": [
+    {
+     "set": "perWrite",
+     "value": 0.41
+    }
+   ],
+   "mustFail": [
+    "changes delivered a write within 15 percent of the parent’s"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "broken: every move the parent showed at once is shown at once",
+   "ops": [
+    {
+     "set": "compare.notAtOnce",
+     "value": [
+      "commit: 2 of 3, the parent 3"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every move the parent showed at once is shown at once"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "broken: its median no more than 400 ms later than the parent’s",
+   "ops": [
+    {
+     "set": "compare.later",
+     "value": [
+      "commit: 1100 ms, the parent 640"
+     ]
+    }
+   ],
+   "mustFail": [
+    "its median no more than 400 ms later than the parent’s"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "broken: every move the parent showed, at once or only after a save, is shown",
+   "ops": [
+    {
+     "set": "compare.notShown",
+     "value": [
+      "remote added: 1 never shown"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every move the parent showed, at once or only after a save, is shown"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "broken: and never later after the save by more than 400 ms",
+   "ops": [
+    {
+     "set": "compare.laterAfterSave",
+     "value": [
+      "remote added: 1400 ms"
+     ]
+    }
+   ],
+   "mustFail": [
+    "and never later after the save by more than 400 ms"
+   ]
+  },
+  {
+   "grader": "A1-head",
+   "name": "broken: every move was shown within 10000 ms",
+   "ops": [
+    {
+     "set": "shown.missing",
+     "value": [
+      "a move"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every move was shown within 10000 ms"
+   ]
+  },
+  {
+   "grader": "A2-head",
+   "name": "broken: every move was shown within 10000 ms",
+   "ops": [
+    {
+     "set": "shown.missing",
+     "value": [
+      "a move"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every move was shown within 10000 ms"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "broken: every move was shown within 10000 ms",
+   "ops": [
+    {
+     "set": "shown.missing",
+     "value": [
+      "a move"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every move was shown within 10000 ms"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "broken: every later save re-reads (D3: a stream that may be dead is never trusted again)",
+   "ops": [
+    {
+     "set": "after.reread",
+     "value": 11
+    }
+   ],
+   "mustFail": [
+    "every later save re-reads (D3: a stream that may be dead is never trusted again)"
+   ]
+  },
+  {
+   "grader": "A4-head",
+   "name": "broken: every move was shown within 5000 ms",
+   "ops": [
+    {
+     "set": "shown.missing",
+     "value": [
+      "a move"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every move was shown within 5000 ms"
+   ]
+  },
+  {
+   "grader": "A5-head",
+   "name": "broken: every move was shown within 10000 ms",
+   "ops": [
+    {
+     "set": "shown.missing",
+     "value": [
+      "a move"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every move was shown within 10000 ms"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "broken: nothing is started by itself while git fails",
+   "ops": [
+    {
+     "set": "failing.alone",
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "nothing is started by itself while git fails"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "broken: nothing is started by itself once git answers",
+   "ops": [
+    {
+     "set": "answering.alone",
+     "value": 4
+    }
+   ],
+   "mustFail": [
+    "nothing is started by itself once git answers"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "broken: the save shows the truth within 5000 ms",
+   "ops": [
+    {
+     "set": "save.shownMs",
+     "value": -1
+    }
+   ],
+   "mustFail": [
+    "the save shows the truth within 5000 ms"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "broken: the next save starts none of the five",
+   "ops": [
+    {
+     "set": "next.five",
+     "value": 10
+    }
+   ],
+   "mustFail": [
+    "the next save starts none of the five"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: at most one walk alive a repository",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "1s",
+      "alive",
+      "walk"
+     ],
+     "value": 2
+    }
+   ],
+   "mustFail": [
+    "at most one walk alive a repository"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: at most one branches alive a repository",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "alive",
+      "branches"
+     ],
+     "value": 2
+    }
+   ],
+   "mustFail": [
+    "at most one branches alive a repository"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: at most one remoteBranches alive a repository",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "alive",
+      "remoteBranches"
+     ],
+     "value": 2
+    }
+   ],
+   "mustFail": [
+    "at most one remoteBranches alive a repository"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: at most one remotes alive a repository",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "1s",
+      "alive",
+      "remotes"
+     ],
+     "value": 2
+    }
+   ],
+   "mustFail": [
+    "at most one remotes alive a repository"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: at most one file walk alive a window",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "alive",
+      "fileWalk"
+     ],
+     "value": 2
+    }
+   ],
+   "mustFail": [
+    "at most one file walk alive a window"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: at most two first rounds alive, the walk’s and the file’s",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "1s",
+      "alive",
+      "round"
+     ],
+     "value": 3
+    }
+   ],
+   "mustFail": [
+    "at most two first rounds alive, the walk’s and the file’s"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: the last move is shown once the held reads drain",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "lastShownMs"
+     ],
+     "value": -1
+    }
+   ],
+   "mustFail": [
+    "the last move is shown once the held reads drain"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "broken: main’s longest block under 100 ms, or the parent’s plus 50",
+   "ops": [
+    {
+     "set": "block.longestMs",
+     "value": 101
+    }
+   ],
+   "mustFail": [
+    "main’s longest block under 100 ms, or the parent’s plus 50"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "broken: every save re-reads, each of the four reads (one in five may be joined behind a slow one)",
+   "ops": [
+    {
+     "set": "writer.least",
+     "value": 19
+    }
+   ],
+   "mustFail": [
+    "every save re-reads, each of the four reads (one in five may be joined behind a slow one)"
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "broken: a change search on screen is never run again by a change (Phase 199)",
+   "ops": [
+    {
+     "set": "change.walks",
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "a change search on screen is never run again by a change (Phase 199)"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "broken: no press starts more of any read than at the parent",
+   "ops": [
+    {
+     "set": "compare.more",
+     "value": [
+      "checkout: walk 3, the parent 2"
+     ]
+    }
+   ],
+   "mustFail": [
+    "no press starts more of any read than at the parent"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "broken: every press is shown no later than the parent’s plus 400 ms",
+   "ops": [
+    {
+     "set": "compare.later",
+     "value": [
+      "checkout: 2600 ms, the parent 2100"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every press is shown no later than the parent’s plus 400 ms"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "broken: a change search on screen is never run again by a change (Phase 199)",
+   "ops": [
+    {
+     "set": "change.walks",
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "a change search on screen is never run again by a change (Phase 199)"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: every save was shown by every consumer",
+   "ops": [
+    {
+     "set": "editor.missing",
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "every save was shown by every consumer"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: the Explorer’s row within the parent’s range (and 100 ms of the machine’s noise)",
+   "ops": [
+    {
+     "set": "explorer.median",
+     "value": 801
+    }
+   ],
+   "mustFail": [
+    "the Explorer’s row within the parent’s range (and 100 ms of the machine’s noise)"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: the editor’s reload within the parent’s range (and 100 ms of the machine’s noise)",
+   "ops": [
+    {
+     "set": "editor.median",
+     "value": 1001
+    }
+   ],
+   "mustFail": [
+    "the editor’s reload within the parent’s range (and 100 ms of the machine’s noise)"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: Changes’ row within the parent’s range (and 100 ms of the machine’s noise)",
+   "ops": [
+    {
+     "set": "changes.median",
+     "value": 1051
+    }
+   ],
+   "mustFail": [
+    "Changes’ row within the parent’s range (and 100 ms of the machine’s noise)"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: no fewer changes heard a save",
+   "ops": [
+    {
+     "set": "heard",
+     "value": 0.8
+    }
+   ],
+   "mustFail": [
+    "no fewer changes heard a save"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: no more status a save",
+   "ops": [
+    {
+     "set": [
+      "perSave",
+      "status"
+     ],
+     "value": 1.2
+    }
+   ],
+   "mustFail": [
+    "no more status a save"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: no more show a save",
+   "ops": [
+    {
+     "set": [
+      "perSave",
+      "show"
+     ],
+     "value": 1.2
+    }
+   ],
+   "mustFail": [
+    "no more show a save"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: no more check-ignore a save",
+   "ops": [
+    {
+     "set": [
+      "perSave",
+      "check-ignore"
+     ],
+     "value": 1.2
+    }
+   ],
+   "mustFail": [
+    "no more check-ignore a save"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: none of the five for a save",
+   "ops": [
+    {
+     "set": "five",
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "none of the five for a save"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "broken: main’s longest block under 100 ms, or the parent’s plus 50",
+   "ops": [
+    {
+     "set": "block.longestMs",
+     "value": 101
+    }
+   ],
+   "mustFail": [
+    "main’s longest block under 100 ms, or the parent’s plus 50"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "broken: every preflight held",
+   "ops": [
+    {
+     "set": "preflight.ok",
+     "value": false
+    }
+   ],
+   "mustFail": [
+    "every preflight held"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "broken: every launch’s agents:list resolved nothing",
+   "ops": [
+    {
+     "set": "agentsHeld",
+     "value": [
+      true,
+      false
+     ]
+    }
+   ],
+   "mustFail": [
+    "every launch’s agents:list resolved nothing"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "broken: the census found nothing of the run on his server",
+   "ops": [
+    {
+     "set": "censusFailures",
+     "value": [
+      "x"
+     ]
+    }
+   ],
+   "mustFail": [
+    "the census found nothing of the run on his server"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "broken: every git the process table showed the app start was the stand-in",
+   "ops": [
+    {
+     "set": "otherGits",
+     "value": [
+      "/usr/bin/git status"
+     ]
+    }
+   ],
+   "mustFail": [
+    "every git the process table showed the app start was the stand-in"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "broken: no Electron of the run left",
+   "ops": [
+    {
+     "set": "electronsLeft",
+     "value": 1
+    }
+   ],
+   "mustFail": [
+    "no Electron of the run left"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "broken: no process naming a run folder was left to end",
+   "ops": [
+    {
+     "set": "leftovers",
+     "value": [
+      "x"
+     ]
+    }
+   ],
+   "mustFail": [
+    "no process naming a run folder was left to end"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "broken: no tmux server of the run left by a launch",
+   "ops": [
+    {
+     "set": "socketLeft",
+     "value": true
+    }
+   ],
+   "mustFail": [
+    "no tmux server of the run left by a launch"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "broken: his shell history unmoved, or moved by his own terminal",
+   "ops": [
+    {
+     "set": "history",
+     "value": {
+      "before": "a",
+      "after": "b",
+      "quiet": {
+       "again": "b"
+      }
+     }
+    }
+   ],
+   "mustFail": [
+    "his shell history unmoved, or moved by his own terminal"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: each read was begun again after the last move",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "afterMoves",
+      "branches"
+     ],
+     "value": 0
+    }
+   ],
+   "mustFail": [
+    "each read was begun again after the last move"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "broken: and the page still shows it once every read has answered",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "1s",
+      "kept"
+     ],
+     "value": false
+    }
+   ],
+   "mustFail": [
+    "and the page still shows it once every read has answered"
+   ]
+  }
+ ],
+ "unreadable": [
+  {
+   "grader": "M-parent",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "M-parent",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "M-parent",
+   "name": "unmet: the writer wrote for its 30 s and main sent at least 30 changes",
+   "ops": [
+    {
+     "set": "changes",
+     "value": 29
+    }
+   ],
+   "mustMiss": [
+    "the writer wrote for its 30 s and main sent at least 30 changes"
+   ]
+  },
+  {
+   "grader": "M-parent",
+   "name": "unmet: every call of a held cell was held its whole hold",
+   "ops": [
+    {
+     "set": "hold.short",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every call of a held cell was held its whole hold"
+   ]
+  },
+  {
+   "grader": "M-parent",
+   "name": "unmet: the fuse was never blown",
+   "ops": [
+    {
+     "set": "fuse.blown",
+     "value": true
+    }
+   ],
+   "mustMiss": [
+    "the fuse was never blown"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "unmet: the writer wrote for its 30 s and main sent at least 30 changes",
+   "ops": [
+    {
+     "set": "changes",
+     "value": 29
+    }
+   ],
+   "mustMiss": [
+    "the writer wrote for its 30 s and main sent at least 30 changes"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "unmet: every call of a held cell was held its whole hold",
+   "ops": [
+    {
+     "set": "hold.short",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every call of a held cell was held its whole hold"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "unmet: the fuse was never blown",
+   "ops": [
+    {
+     "set": "fuse.blown",
+     "value": true
+    }
+   ],
+   "mustMiss": [
+    "the fuse was never blown"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "unmet: at a held cell the process table was read at least 2 times a second, never 2 s apart",
+   "ops": [
+    {
+     "set": "table.gap",
+     "value": 2.4
+    }
+   ],
+   "mustMiss": [
+    "at a held cell the process table was read at least 2 times a second, never 2 s apart"
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "unmet: the parent’s own reading was read first and passed",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "unreadable"
+    }
+   ],
+   "mustMiss": [
+    "the parent’s own reading was read first and passed"
+   ]
+  },
+  {
+   "grader": "V-parent",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "V-parent",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "V-parent",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "V-parent",
+   "name": "unmet: every move of the shape was made",
+   "ops": [
+    {
+     "set": "n",
+     "value": 83
+    }
+   ],
+   "mustMiss": [
+    "every move of the shape was made"
+   ]
+  },
+  {
+   "grader": "V-parent",
+   "name": "unmet: the rows this shape is known by read as SPEC §2.2 says",
+   "ops": [
+    {
+     "set": "unexpected",
+     "value": [
+      "commit: not at once"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "the rows this shape is known by read as SPEC §2.2 says"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "unmet: the parent’s own reading was read first and passed",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "unreadable"
+    }
+   ],
+   "mustMiss": [
+    "the parent’s own reading was read first and passed"
+   ]
+  },
+  {
+   "grader": "V-head",
+   "name": "unmet: every row of the parent’s was read as often",
+   "ops": [
+    {
+     "set": "compare.absent",
+     "value": [
+      "gc"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every row of the parent’s was read as often"
+   ]
+  },
+  {
+   "grader": "A1-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A1-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A1-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A1-head",
+   "name": "unmet: every move changed what the page draws",
+   "ops": [
+    {
+     "set": "shown.undrawn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every move changed what the page draws"
+   ]
+  },
+  {
+   "grader": "A1-head",
+   "name": "unmet: 20 bursts of 1000 files, at least half of them written inside 300 ms",
+   "ops": [
+    {
+     "set": "burst.inside",
+     "value": 9
+    }
+   ],
+   "mustMiss": [
+    "20 bursts of 1000 files, at least half of them written inside 300 ms"
+   ]
+  },
+  {
+   "grader": "A2-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A2-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A2-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A2-head",
+   "name": "unmet: every move changed what the page draws",
+   "ops": [
+    {
+     "set": "shown.undrawn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every move changed what the page draws"
+   ]
+  },
+  {
+   "grader": "A2-head",
+   "name": "unmet: nine reloads and one return were read",
+   "ops": [
+    {
+     "set": "shown.n",
+     "value": 9
+    }
+   ],
+   "mustMiss": [
+    "nine reloads and one return were read"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "unmet: every move changed what the page draws",
+   "ops": [
+    {
+     "set": "shown.undrawn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every move changed what the page draws"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "unmet: SIGKILL went to this app’s own watcher process in each of four launches, read by ps first",
+   "ops": [
+    {
+     "set": "kills.sent",
+     "value": 3
+    }
+   ],
+   "mustMiss": [
+    "SIGKILL went to this app’s own watcher process in each of four launches, read by ps first"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "unmet: a new watcher process came back each time",
+   "ops": [
+    {
+     "set": "kills.back",
+     "value": 3
+    }
+   ],
+   "mustMiss": [
+    "a new watcher process came back each time"
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "unmet: three saves a launch were read afterwards",
+   "ops": [
+    {
+     "set": "after.saves",
+     "value": 11
+    },
+    {
+     "set": "after.reread",
+     "value": 11
+    }
+   ],
+   "mustMiss": [
+    "three saves a launch were read afterwards"
+   ]
+  },
+  {
+   "grader": "A4-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A4-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A4-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A4-head",
+   "name": "unmet: every move changed what the page draws",
+   "ops": [
+    {
+     "set": "shown.undrawn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every move changed what the page draws"
+   ]
+  },
+  {
+   "grader": "A4-head",
+   "name": "unmet: four shapes, two moves each",
+   "ops": [
+    {
+     "set": "shown.n",
+     "value": 7
+    }
+   ],
+   "mustMiss": [
+    "four shapes, two moves each"
+   ]
+  },
+  {
+   "grader": "A5-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A5-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A5-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A5-head",
+   "name": "unmet: every move changed what the page draws",
+   "ops": [
+    {
+     "set": "shown.undrawn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every move changed what the page draws"
+   ]
+  },
+  {
+   "grader": "A5-head",
+   "name": "unmet: the app’s own process was stopped for ten seconds over five moves and fifty saves",
+   "ops": [
+    {
+     "set": "stop.saves",
+     "value": 49
+    }
+   ],
+   "mustMiss": [
+    "the app’s own process was stopped for ten seconds over five moves and fifty saves"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "unmet: git was seen to fail, and a walk to be ended at its time limit",
+   "ops": [
+    {
+     "set": "failing.ended",
+     "value": 0
+    }
+   ],
+   "mustMiss": [
+    "git was seen to fail, and a walk to be ended at its time limit"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "unmet: the failing quiet was watched for 8 s",
+   "ops": [
+    {
+     "set": "failing.seconds",
+     "value": 7.9
+    }
+   ],
+   "mustMiss": [
+    "the failing quiet was watched for 8 s"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "unmet: nothing was shown whole before the save",
+   "ops": [
+    {
+     "set": "save.before",
+     "value": true
+    }
+   ],
+   "mustMiss": [
+    "nothing was shown whole before the save"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "unmet: main sent the second save",
+   "ops": [
+    {
+     "set": "next.heard",
+     "value": 0
+    }
+   ],
+   "mustMiss": [
+    "main sent the second save"
+   ]
+  },
+  {
+   "grader": "A7-parent",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A7-parent",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A7-parent",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A7-parent",
+   "name": "unmet: sixty moves at each hold, or the fuse blew first",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "moves"
+     ],
+     "value": 59
+    }
+   ],
+   "mustMiss": [
+    "sixty moves at each hold, or the fuse blew first"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "unmet: sixty moves at each hold, every call before the lift held whole, the fuse never blown",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "moves"
+     ],
+     "value": 59
+    }
+   ],
+   "mustMiss": [
+    "sixty moves at each hold, every call before the lift held whole, the fuse never blown"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "unmet: the walk, the lists and the remotes were each read at each hold",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "1s",
+      "started",
+      "remotes"
+     ],
+     "value": 0
+    }
+   ],
+   "mustMiss": [
+    "the walk, the lists and the remotes were each read at each hold"
+   ]
+  },
+  {
+   "grader": "A8-parent",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A8-parent",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A8-parent",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A8-parent",
+   "name": "unmet: the writer ran ten seconds and main sent changes",
+   "ops": [
+    {
+     "set": "writer.changes",
+     "value": 9
+    },
+    {
+     "set": "writer.five",
+     "value": 90
+    }
+   ],
+   "mustMiss": [
+    "the writer ran ten seconds and main sent changes"
+   ]
+  },
+  {
+   "grader": "A8-parent",
+   "name": "unmet: main’s thread was read",
+   "ops": [
+    {
+     "set": "block.beats",
+     "value": 99
+    }
+   ],
+   "mustMiss": [
+    "main’s thread was read"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "unmet: the parent’s own reading was read first and passed",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "unreadable"
+    }
+   ],
+   "mustMiss": [
+    "the parent’s own reading was read first and passed"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "unmet: the config the app read names the FIFO",
+   "ops": [
+    {
+     "set": "config.read",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "the config the app read names the FIFO"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "unmet: the writer ran ten seconds and main sent changes",
+   "ops": [
+    {
+     "set": "writer.changes",
+     "value": 9
+    },
+    {
+     "set": "writer.five",
+     "value": 90
+    }
+   ],
+   "mustMiss": [
+    "the writer ran ten seconds and main sent changes"
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "unmet: main’s thread was read",
+   "ops": [
+    {
+     "set": "block.beats",
+     "value": 99
+    }
+   ],
+   "mustMiss": [
+    "main’s thread was read"
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "unmet: every press was read and shown",
+   "ops": [
+    {
+     "set": [
+      "rows",
+      "checkout",
+      "missing"
+     ],
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every press was read and shown"
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "unmet: a change search was on screen while main sent changes",
+   "ops": [
+    {
+     "set": "change.heard",
+     "value": 4
+    }
+   ],
+   "mustMiss": [
+    "a change search was on screen while main sent changes"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "unmet: every operation did what it says",
+   "ops": [
+    {
+     "set": "failedOps",
+     "value": [
+      "commit 1: refused"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "unmet: the parent’s own reading was read first and passed",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "unreadable"
+    }
+   ],
+   "mustMiss": [
+    "the parent’s own reading was read first and passed"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "unmet: every press of the parent’s was read as often",
+   "ops": [
+    {
+     "set": "compare.absent",
+     "value": [
+      "checkout"
+     ]
+    }
+   ],
+   "mustMiss": [
+    "every press of the parent’s was read as often"
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "unmet: a change search was on screen while main sent changes",
+   "ops": [
+    {
+     "set": "change.heard",
+     "value": 4
+    }
+   ],
+   "mustMiss": [
+    "a change search was on screen while main sent changes"
+   ]
+  },
+  {
+   "grader": "N-parent",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "N-parent",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "N-parent",
+   "name": "unmet: 20 saves were read, each shown",
+   "ops": [
+    {
+     "set": "saves",
+     "value": 19
+    }
+   ],
+   "mustMiss": [
+    "20 saves were read, each shown"
+   ]
+  },
+  {
+   "grader": "N-parent",
+   "name": "unmet: main’s thread was read",
+   "ops": [
+    {
+     "set": "block.beats",
+     "value": 99
+    }
+   ],
+   "mustMiss": [
+    "main’s thread was read"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "unmet: a git call whose parent is the app reached the stand-in",
+   "ops": [
+    {
+     "set": "app.standIn",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "unmet: every line of the stand-in’s log was read whole",
+   "ops": [
+    {
+     "set": "log.torn",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "unmet: the parent’s own reading was read first and passed",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": "unreadable"
+    }
+   ],
+   "mustMiss": [
+    "the parent’s own reading was read first and passed"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "unmet: 20 saves were read",
+   "ops": [
+    {
+     "set": "saves",
+     "value": 19
+    }
+   ],
+   "mustMiss": [
+    "20 saves were read"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "unmet: main’s thread was read",
+   "ops": [
+    {
+     "set": "block.beats",
+     "value": 99
+    }
+   ],
+   "mustMiss": [
+    "main’s thread was read"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "unmet: the process table was read",
+   "ops": [
+    {
+     "set": "processTableRead",
+     "value": false
+    }
+   ],
+   "mustMiss": [
+    "the process table was read"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "unmet: at least one app was launched",
+   "ops": [
+    {
+     "set": "launches",
+     "value": 0
+    },
+    {
+     "set": "agentsHeld",
+     "value": []
+    }
+   ],
+   "mustMiss": [
+    "at least one app was launched"
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "unmet: each hold was watched until nothing was out",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "running"
+     ],
+     "value": 13
+    }
+   ],
+   "mustMiss": [
+    "each hold was watched until nothing was out"
+   ]
+  },
+  {
+   "grader": "A7-parent",
+   "name": "unmet: the parent asked for each of the reads",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "started",
+      "walk"
+     ],
+     "value": 0
+    }
+   ],
+   "mustMiss": [
+    "the parent asked for each of the reads"
+   ]
+  },
+  {
+   "grader": "A8-parent",
+   "name": "unmet: the parent re-read for a save",
+   "ops": [
+    {
+     "set": "writer.least",
+     "value": 0
+    }
+   ],
+   "mustMiss": [
+    "the parent re-read for a save"
+   ]
+  },
+  {
+   "grader": "N-parent",
+   "name": "unmet: the parent asked for the five on its saves",
+   "ops": [
+    {
+     "set": "five",
+     "value": 0
+    }
+   ],
+   "mustMiss": [
+    "the parent asked for the five on its saves"
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "unmet: git answering was watched for 3 s before the save, and the second save for 3 s",
+   "ops": [
+    {
+     "set": "next.seconds",
+     "value": 0.1
+    }
+   ],
+   "mustMiss": [
+    "git answering was watched for 3 s before the save, and the second save for 3 s"
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "unmet: each save was watched for 2.4 s",
+   "ops": [
+    {
+     "set": "shortest",
+     "value": 0.4
+    }
+   ],
+   "mustMiss": [
+    "each save was watched for 2.4 s"
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "unmet: the table was read beside every app whose window came",
+   "ops": [
+    {
+     "set": "launchesLooked",
+     "value": 1
+    }
+   ],
+   "mustMiss": [
+    "the table was read beside every app whose window came"
+   ]
+  },
+  {
+   "grader": "V-parent",
+   "name": "unmet: the parent asked for the five at least once a move",
+   "ops": [
+    {
+     "set": "five",
+     "value": 83
+    }
+   ],
+   "mustMiss": [
+    "the parent asked for the five at least once a move"
+   ]
+  }
+ ],
+ "variants": [
+  {
+   "grader": "M-head",
+   "name": "at the edge: two statuses over the parent’s rate",
+   "expect": "pass",
+   "ops": [
+    {
+     "set": [
+      "started",
+      "status"
+     ],
+     "value": 31
+    }
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "an unheld cell reads no table",
+   "expect": "pass",
+   "ops": [
+    {
+     "set": "cell.holdMs",
+     "value": 0
+    },
+    {
+     "set": "table",
+     "value": {}
+    }
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "a held cell whose table was read once a second",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "table.rate",
+     "value": 1.4
+    }
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "more changes a write than the parent, by a third",
+   "expect": "fail",
+   "ops": [
+    {
+     "set": "perWrite",
+     "value": 0.66
+    }
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "a writer that stopped early",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "seconds",
+     "value": 22
+    }
+   ]
+  },
+  {
+   "grader": "M-parent",
+   "name": "a parent that starts four of the five a change is not the parent",
+   "expect": "fail",
+   "ops": [
+    {
+     "set": "perChange.five",
+     "value": 4
+    }
+   ]
+  },
+  {
+   "grader": "A1-head",
+   "name": "the slowest burst just past the bound",
+   "expect": "fail",
+   "ops": [
+    {
+     "set": "shown.worst",
+     "value": 10001
+    }
+   ]
+  },
+  {
+   "grader": "A3-head",
+   "name": "one launch fewer",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "kills.launches",
+     "value": 3
+    },
+    {
+     "set": "kills.sent",
+     "value": 3
+    },
+    {
+     "set": "shown.n",
+     "value": 3
+    }
+   ]
+  },
+  {
+   "grader": "A4-head",
+   "name": "shown, but past five seconds after the save",
+   "expect": "fail",
+   "ops": [
+    {
+     "set": "shown.worst",
+     "value": 5001
+    }
+   ]
+  },
+  {
+   "grader": "A5-head",
+   "name": "a pid that was never verified",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "stop.verified",
+     "value": false
+    }
+   ]
+  },
+  {
+   "grader": "A5-head",
+   "name": "a stop of nine seconds",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "stop.seconds",
+     "value": 9
+    }
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "the save shown late",
+   "expect": "fail",
+   "ops": [
+    {
+     "set": "save.shownMs",
+     "value": 5001
+    }
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "one git seen to fail is not two",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "failing.failed",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "a blown fuse",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "10s",
+      "fused"
+     ],
+     "value": true
+    }
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "a call of a held cell cut short",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "1s",
+      "short"
+     ],
+     "value": 2
+    }
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "a slow Mac: the parent blocked 180 ms and HEAD 220",
+   "expect": "pass",
+   "ops": [
+    {
+     "set": "parent.longestMs",
+     "value": 180
+    },
+    {
+     "set": "block.longestMs",
+     "value": 220
+    }
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "the parent blocked 180 ms and HEAD 240",
+   "expect": "fail",
+   "ops": [
+    {
+     "set": "parent.longestMs",
+     "value": 180
+    },
+    {
+     "set": "block.longestMs",
+     "value": 240
+    }
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "eight presses compared",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "compare.compared",
+     "value": 8
+    }
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "a press never shown at the parent",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": [
+      "rows",
+      "commit",
+      "missing"
+     ],
+     "value": 1
+    }
+   ]
+  },
+  {
+   "grader": "N-head",
+   "name": "the parent never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "parent.verdict",
+     "value": null
+    }
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "his own terminal moved his history",
+   "expect": "pass",
+   "ops": [
+    {
+     "set": "history",
+     "value": {
+      "before": "a",
+      "after": "b",
+      "quiet": {
+       "again": "c"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "grader": "RUN",
+   "name": "his history moved and was never read again",
+   "expect": "fail",
+   "ops": [
+    {
+     "set": "history",
+     "value": {
+      "before": "a",
+      "after": "b",
+      "quiet": null
+     }
+    }
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "one first round after the last move is the file’s alone",
+   "expect": "fail",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "1s",
+      "afterMoves",
+      "round"
+     ],
+     "value": 1
+    }
+   ]
+  },
+  {
+   "grader": "A6-head",
+   "name": "git answering hardly watched",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "answering.seconds",
+     "value": 0.2
+    }
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "a press tried twice",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": [
+      "rows",
+      "commit",
+      "n"
+     ],
+     "value": 2
+    }
+   ]
+  },
+  {
+   "grader": "P-parent",
+   "name": "a kind of press never made at either build",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": [
+      "rows",
+      "commit"
+     ]
+    }
+   ]
+  },
+  {
+   "grader": "P-head",
+   "name": "nine presses compared",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "compare.compared",
+     "value": 9
+    }
+   ]
+  },
+  {
+   "grader": "A8-head",
+   "name": "at the edge: one read in five joined",
+   "expect": "pass",
+   "ops": [
+    {
+     "set": "writer.least",
+     "value": 20
+    }
+   ]
+  },
+  {
+   "grader": "M-head",
+   "name": "a fuse nobody read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": "fuse.blown"
+    }
+   ]
+  },
+  {
+   "grader": "A7-head",
+   "name": "a fuse nobody read in a cell",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": [
+      "cells",
+      "1s",
+      "fused"
+     ],
+     "value": null
+    }
+   ]
+  }
+ ],
+ "raw": [
+  {
+   "name": "spec e-real, the parent",
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false
+   },
+   "expect": {
+    "started.five": 610,
+    "alive.log": 9,
+    "app.standIn": true,
+    "log.torn": 0,
+    "changes": 61,
+    "hold.short": 0,
+    "started.rev-parse": 122,
+    "started.status": 61,
+    "started.remote": 122,
+    "started.symbolic-ref": 122,
+    "started.for-each-ref": 183,
+    "started.check-ignore": 3,
+    "started.log": 61,
+    "perChange.five": 10
+   },
+   "grader": "M-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "spec e-1s, the parent",
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-1s",
+     "view": "explorer",
+     "holdMs": 1000
+    },
+    "logFile": "spec-e-1s.txt",
+    "appPid": 74149,
+    "holdMs": 1000,
+    "until": 1795558319.982,
+    "marks": {
+     "from": 1795558289.982,
+     "to": 1795558319.982
+    },
+    "changes": 62,
+    "writes": 126,
+    "fused": false
+   },
+   "expect": {
+    "started.five": 614,
+    "alive.log": 29,
+    "app.standIn": true,
+    "log.torn": 0,
+    "changes": 62,
+    "hold.short": 0,
+    "started.for-each-ref": 186,
+    "started.remote": 124,
+    "started.symbolic-ref": 122,
+    "started.check-ignore": 3,
+    "started.status": 29,
+    "started.rev-parse": 122,
+    "started.log": 60,
+    "perChange.five": 9.9
+   },
+   "grader": "M-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "spec e-10s, the parent",
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-10s",
+     "view": "explorer",
+     "holdMs": 10000
+    },
+    "logFile": "spec-e-10s.txt",
+    "appPid": 92380,
+    "holdMs": 10000,
+    "until": 1795558449.936,
+    "marks": {
+     "from": 1795558419.936,
+     "to": 1795558449.936
+    },
+    "changes": 63,
+    "writes": 127,
+    "fused": false
+   },
+   "expect": {
+    "started.five": 570,
+    "alive.log": 218,
+    "app.standIn": true,
+    "log.torn": 0,
+    "changes": 63,
+    "hold.short": 0,
+    "started.status": 3,
+    "started.for-each-ref": 189,
+    "started.rev-parse": 106,
+    "started.remote": 126,
+    "started.symbolic-ref": 106,
+    "started.check-ignore": 3,
+    "started.log": 43,
+    "perChange.five": 9
+   },
+   "grader": "M-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "spec s-real, the parent",
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "s-real",
+     "view": "scm",
+     "holdMs": 0
+    },
+    "logFile": "spec-s-real.txt",
+    "appPid": 21462,
+    "holdMs": 0,
+    "until": 1795558579.94,
+    "marks": {
+     "from": 1795558549.938,
+     "to": 1795558579.94
+    },
+    "changes": 71,
+    "writes": 144,
+    "fused": false
+   },
+   "expect": {
+    "started.five": 1065,
+    "alive.log": 13,
+    "app.standIn": true,
+    "log.torn": 0,
+    "changes": 71,
+    "hold.short": 0,
+    "started.status": 71,
+    "started.rev-parse": 213,
+    "started.symbolic-ref": 213,
+    "started.for-each-ref": 284,
+    "started.remote": 213,
+    "started.show": 71,
+    "started.log": 142,
+    "perChange.five": 15
+   },
+   "grader": "M-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "spec s-1s, the parent",
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "s-1s",
+     "view": "scm",
+     "holdMs": 1000
+    },
+    "logFile": "spec-s-1s.txt",
+    "appPid": 46247,
+    "holdMs": 1000,
+    "until": 1795558710.102,
+    "marks": {
+     "from": 1795558680.101,
+     "to": 1795558710.102
+    },
+    "changes": 70,
+    "writes": 142,
+    "fused": false
+   },
+   "expect": {
+    "started.five": 1042,
+    "alive.log": 47,
+    "app.standIn": true,
+    "log.torn": 0,
+    "changes": 70,
+    "hold.short": 0,
+    "started.rev-parse": 208,
+    "started.symbolic-ref": 208,
+    "started.status": 29,
+    "started.for-each-ref": 280,
+    "started.remote": 210,
+    "started.show": 29,
+    "started.log": 136,
+    "perChange.five": 14.9
+   },
+   "grader": "M-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "spec s-10s, the parent",
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "s-10s",
+     "view": "scm",
+     "holdMs": 10000
+    },
+    "logFile": "spec-s-10s.txt",
+    "appPid": 62314,
+    "holdMs": 10000,
+    "until": 1795558840.095,
+    "marks": {
+     "from": 1795558810.095,
+     "to": 1795558840.095
+    },
+    "changes": 61,
+    "writes": 122,
+    "fused": false
+   },
+   "expect": {
+    "started.five": 831,
+    "alive.log": 318,
+    "app.standIn": true,
+    "log.torn": 0,
+    "changes": 61,
+    "hold.short": 0,
+    "started.for-each-ref": 244,
+    "started.rev-parse": 162,
+    "started.symbolic-ref": 162,
+    "started.status": 3,
+    "started.remote": 183,
+    "started.show": 3,
+    "started.log": 80,
+    "perChange.five": 13.6
+   },
+   "grader": "M-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "set": "appPid",
+      "value": 1
+     }
+    ]
+   },
+   "name": "a log no call of the app’s is in",
+   "grader": "M-parent",
+   "verdict": "unreadable",
+   "names": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "noise": "half a lin"
+     }
+    ]
+   },
+   "name": "a torn line",
+   "grader": "M-parent",
+   "verdict": "unreadable",
+   "names": [
+    "every line of the stand-in’s log was read whole"
+   ]
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "s-1s",
+     "view": "scm",
+     "holdMs": 1000
+    },
+    "logFile": "spec-s-1s.txt",
+    "appPid": 46247,
+    "holdMs": 1000,
+    "until": 1795558710.102,
+    "marks": {
+     "from": 1795558680.101,
+     "to": 1795558710.102
+    },
+    "changes": 70,
+    "writes": 142,
+    "fused": false,
+    "edits": [
+     {
+      "call": {
+       "at": 4,
+       "sub": "status",
+       "lasts": 0.2
+      }
+     }
+    ]
+   },
+   "name": "a call a held cell never held",
+   "expect": {
+    "hold.short": 1
+   },
+   "grader": "M-parent",
+   "verdict": "unreadable",
+   "names": [
+    "every call of a held cell was held its whole hold"
+   ]
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "name": "HEAD as it must read: none of the five",
+   "parent": "spec e-real, the parent",
+   "expect": {
+    "started.five": 0,
+    "started.status": 61,
+    "parent.changes": 61,
+    "parent.verdict": "pass"
+   },
+   "grader": "M-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref"
+      ]
+     }
+    ]
+   },
+   "name": "HEAD still walking on a save",
+   "parent": "spec e-real, the parent",
+   "expect": {
+    "started.log": 61
+   },
+   "grader": "M-head",
+   "verdict": "fail",
+   "names": [
+    "no log for a saved file"
+   ]
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     },
+     {
+      "call": {
+       "at": 12,
+       "sub": "symbolic-ref",
+       "rest": "--quiet,HEAD",
+       "lasts": 0.02
+      }
+     }
+    ]
+   },
+   "name": "one stray first round",
+   "parent": "spec e-real, the parent",
+   "grader": "M-head",
+   "verdict": "fail",
+   "names": [
+    "no symbolic-ref for a saved file"
+   ]
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     },
+     {
+      "call": {
+       "at": 31,
+       "sub": "log",
+       "rest": "-z,--topo-order",
+       "lasts": 0.02
+      }
+     }
+    ]
+   },
+   "name": "a walk after the writer stopped is not the writer’s",
+   "parent": "spec e-real, the parent",
+   "grader": "M-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     },
+     {
+      "call": {
+       "at": 3,
+       "sub": "status",
+       "rest": "-z",
+       "lasts": 0.02,
+       "times": 3
+      }
+     }
+    ]
+   },
+   "name": "three more statuses than the parent’s rate",
+   "parent": "spec e-real, the parent",
+   "grader": "M-head",
+   "verdict": "fail",
+   "names": [
+    "no more status a change than the parent (2 starts of edge)"
+   ]
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     },
+     {
+      "set": "changes",
+      "value": 50
+     }
+    ]
+   },
+   "name": "a HEAD that delivers fewer changes",
+   "parent": "spec e-real, the parent",
+   "grader": "M-head",
+   "verdict": "fail",
+   "names": [
+    "changes delivered a write within 15 percent of the parent’s",
+    "no more status a change than the parent (2 starts of edge)"
+   ]
+  },
+  {
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-10s",
+     "view": "explorer",
+     "holdMs": 10000
+    },
+    "logFile": "spec-e-10s.txt",
+    "appPid": 92380,
+    "holdMs": 10000,
+    "until": 1795558449.936,
+    "marks": {
+     "from": 1795558419.936,
+     "to": 1795558449.936
+    },
+    "changes": 63,
+    "writes": 127,
+    "fused": false,
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "name": "a held cell whose process table was never read",
+   "parent": "spec e-10s, the parent",
+   "grader": "M-head",
+   "verdict": "unreadable",
+   "names": [
+    "at a held cell the process table was read at least 2 times a second, never 2 s apart"
+   ]
+  },
+  {
+   "name": "V ordinary, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json"
+   },
+   "expect": {
+    "n": 18,
+    "rows.commit.once": 3,
+    "rows.remote added.once": 0,
+    "rows.remote added.save": 3,
+    "rows.upstream unset.save": 3,
+    "rows.stash.drawn": false,
+    "rows.stash.once": 3
+   },
+   "grader": "V-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "V ordinary, the parent beside itself",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json"
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "expect": {
+    "compare.compared": 6,
+    "compare.notAtOnce": [],
+    "compare.later": []
+   },
+   "grader": "V-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "V ordinary, a commit never shown",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "hideTruth": "commit"
+     }
+    ]
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "fail",
+   "names": [
+    "every move the parent showed at once is shown at once",
+    "every move the parent showed, at once or only after a save, is shown"
+   ]
+  },
+  {
+   "name": "V ordinary, branches shown half a second later",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "late": {
+       "row": "branch made",
+       "by": 0.5
+      }
+     }
+    ]
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "fail",
+   "names": [
+    "its median no more than 400 ms later than the parent’s"
+   ]
+  },
+  {
+   "name": "V ordinary, a remote never shown",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "hideTruth": "remote added"
+     }
+    ]
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "fail",
+   "names": [
+    "every move the parent showed, at once or only after a save, is shown"
+   ]
+  },
+  {
+   "name": "V ordinary, a remote shown half a second later after the save",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "late": {
+       "row": "remote added",
+       "by": 0.5
+      }
+     }
+    ]
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "fail",
+   "names": [
+    "and never later after the save by more than 400 ms"
+   ]
+  },
+  {
+   "name": "V ordinary, a stash that asked nothing",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "expect": {
+    "rows.stash.never": 3
+   },
+   "grader": "V-head",
+   "verdict": "fail",
+   "names": [
+    "every move the parent showed at once is shown at once",
+    "every move the parent showed, at once or only after a save, is shown"
+   ]
+  },
+  {
+   "name": "V ordinary, an operation that failed",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "set": "failedOps",
+      "value": [
+       "commit 1: no"
+      ]
+     }
+    ]
+   },
+   "grader": "V-parent",
+   "verdict": "unreadable",
+   "names": [
+    "every operation did what it says"
+   ]
+  },
+  {
+   "name": "V ordinary, a parent whose remotes showed at once is not the parent",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "hideTruth": "commit"
+     }
+    ]
+   },
+   "expect": {
+    "unexpected": [
+     "commit: not at once"
+    ]
+   },
+   "grader": "V-parent",
+   "verdict": "unreadable",
+   "names": [
+    "the rows this shape is known by read as SPEC §2.2 says"
+   ]
+  },
+  {
+   "name": "V linked, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-V-linked-parent.json"
+   },
+   "expect": {
+    "n": 15,
+    "rows.commit.once": 3,
+    "rows.branch made.save": 3,
+    "rows.pack-refs.drawn": false,
+    "rows.pack-refs.save": 3
+   },
+   "grader": "V-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "V linked, pack-refs not asked about: draws nothing, so not compared",
+   "raw": {
+    "rawFile": "rec-V-linked-parent.json"
+   },
+   "parent": "V linked, recorded at the parent",
+   "expect": {
+    "compare.compared": 4
+   },
+   "grader": "V-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "V init, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-V-init-parent.json"
+   },
+   "expect": {
+    "n": 3,
+    "rows.git init.save": 3,
+    "rows.git init.once": 0
+   },
+   "grader": "V-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A1, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-A1.json"
+   },
+   "expect": {
+    "shown.n": 20,
+    "shown.worst": 460,
+    "burst.inside": 20
+   },
+   "grader": "A1-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A1, one burst never shown",
+   "raw": {
+    "rawFile": "rec-A1.json",
+    "edits": [
+     {
+      "hideTruth": "burst 7"
+     }
+    ]
+   },
+   "expect": {
+    "shown.missing": [
+     "burst 7"
+    ]
+   },
+   "grader": "A1-head",
+   "verdict": "fail",
+   "names": [
+    "every move was shown within 10000 ms"
+   ]
+  },
+  {
+   "name": "A1, one burst shown after eleven seconds",
+   "raw": {
+    "rawFile": "rec-A1.json",
+    "edits": [
+     {
+      "late": {
+       "row": "burst 7",
+       "by": 11
+      }
+     }
+    ]
+   },
+   "grader": "A1-head",
+   "verdict": "fail",
+   "names": [
+    "every move was shown within 10000 ms"
+   ]
+  },
+  {
+   "name": "A2, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-A2.json"
+   },
+   "expect": {
+    "shown.n": 10,
+    "shown.worst": 195
+   },
+   "grader": "A2-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A3, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-A3.json"
+   },
+   "expect": {
+    "shown.worst": 760,
+    "after.saves": 12,
+    "after.reread": 12,
+    "kills.back": 4
+   },
+   "grader": "A3-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A3, saves after the kill that asked nothing",
+   "raw": {
+    "rawFile": "rec-A3.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "after.reread": 0
+   },
+   "grader": "A3-head",
+   "verdict": "fail",
+   "names": [
+    "every later save re-reads (D3: a stream that may be dead is never trusted again)"
+   ]
+  },
+  {
+   "name": "A4, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-A4.json"
+   },
+   "expect": {
+    "shown.n": 8,
+    "shown.missing": []
+   },
+   "grader": "A4-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A5, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-A5.json"
+   },
+   "expect": {
+    "stop.saves": 50,
+    "stop.moves": 5
+   },
+   "grader": "A5-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A6, recorded at the parent: its next save asks everything",
+   "raw": {
+    "rawFile": "rec-A6.json"
+   },
+   "expect": {
+    "save.shownMs": 522,
+    "next.five": 10,
+    "failing.alone": 0,
+    "failing.ended": 1
+   },
+   "grader": "A6-head",
+   "verdict": "fail",
+   "names": [
+    "the next save starts none of the five"
+   ]
+  },
+  {
+   "name": "A7, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-A7.json"
+   },
+   "expect": {
+    "cells.1s.alive.branches": 4,
+    "cells.10s.alive.walk": 30,
+    "cells.10s.alive.round": 58,
+    "cells.10s.lastShownMs": 20065,
+    "cells.1s.moves": 60
+   },
+   "grader": "A7-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A7, the parent read as HEAD: every read piles up",
+   "raw": {
+    "rawFile": "rec-A7.json",
+    "edits": [
+     {
+      "cell": 0,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       }
+      ]
+     },
+     {
+      "cell": 1,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       }
+      ]
+     }
+    ]
+   },
+   "grader": "A7-head",
+   "verdict": "fail",
+   "names": [
+    "at most one walk alive a repository",
+    "at most one branches alive a repository",
+    "at most one remoteBranches alive a repository",
+    "at most one remotes alive a repository",
+    "at most one file walk alive a window",
+    "at most two first rounds alive, the walk’s and the file’s"
+   ]
+  },
+  {
+   "name": "A8, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-A8.json"
+   },
+   "expect": {
+    "writer.five": 375,
+    "block.longestMs": 4,
+    "config.read": true
+   },
+   "grader": "A8-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A8, the parent beside itself",
+   "raw": {
+    "rawFile": "rec-A8.json"
+   },
+   "parent": "A8, recorded at the parent",
+   "grader": "A8-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A8, a config trusted after all",
+   "raw": {
+    "rawFile": "rec-A8.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "parent": "A8, recorded at the parent",
+   "grader": "A8-head",
+   "verdict": "fail",
+   "names": [
+    "every save re-reads, each of the four reads (one in five may be joined behind a slow one)"
+   ]
+  },
+  {
+   "name": "N, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-N.json"
+   },
+   "expect": {
+    "saves": 20,
+    "five": 300,
+    "explorer.missing": 0,
+    "editor.n": 20,
+    "heard": 1,
+    "perSave.status": 1
+   },
+   "grader": "N-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "N, the parent read as HEAD: the five for every save",
+   "raw": {
+    "rawFile": "rec-N.json"
+   },
+   "parent": "N, recorded at the parent",
+   "grader": "N-head",
+   "verdict": "fail",
+   "names": [
+    "none of the five for a save"
+   ]
+  },
+  {
+   "name": "N, as HEAD must read",
+   "raw": {
+    "rawFile": "rec-N.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "parent": "N, recorded at the parent",
+   "expect": {
+    "five": 0
+   },
+   "grader": "N-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "P, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-P.json"
+   },
+   "expect": {
+    "change.applied": true,
+    "change.walks": 0,
+    "rows.checkout.ms": 4642,
+    "rows.checkout.n": 3
+   },
+   "grader": "P-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "P, the parent beside itself",
+   "raw": {
+    "rawFile": "rec-P.json"
+   },
+   "parent": "P, recorded at the parent",
+   "expect": {
+    "compare.compared": 10,
+    "compare.more": [],
+    "compare.later": []
+   },
+   "grader": "P-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "M s-1s, recorded at HEAD",
+   "raw": {
+    "rawFile": "rec-M-s-1s-head.json"
+   },
+   "expect": {
+    "started.five": 0,
+    "changes": 74,
+    "alive.log": 2
+   },
+   "parent": "spec s-1s, the parent",
+   "grader": "M-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "M s-1s, HEAD whose git was never the stand-in: an empty log is not \"none started\"",
+   "raw": {
+    "rawFile": "rec-M-s-1s-head.json",
+    "edits": [
+     {
+      "cutLogAt": -999
+     }
+    ]
+   },
+   "parent": "spec s-1s, the parent",
+   "grader": "M-head",
+   "verdict": "unreadable",
+   "names": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "name": "M s-1s, HEAD whose log holds another app’s calls",
+   "raw": {
+    "rawFile": "rec-M-s-1s-head.json",
+    "edits": [
+     {
+      "set": "appPid",
+      "value": 1
+     }
+    ]
+   },
+   "parent": "spec s-1s, the parent",
+   "grader": "M-head",
+   "verdict": "unreadable",
+   "names": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "name": "M s-1s, HEAD cut short at 12 s",
+   "raw": {
+    "rawFile": "rec-M-s-1s-head.json",
+    "edits": [
+     {
+      "shift": {
+       "set": "marks.to",
+       "by": 12
+      }
+     },
+     {
+      "set": "changes",
+      "value": 30
+     }
+    ]
+   },
+   "parent": "spec s-1s, the parent",
+   "grader": "M-head",
+   "verdict": "unreadable",
+   "names": [
+    "the writer wrote for its 30 s and main sent at least 30 changes"
+   ]
+  },
+  {
+   "name": "M s-1s, HEAD whose page counted every change twice",
+   "raw": {
+    "rawFile": "rec-M-s-1s-head.json",
+    "edits": [
+     {
+      "set": "changes",
+      "value": 148
+     }
+    ]
+   },
+   "parent": "spec s-1s, the parent",
+   "grader": "M-head",
+   "verdict": "fail",
+   "names": [
+    "changes delivered a write within 15 percent of the parent’s"
+   ]
+  },
+  {
+   "name": "M s-1s, HEAD whose table went unread for three seconds",
+   "raw": {
+    "rawFile": "rec-M-s-1s-head.json",
+    "edits": [
+     {
+      "hideSamples": [
+       10,
+       13
+      ]
+     }
+    ]
+   },
+   "parent": "spec s-1s, the parent",
+   "grader": "M-head",
+   "verdict": "unreadable",
+   "names": [
+    "at a held cell the process table was read at least 2 times a second, never 2 s apart"
+   ]
+  },
+  {
+   "name": "M s-1s, HEAD: a status begun at 20 s and never ended is alive to the end, as no table shows it gone",
+   "raw": {
+    "rawFile": "rec-M-s-1s-head.json",
+    "edits": [
+     {
+      "set": "samples",
+      "value": []
+     },
+     {
+      "call": {
+       "at": 20,
+       "sub": "status",
+       "rest": "-z",
+       "lasts": null
+      }
+     }
+    ]
+   },
+   "expect": {
+    "alive.log": 3
+   },
+   "parent": "spec s-1s, the parent",
+   "grader": "M-head",
+   "verdict": "unreadable",
+   "names": [
+    "at a held cell the process table was read at least 2 times a second, never 2 s apart"
+   ]
+  },
+  {
+   "name": "M s-1s, a walk begun in the last second of HEAD’s cell and still held when it ends",
+   "raw": {
+    "rawFile": "rec-M-s-1s-head.json",
+    "edits": [
+     {
+      "call": {
+       "at": 29.6,
+       "sub": "log",
+       "rest": "-z,--topo-order",
+       "lasts": null
+      }
+     }
+    ]
+   },
+   "expect": {
+    "alive.log": 3
+   },
+   "parent": "spec s-1s, the parent",
+   "grader": "M-head",
+   "verdict": "fail",
+   "names": [
+    "no log for a saved file"
+   ]
+  },
+  {
+   "name": "M e-real, a parent that started none of the five",
+   "raw": {
+    "arm": "M",
+    "build": "parent",
+    "cell": {
+     "id": "e-real",
+     "view": "explorer",
+     "holdMs": 0
+    },
+    "logFile": "spec-e-real.txt",
+    "appPid": 16526,
+    "holdMs": 0,
+    "until": 1795558179.962,
+    "marks": {
+     "from": 1795558149.94,
+     "to": 1795558179.962
+    },
+    "changes": 61,
+    "writes": 120,
+    "fused": false,
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "grader": "M-parent",
+   "verdict": "fail",
+   "names": [
+    "at least five of the five a change"
+   ]
+  },
+  {
+   "name": "V ordinary, recorded at HEAD",
+   "raw": {
+    "rawFile": "rec-V-ordinary-head.json"
+   },
+   "expect": {
+    "rows.remote added.once": 3,
+    "rows.commit.once": 3,
+    "compare.compared": 6,
+    "compare.absent": []
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "V ordinary, HEAD: the second commit was never made",
+   "raw": {
+    "rawFile": "rec-V-ordinary-head.json",
+    "edits": [
+     {
+      "unmoved": {
+       "row": "commit",
+       "k": 2
+      }
+     }
+    ]
+   },
+   "expect": {
+    "compare.absent": [
+     "commit"
+    ]
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "unreadable",
+   "names": [
+    "every row of the parent’s was read as often"
+   ]
+  },
+  {
+   "name": "V ordinary, HEAD: one of three branches never shown, the parent three",
+   "raw": {
+    "rawFile": "rec-V-ordinary-head.json",
+    "edits": [
+     {
+      "hideTruth": "branch made"
+     }
+    ]
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "fail",
+   "names": [
+    "every move the parent showed at once is shown at once",
+    "every move the parent showed, at once or only after a save, is shown"
+   ]
+  },
+  {
+   "name": "V ordinary, HEAD whose git was never the stand-in",
+   "raw": {
+    "rawFile": "rec-V-ordinary-head.json",
+    "edits": [
+     {
+      "set": "log",
+      "value": ""
+     }
+    ]
+   },
+   "parent": "V ordinary, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "unreadable",
+   "names": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "name": "V ordinary, the parent cut short after its first rows",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "delete": "planned"
+     }
+    ]
+   },
+   "grader": "V-parent",
+   "verdict": "unreadable",
+   "names": [
+    "every move of the shape was made"
+   ]
+  },
+  {
+   "name": "V ordinary, a parent that started none of the five",
+   "raw": {
+    "rawFile": "rec-V-ordinary-parent.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "rows.stash.never": 3
+   },
+   "grader": "V-parent",
+   "verdict": "unreadable",
+   "names": [
+    "the parent asked for the five at least once a move"
+   ]
+  },
+  {
+   "name": "V new-workdir, recorded at the parent",
+   "raw": {
+    "rawFile": "rec-V-new-workdir-parent.json"
+   },
+   "expect": {
+    "rows.push.save": 3
+   },
+   "grader": "V-parent",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "V new-workdir, recorded at HEAD: the push no save showed",
+   "raw": {
+    "rawFile": "rec-V-new-workdir-head.json"
+   },
+   "expect": {
+    "rows.push.never": 1,
+    "compare.notShown": [
+     "push: 1 never shown, the parent 0"
+    ]
+   },
+   "parent": "V new-workdir, recorded at the parent",
+   "grader": "V-head",
+   "verdict": "fail",
+   "names": [
+    "every move the parent showed, at once or only after a save, is shown"
+   ]
+  },
+  {
+   "name": "A1, a ref move the probe never made",
+   "raw": {
+    "rawFile": "rec-A1.json",
+    "edits": [
+     {
+      "unmoved": {
+       "row": "burst 7",
+       "k": 1
+      }
+     }
+    ]
+   },
+   "grader": "A1-head",
+   "verdict": "unreadable",
+   "names": [
+    "every move changed what the page draws"
+   ]
+  },
+  {
+   "name": "A1, nineteen bursts",
+   "raw": {
+    "rawFile": "rec-A1.json",
+    "edits": [
+     {
+      "delete": "instances.19"
+     },
+     {
+      "set": "instances",
+      "value": [
+       {
+        "row": "burst 1",
+        "k": 1,
+        "t0": 1795561535.311,
+        "t1": 1795561535.373,
+        "before": "77e529e3f037",
+        "truth": "26e52fed7fb1",
+        "save": null,
+        "states": [
+         [
+          1795561530.986,
+          "77e529e3f037"
+         ],
+         [
+          1795561535.802,
+          "2798d9624ffc"
+         ],
+         [
+          1795561535.827,
+          "26e52fed7fb1"
+         ]
+        ],
+        "end": 1795561535.844,
+        "writesMs": 62
+       },
+       {
+        "row": "burst 2",
+        "k": 1,
+        "t0": 1795561537.132,
+        "t1": 1795561537.185,
+        "before": "26e52fed7fb1",
+        "truth": "21c12aae7a44",
+        "save": null,
+        "states": [
+         [
+          1795561535.827,
+          "26e52fed7fb1"
+         ],
+         [
+          1795561537.624,
+          "7a5192d29a88"
+         ],
+         [
+          1795561537.642,
+          "21c12aae7a44"
+         ]
+        ],
+        "end": 1795561537.69,
+        "writesMs": 53
+       },
+       {
+        "row": "burst 3",
+        "k": 1,
+        "t0": 1795561538.973,
+        "t1": 1795561539.028,
+        "before": "21c12aae7a44",
+        "truth": "5435c9b1895f",
+        "save": null,
+        "states": [
+         [
+          1795561537.642,
+          "21c12aae7a44"
+         ],
+         [
+          1795561539.464,
+          "4c26f1209ca2"
+         ],
+         [
+          1795561539.482,
+          "5435c9b1895f"
+         ]
+        ],
+        "end": 1795561539.484,
+        "writesMs": 55
+       },
+       {
+        "row": "burst 4",
+        "k": 1,
+        "t0": 1795561540.832,
+        "t1": 1795561540.888,
+        "before": "5435c9b1895f",
+        "truth": "58ae5f4e584a",
+        "save": null,
+        "states": [
+         [
+          1795561539.482,
+          "5435c9b1895f"
+         ],
+         [
+          1795561541.319,
+          "ecc1bbd43c57"
+         ],
+         [
+          1795561541.335,
+          "58ae5f4e584a"
+         ]
+        ],
+        "end": 1795561541.344,
+        "writesMs": 56
+       },
+       {
+        "row": "burst 5",
+        "k": 1,
+        "t0": 1795561542.673,
+        "t1": 1795561542.728,
+        "before": "58ae5f4e584a",
+        "truth": "0086009ca1ba",
+        "save": null,
+        "states": [
+         [
+          1795561541.335,
+          "58ae5f4e584a"
+         ],
+         [
+          1795561543.159,
+          "563a9eb3821f"
+         ],
+         [
+          1795561543.179,
+          "0086009ca1ba"
+         ]
+        ],
+        "end": 1795561543.23,
+        "writesMs": 55
+       },
+       {
+        "row": "burst 6",
+        "k": 1,
+        "t0": 1795561544.567,
+        "t1": 1795561544.625,
+        "before": "0086009ca1ba",
+        "truth": "c350fbcb5a04",
+        "save": null,
+        "states": [
+         [
+          1795561543.179,
+          "0086009ca1ba"
+         ],
+         [
+          1795561545.061,
+          "388980cccb10"
+         ],
+         [
+          1795561545.073,
+          "c350fbcb5a04"
+         ]
+        ],
+        "end": 1795561545.081,
+        "writesMs": 58
+       },
+       {
+        "row": "burst 7",
+        "k": 1,
+        "t0": 1795561546.351,
+        "t1": 1795561546.405,
+        "before": "c350fbcb5a04",
+        "truth": "1b9b5c646d40",
+        "save": null,
+        "states": [
+         [
+          1795561545.073,
+          "c350fbcb5a04"
+         ],
+         [
+          1795561546.84,
+          "058302d82feb"
+         ],
+         [
+          1795561546.855,
+          "1b9b5c646d40"
+         ]
+        ],
+        "end": 1795561546.905,
+        "writesMs": 54
+       },
+       {
+        "row": "burst 8",
+        "k": 1,
+        "t0": 1795561548.257,
+        "t1": 1795561548.312,
+        "before": "1b9b5c646d40",
+        "truth": "0250e2d4a0e7",
+        "save": null,
+        "states": [
+         [
+          1795561546.855,
+          "1b9b5c646d40"
+         ],
+         [
+          1795561548.744,
+          "22ae5ff1adbb"
+         ],
+         [
+          1795561548.759,
+          "0250e2d4a0e7"
+         ]
+        ],
+        "end": 1795561548.809,
+        "writesMs": 55
+       },
+       {
+        "row": "burst 9",
+        "k": 1,
+        "t0": 1795561550.151,
+        "t1": 1795561550.207,
+        "before": "0250e2d4a0e7",
+        "truth": "708ca884e3a1",
+        "save": null,
+        "states": [
+         [
+          1795561548.759,
+          "0250e2d4a0e7"
+         ],
+         [
+          1795561550.642,
+          "e08b42edae62"
+         ],
+         [
+          1795561550.666,
+          "708ca884e3a1"
+         ]
+        ],
+        "end": 1795561550.708,
+        "writesMs": 56
+       },
+       {
+        "row": "burst 10",
+        "k": 1,
+        "t0": 1795561551.989,
+        "t1": 1795561552.043,
+        "before": "708ca884e3a1",
+        "truth": "743f52c873f1",
+        "save": null,
+        "states": [
+         [
+          1795561550.666,
+          "708ca884e3a1"
+         ],
+         [
+          1795561552.474,
+          "8f8cc26dd75f"
+         ],
+         [
+          1795561552.493,
+          "743f52c873f1"
+         ]
+        ],
+        "end": 1795561552.539,
+        "writesMs": 54
+       },
+       {
+        "row": "burst 11",
+        "k": 1,
+        "t0": 1795561553.813,
+        "t1": 1795561553.866,
+        "before": "743f52c873f1",
+        "truth": "138990804ae7",
+        "save": null,
+        "states": [
+         [
+          1795561552.493,
+          "743f52c873f1"
+         ],
+         [
+          1795561554.303,
+          "1319e8c20a2e"
+         ],
+         [
+          1795561554.319,
+          "138990804ae7"
+         ]
+        ],
+        "end": 1795561554.363,
+        "writesMs": 53
+       },
+       {
+        "row": "burst 12",
+        "k": 1,
+        "t0": 1795561555.69,
+        "t1": 1795561555.744,
+        "before": "138990804ae7",
+        "truth": "d3bc5e0ae9f6",
+        "save": null,
+        "states": [
+         [
+          1795561554.319,
+          "138990804ae7"
+         ],
+         [
+          1795561556.179,
+          "74fc39a6df5c"
+         ],
+         [
+          1795561556.195,
+          "d3bc5e0ae9f6"
+         ]
+        ],
+        "end": 1795561556.235,
+        "writesMs": 54
+       },
+       {
+        "row": "burst 13",
+        "k": 1,
+        "t0": 1795561557.515,
+        "t1": 1795561557.569,
+        "before": "d3bc5e0ae9f6",
+        "truth": "a716eef0947e",
+        "save": null,
+        "states": [
+         [
+          1795561556.195,
+          "d3bc5e0ae9f6"
+         ],
+         [
+          1795561558.006,
+          "ac3950b3dbea"
+         ],
+         [
+          1795561558.028,
+          "a716eef0947e"
+         ]
+        ],
+        "end": 1795561558.07,
+        "writesMs": 54
+       },
+       {
+        "row": "burst 14",
+        "k": 1,
+        "t0": 1795561559.358,
+        "t1": 1795561559.479,
+        "before": "a716eef0947e",
+        "truth": "7ab53e9177b8",
+        "save": null,
+        "states": [
+         [
+          1795561558.028,
+          "a716eef0947e"
+         ],
+         [
+          1795561559.847,
+          "bc281b15b355"
+         ],
+         [
+          1795561559.874,
+          "7ab53e9177b8"
+         ]
+        ],
+        "end": 1795561559.875,
+        "writesMs": 121
+       },
+       {
+        "row": "burst 15",
+        "k": 1,
+        "t0": 1795561561.221,
+        "t1": 1795561561.275,
+        "before": "7ab53e9177b8",
+        "truth": "94ed8811a9fc",
+        "save": null,
+        "states": [
+         [
+          1795561559.874,
+          "7ab53e9177b8"
+         ],
+         [
+          1795561561.712,
+          "4de115f0d24f"
+         ],
+         [
+          1795561561.731,
+          "94ed8811a9fc"
+         ]
+        ],
+        "end": 1795561561.772,
+        "writesMs": 54
+       },
+       {
+        "row": "burst 16",
+        "k": 1,
+        "t0": 1795561563.048,
+        "t1": 1795561563.101,
+        "before": "94ed8811a9fc",
+        "truth": "08433244ba1b",
+        "save": null,
+        "states": [
+         [
+          1795561561.731,
+          "94ed8811a9fc"
+         ],
+         [
+          1795561563.539,
+          "46623355c8c6"
+         ],
+         [
+          1795561563.553,
+          "08433244ba1b"
+         ]
+        ],
+        "end": 1795561563.601,
+        "writesMs": 53
+       },
+       {
+        "row": "burst 17",
+        "k": 1,
+        "t0": 1795561564.958,
+        "t1": 1795561565.015,
+        "before": "08433244ba1b",
+        "truth": "0e28eac991aa",
+        "save": null,
+        "states": [
+         [
+          1795561563.553,
+          "08433244ba1b"
+         ],
+         [
+          1795561565.447,
+          "3dac2ad49c9c"
+         ],
+         [
+          1795561565.463,
+          "0e28eac991aa"
+         ]
+        ],
+        "end": 1795561565.513,
+        "writesMs": 57
+       },
+       {
+        "row": "burst 18",
+        "k": 1,
+        "t0": 1795561566.861,
+        "t1": 1795561566.917,
+        "before": "0e28eac991aa",
+        "truth": "0981914b3aae",
+        "save": null,
+        "states": [
+         [
+          1795561565.463,
+          "0e28eac991aa"
+         ],
+         [
+          1795561567.35,
+          "7447ab759a08"
+         ],
+         [
+          1795561567.363,
+          "0981914b3aae"
+         ]
+        ],
+        "end": 1795561567.368,
+        "writesMs": 56
+       },
+       {
+        "row": "burst 19",
+        "k": 1,
+        "t0": 1795561568.652,
+        "t1": 1795561568.704,
+        "before": "0981914b3aae",
+        "truth": "d4ca4cc5d2e6",
+        "save": null,
+        "states": [
+         [
+          1795561567.363,
+          "0981914b3aae"
+         ],
+         [
+          1795561569.138,
+          "ad830abe43b8"
+         ],
+         [
+          1795561569.155,
+          "d4ca4cc5d2e6"
+         ]
+        ],
+        "end": 1795561569.202,
+        "writesMs": 52
+       }
+      ]
+     }
+    ]
+   },
+   "grader": "A1-head",
+   "verdict": "unreadable",
+   "names": [
+    "20 bursts of 1000 files, at least half of them written inside 300 ms"
+   ]
+  },
+  {
+   "name": "A2, a reload whose commit never showed",
+   "raw": {
+    "rawFile": "rec-A2.json",
+    "edits": [
+     {
+      "hideTruth": "reload 0 ms, 2"
+     }
+    ]
+   },
+   "grader": "A2-head",
+   "verdict": "fail",
+   "names": [
+    "every move was shown within 10000 ms"
+   ]
+  },
+  {
+   "name": "A3, a watcher process that was never this app’s",
+   "raw": {
+    "rawFile": "rec-A3.json",
+    "edits": [
+     {
+      "set": "kills.0.verified",
+      "value": false
+     }
+    ]
+   },
+   "grader": "A3-head",
+   "verdict": "unreadable",
+   "names": [
+    "SIGKILL went to this app’s own watcher process in each of four launches, read by ps first"
+   ]
+  },
+  {
+   "name": "A3, one launch whose git was never the stand-in",
+   "raw": {
+    "rawFile": "rec-A3.json",
+    "edits": [
+     {
+      "set": "appPids.2",
+      "value": 1
+     }
+    ]
+   },
+   "grader": "A3-head",
+   "verdict": "unreadable",
+   "names": [
+    "a git call whose parent is the app reached the stand-in"
+   ]
+  },
+  {
+   "name": "A4, a move after the pointer was rewritten, never shown",
+   "raw": {
+    "rawFile": "rec-A4.json",
+    "edits": [
+     {
+      "hideTruth": "the pointer rewritten, move 1"
+     }
+    ]
+   },
+   "grader": "A4-head",
+   "verdict": "fail",
+   "names": [
+    "every move was shown within 5000 ms"
+   ]
+  },
+  {
+   "name": "A5, an app stopped for three seconds",
+   "raw": {
+    "rawFile": "rec-A5.json",
+    "edits": [
+     {
+      "set": "stop.contAt",
+      "value": 1795561971.631
+     }
+    ]
+   },
+   "grader": "A5-head",
+   "verdict": "unreadable",
+   "names": [
+    "the app’s own process was stopped for ten seconds over five moves and fifty saves"
+   ]
+  },
+  {
+   "name": "A5, never shown after the app went on",
+   "raw": {
+    "rawFile": "rec-A5.json",
+    "edits": [
+     {
+      "hideTruth": "the app stopped for ten seconds"
+     }
+    ]
+   },
+   "grader": "A5-head",
+   "verdict": "fail",
+   "names": [
+    "every move was shown within 10000 ms"
+   ]
+  },
+  {
+   "name": "A6, recorded at HEAD",
+   "raw": {
+    "rawFile": "rec-A6-head.json"
+   },
+   "expect": {
+    "next.five": 0,
+    "failing.alone": 0,
+    "answering.alone": 0,
+    "failing.ended": 1
+   },
+   "grader": "A6-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A6, HEAD asking by itself once git answers",
+   "raw": {
+    "rawFile": "rec-A6-head.json",
+    "edits": [
+     {
+      "call": {
+       "at": 43.002999782562256,
+       "sub": "for-each-ref",
+       "rest": "refs/heads,--format=%(refname:short)",
+       "lasts": 0.02
+      }
+     }
+    ]
+   },
+   "grader": "A6-head",
+   "verdict": "fail",
+   "names": [
+    "nothing is started by itself once git answers"
+   ]
+  },
+  {
+   "name": "A6, HEAD asking by itself while git fails",
+   "raw": {
+    "rawFile": "rec-A6-head.json",
+    "edits": [
+     {
+      "call": {
+       "at": 36.008999824523926,
+       "sub": "remote",
+       "rest": "-v",
+       "lasts": 0.02
+      }
+     }
+    ]
+   },
+   "grader": "A6-head",
+   "verdict": "fail",
+   "names": [
+    "nothing is started by itself while git fails"
+   ]
+  },
+  {
+   "name": "A6, HEAD whose second save was never marked",
+   "raw": {
+    "rawFile": "rec-A6-head.json",
+    "edits": [
+     {
+      "delete": "marks.next"
+     }
+    ]
+   },
+   "grader": "A6-head",
+   "verdict": "unreadable",
+   "names": [
+    "the reading has no next.five",
+    "the reading has no next.seconds"
+   ]
+  },
+  {
+   "name": "A6, HEAD whose first walk was not ended by main but still out when the reading was",
+   "raw": {
+    "rawFile": "rec-A6-head.json",
+    "edits": [
+     {
+      "set": "holdMs",
+      "value": 90000
+     }
+    ]
+   },
+   "expect": {
+    "failing.ended": 0
+   },
+   "grader": "A6-head",
+   "verdict": "unreadable",
+   "names": [
+    "git was seen to fail, and a walk to be ended at its time limit"
+   ]
+  },
+  {
+   "name": "A7, HEAD as first recorded: its 10 s cell ended with thirteen reads still held, and its last move’s end was not marked",
+   "raw": {
+    "rawFile": "rec-A7-head.json"
+   },
+   "expect": {
+    "cells.10s.running": 13,
+    "cells.10s.alive.walk": 1,
+    "cells.10s.started.walk": 1,
+    "cells.10s.log": 13
+   },
+   "grader": "A7-head",
+   "verdict": "unreadable",
+   "names": [
+    "the reading has no cells.1s.afterMoves.round",
+    "the reading has no cells.1s.afterMoves.walk",
+    "the reading has no cells.1s.afterMoves.branches",
+    "the reading has no cells.1s.afterMoves.remoteBranches",
+    "the reading has no cells.1s.afterMoves.remotes",
+    "the reading has no cells.1s.afterMoves.fileWalk",
+    "the reading has no cells.1s.kept",
+    "the reading has no cells.10s.afterMoves.round",
+    "the reading has no cells.10s.afterMoves.walk",
+    "the reading has no cells.10s.afterMoves.branches",
+    "the reading has no cells.10s.afterMoves.remoteBranches",
+    "the reading has no cells.10s.afterMoves.remotes",
+    "the reading has no cells.10s.afterMoves.fileWalk",
+    "the reading has no cells.10s.kept"
+   ]
+  },
+  {
+   "name": "A7, the same with its drain waited for (the held reads’ ends and the one read behind each, put in)",
+   "raw": {
+    "rawFile": "rec-A7-head.json",
+    "edits": [
+     {
+      "cell": 0,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       }
+      ]
+     },
+     {
+      "cell": 1,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       },
+       {
+        "drain": true
+       },
+       {
+        "shift": {
+         "set": "until",
+         "by": 33
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "log",
+         "rest": "-z,--topo-order",
+         "lasts": 0.05,
+         "pid": 991000
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "for-each-ref",
+         "rest": "refs/heads,--format=%(refname:short)",
+         "lasts": 0.05,
+         "pid": 991010
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "for-each-ref",
+         "rest": "refs/remotes,--format=x",
+         "lasts": 0.05,
+         "pid": 991020
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "remote",
+         "rest": "-v",
+         "lasts": 0.05,
+         "pid": 991030
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "log",
+         "rest": "-z,--decorate=full,--follow",
+         "lasts": 0.05,
+         "pid": 991040
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "cells.10s.running": 0,
+    "cells.10s.alive.branches": 1,
+    "cells.1s.started.walk": 11,
+    "cells.10s.afterMoves.branches": 2
+   },
+   "grader": "A7-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A7, the same with the read behind never begun: the page showed the last move by a read begun before it",
+   "raw": {
+    "rawFile": "rec-A7-head.json",
+    "edits": [
+     {
+      "cell": 0,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       }
+      ]
+     },
+     {
+      "cell": 1,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.85
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       },
+       {
+        "drain": true
+       },
+       {
+        "shift": {
+         "set": "until",
+         "by": 33
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "log",
+         "rest": "-z,--topo-order",
+         "lasts": 0.05,
+         "pid": 991000
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "remote",
+         "rest": "-v",
+         "lasts": 0.05,
+         "pid": 991030
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "log",
+         "rest": "-z,--decorate=full,--follow",
+         "lasts": 0.05,
+         "pid": 991040
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "cells.10s.afterMoves.branches": 0,
+    "cells.10s.lastShownMs": 0
+   },
+   "grader": "A7-head",
+   "verdict": "fail",
+   "names": [
+    "each read was begun again after the last move"
+   ]
+  },
+  {
+   "name": "A7, the same with a second branches read beside the held one",
+   "raw": {
+    "rawFile": "rec-A7-head.json",
+    "edits": [
+     {
+      "cell": 0,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       }
+      ]
+     },
+     {
+      "cell": 1,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       },
+       {
+        "drain": true
+       },
+       {
+        "shift": {
+         "set": "until",
+         "by": 33
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "log",
+         "rest": "-z,--topo-order",
+         "lasts": 0.05,
+         "pid": 991000
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "for-each-ref",
+         "rest": "refs/heads,--format=%(refname:short)",
+         "lasts": 0.05,
+         "pid": 991010
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "for-each-ref",
+         "rest": "refs/remotes,--format=x",
+         "lasts": 0.05,
+         "pid": 991020
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "remote",
+         "rest": "-v",
+         "lasts": 0.05,
+         "pid": 991030
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "log",
+         "rest": "-z,--decorate=full,--follow",
+         "lasts": 0.05,
+         "pid": 991040
+        }
+       },
+       {
+        "call": {
+         "at": 25,
+         "sub": "for-each-ref",
+         "rest": "refs/heads,--format=%(refname:short)",
+         "lasts": 10.1,
+         "pid": 992000
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "grader": "A7-head",
+   "verdict": "fail",
+   "names": [
+    "at most one branches alive a repository"
+   ]
+  },
+  {
+   "name": "A7, the same with the page left showing something else",
+   "raw": {
+    "rawFile": "rec-A7-head.json",
+    "edits": [
+     {
+      "cell": 0,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       }
+      ]
+     },
+     {
+      "cell": 1,
+      "edits": [
+       {
+        "shift": {
+         "set": "marks.moved",
+         "by": 20.75
+        }
+       },
+       {
+        "set": "kept",
+        "value": true
+       },
+       {
+        "drain": true
+       },
+       {
+        "shift": {
+         "set": "until",
+         "by": 33
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "log",
+         "rest": "-z,--topo-order",
+         "lasts": 0.05,
+         "pid": 991000
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "for-each-ref",
+         "rest": "refs/heads,--format=%(refname:short)",
+         "lasts": 0.05,
+         "pid": 991010
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "for-each-ref",
+         "rest": "refs/remotes,--format=x",
+         "lasts": 0.05,
+         "pid": 991020
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "remote",
+         "rest": "-v",
+         "lasts": 0.05,
+         "pid": 991030
+        }
+       },
+       {
+        "call": {
+         "at": 31.2,
+         "sub": "log",
+         "rest": "-z,--decorate=full,--follow",
+         "lasts": 0.05,
+         "pid": 991040
+        }
+       },
+       {
+        "set": "kept",
+        "value": false
+       }
+      ]
+     }
+    ]
+   },
+   "grader": "A7-head",
+   "verdict": "fail",
+   "names": [
+    "and the page still shows it once every read has answered"
+   ]
+  },
+  {
+   "name": "A7, a parent that started none of the five",
+   "raw": {
+    "rawFile": "rec-A7.json",
+    "edits": [
+     {
+      "cell": 0,
+      "edits": [
+       {
+        "drop": [
+         "for-each-ref",
+         "remote",
+         "rev-parse",
+         "symbolic-ref",
+         "log"
+        ]
+       }
+      ]
+     },
+     {
+      "cell": 1,
+      "edits": [
+       {
+        "drop": [
+         "for-each-ref",
+         "remote",
+         "rev-parse",
+         "symbolic-ref",
+         "log"
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "grader": "A7-parent",
+   "verdict": "unreadable",
+   "names": [
+    "the parent asked for each of the reads"
+   ]
+  },
+  {
+   "name": "A8, recorded at HEAD",
+   "raw": {
+    "rawFile": "rec-A8-head.json"
+   },
+   "expect": {
+    "writer.least": 25,
+    "writer.changes": 25
+   },
+   "parent": "A8, recorded at the parent",
+   "grader": "A8-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "A8, HEAD re-reading the branches alone",
+   "raw": {
+    "rawFile": "rec-A8-head.json",
+    "edits": [
+     {
+      "drop": [
+       "remote",
+       "log",
+       "symbolic-ref",
+       "rev-parse"
+      ]
+     }
+    ]
+   },
+   "parent": "A8, recorded at the parent",
+   "grader": "A8-head",
+   "verdict": "fail",
+   "names": [
+    "every save re-reads, each of the four reads (one in five may be joined behind a slow one)"
+   ]
+  },
+  {
+   "name": "A8, a parent that re-read nothing",
+   "raw": {
+    "rawFile": "rec-A8.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "grader": "A8-parent",
+   "verdict": "unreadable",
+   "names": [
+    "the parent re-read for a save"
+   ]
+  },
+  {
+   "name": "N, recorded at HEAD",
+   "raw": {
+    "rawFile": "rec-N-head.json"
+   },
+   "expect": {
+    "five": 0,
+    "shortest": 2.5
+   },
+   "parent": "N, recorded at the parent",
+   "grader": "N-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "N, HEAD whose editor was read before its save",
+   "raw": {
+    "rawFile": "rec-N-head.json",
+    "edits": [
+     {
+      "set": "saves.3.editor",
+      "value": 1795570334.323
+     }
+    ]
+   },
+   "expect": {
+    "editor.missing": 1
+   },
+   "parent": "N, recorded at the parent",
+   "grader": "N-head",
+   "verdict": "fail",
+   "names": [
+    "every save was shown by every consumer"
+   ]
+  },
+  {
+   "name": "N, HEAD whose saves were hardly watched",
+   "raw": {
+    "rawFile": "rec-N-head.json",
+    "edits": [
+     {
+      "set": "saves.3.end",
+      "value": 1795570334.823
+     }
+    ]
+   },
+   "parent": "N, recorded at the parent",
+   "grader": "N-head",
+   "verdict": "unreadable",
+   "names": [
+    "each save was watched for 2.4 s"
+   ]
+  },
+  {
+   "name": "N, HEAD whose save was never closed",
+   "raw": {
+    "rawFile": "rec-N-head.json",
+    "edits": [
+     {
+      "delete": "saves.3.end"
+     }
+    ]
+   },
+   "parent": "N, recorded at the parent",
+   "grader": "N-head",
+   "verdict": "unreadable",
+   "names": [
+    "the reading has no five",
+    "the reading has no shortest"
+   ]
+  },
+  {
+   "name": "N, a parent that started none of the five",
+   "raw": {
+    "rawFile": "rec-N.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "grader": "N-parent",
+   "verdict": "unreadable",
+   "names": [
+    "the parent asked for the five on its saves"
+   ]
+  },
+  {
+   "name": "P, recorded at HEAD beside the parent",
+   "raw": {
+    "rawFile": "rec-P-head.json"
+   },
+   "expect": {
+    "compare.compared": 10,
+    "compare.absent": [],
+    "compare.more": []
+   },
+   "parent": "P, recorded at the parent",
+   "grader": "P-head",
+   "verdict": "pass",
+   "names": []
+  },
+  {
+   "name": "P, HEAD whose page showed the commit and then something older",
+   "raw": {
+    "rawFile": "rec-P-head.json",
+    "edits": [
+     {
+      "set": "presses.12.states",
+      "value": [
+       [
+        1795570166.17,
+        "8185e31b8eda"
+       ],
+       [
+        1795570176.345,
+        "cb84692fdefe"
+       ],
+       [
+        1795570178.737,
+        "0ld"
+       ]
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "rows.commit.missing": 1
+   },
+   "parent": "P, recorded at the parent",
+   "grader": "P-head",
+   "verdict": "fail",
+   "names": [
+    "every press is shown no later than the parent’s plus 400 ms"
+   ]
+  },
+  {
+   "name": "P, HEAD whose rows were read before the press",
+   "raw": {
+    "rawFile": "rec-P-head.json",
+    "edits": [
+     {
+      "set": "presses.27.seenAt",
+      "value": 1795570228.375
+     }
+    ]
+   },
+   "parent": "P, recorded at the parent",
+   "grader": "P-head",
+   "verdict": "fail",
+   "names": [
+    "every press is shown no later than the parent’s plus 400 ms"
+   ]
+  },
+  {
+   "name": "P, HEAD whose press started no git at all",
+   "raw": {
+    "rawFile": "rec-P-head.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "parent": "P, recorded at the parent",
+   "grader": "P-head",
+   "verdict": "fail"
+  },
+  {
+   "name": "P, a parent that started none of the five",
+   "raw": {
+    "rawFile": "rec-P.json",
+    "edits": [
+     {
+      "drop": [
+       "for-each-ref",
+       "remote",
+       "rev-parse",
+       "symbolic-ref",
+       "log"
+      ]
+     }
+    ]
+   },
+   "grader": "P-parent",
+   "verdict": "unreadable",
+   "names": [
+    "every press was read and shown"
+   ]
+  }
+ ]
+}

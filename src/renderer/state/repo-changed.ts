@@ -27,6 +27,16 @@
  * costs nothing and should not be held back for 150 ms. This bus is for the
  * subscribers that answer an event by SPENDING — a git status, a git log, a
  * re-read of every open file.
+ *
+ * PHASE 371: WHAT MOVED TRAVELS AS ONE BIT. `gitMoved` says whether git's own
+ * data may have moved. It is true unless main is SURE it did not, and a
+ * message that carries nothing is true, so a source that cannot tell costs a
+ * read and never a stale panel. Two messages in one window join as OR: a
+ * saved file that lands on top of a commit must not turn the commit into a
+ * saved file. The value is dropped with the window's timer, so one commit does
+ * not make every later window a move. Every listener is still woken by every
+ * window, in the same tick, whatever the bit says; only the History store and
+ * `state/git.ts`'s log read it.
  */
 
 import { gmuxBridge } from '../bridge';
@@ -34,11 +44,20 @@ import { gmuxBridge } from '../bridge';
 /** The smallest of the four windows the subscribers used to keep. */
 export const REPO_CHANGED_DEBOUNCE_MS = 150;
 
-/** What a subscriber is handed: the repo whose worktree/index/HEAD moved. */
-export type RepoChangedListener = (repoPath: string) => void;
+/**
+ * What a subscriber is handed: the repo whose worktree/index/HEAD moved, and
+ * whether git's own data may be part of it (false only when main knows it is
+ * not).
+ */
+export type RepoChangedListener = (repoPath: string, gitMoved: boolean) => void;
 
-/** A `git:changed` source: subscribe, get an unsubscribe back. */
-export type RepoChangedSource = (cb: RepoChangedListener) => () => void;
+/**
+ * A `git:changed` source: subscribe, get an unsubscribe back. An absent
+ * `gitMoved` means git's own data may have moved.
+ */
+export type RepoChangedSource = (
+  cb: (repoPath: string, gitMoved?: boolean) => void
+) => () => void;
 
 export interface RepoChangeBus {
   /** Listen for debounced repo changes. Returns an unsubscribe. */
@@ -59,18 +78,23 @@ export function createRepoChangeBus(
 ): RepoChangeBus {
   const listeners = new Set<RepoChangedListener>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Each open window's OR (Phase 371), kept exactly as long as its timer. */
+  const moved = new Map<string, boolean>();
   let attached = false;
 
   const fire = (repoPath: string): void => {
     timers.delete(repoPath);
+    const gitMoved = moved.get(repoPath) ?? true;
+    moved.delete(repoPath);
     // Snapshot: a listener may unsubscribe (or subscribe) while being run.
-    for (const listener of [...listeners]) listener(repoPath);
+    for (const listener of [...listeners]) listener(repoPath, gitMoved);
   };
 
   const attach = (): void => {
     if (attached) return;
     attached = true;
-    source((repoPath) => {
+    source((repoPath, gitMoved) => {
+      moved.set(repoPath, (moved.get(repoPath) ?? false) || gitMoved !== false);
       const existing = timers.get(repoPath);
       if (existing !== undefined) clearTimeout(existing);
       timers.set(

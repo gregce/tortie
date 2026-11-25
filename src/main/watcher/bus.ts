@@ -24,6 +24,10 @@
  * detail away, which is right for git ("re-status this repo") and is why
  * quick open re-enumerates instead of patching its list. If a consumer ever
  * needs per-path deltas, that is a change to RepoWatcher, not a second bus.
+ *
+ * PHASE 371: it carries ONE BIT beside the repository, `gitMoved`, and still no
+ * path. False only when the watcher knows git's own data did not move; a caller
+ * that does not say means it may have.
  */
 
 import { getLog } from '../log';
@@ -36,7 +40,7 @@ import { getLog } from '../log';
  */
 const watcherLog = getLog('watcher');
 
-type RepoChangedListener = (repoPath: string) => void;
+type RepoChangedListener = (repoPath: string, gitMoved: boolean) => void;
 
 const listeners = new Set<RepoChangedListener>();
 
@@ -49,10 +53,10 @@ export function onRepoChanged(cb: RepoChangedListener): () => void {
 }
 
 /** Called by the ONE RepoWatcher per repo. Never call this from a feature. */
-export function emitRepoChanged(repoPath: string): void {
+export function emitRepoChanged(repoPath: string, gitMoved = true): void {
   for (const listener of listeners) {
     try {
-      listener(repoPath);
+      listener(repoPath, gitMoved);
     } catch (err) {
       watcherLog.warn(
         `repo-changed listener failed: ${(err as Error).message}`,

@@ -93,8 +93,13 @@ export const EVT_STATUS_CHANGED = 'status:changed' as const;
 export interface EventPayloadMap {
   /** Full refreshed session list after any add/rename/kill/status change. */
   'sessions:changed': [sessions: Session[]];
-  /** A repo's working tree / index / HEAD changed; re-pull git:status. */
-  'git:changed': [repoPath: string];
+  /**
+   * A repo's working tree / index / HEAD changed; re-pull git:status.
+   *
+   * EDITED IN PLACE BY PHASE 371: `gitMoved` is false only when main knows git's
+   * own data did not move; absent means it may have.
+   */
+  'git:changed': [repoPath: string, gitMoved?: boolean];
   /** One session's status flipped (cheap, no full list). */
   'status:changed': [sessionId: string, status: SessionStatus];
 }
@@ -171,7 +176,8 @@ export interface GmuxApi {
     discard(input: GitPathsInput): Promise<void>;
     log(input: GitLogInput): Promise<GitLogEntry[]>;
     showHead(input: GitShowHeadInput): Promise<string>;
-    onChanged(cb: (repoPath: string) => void): Unsubscribe;
+    /** Phase 371: `gitMoved` is false only when main knows git's own data did not move; absent means it may have. */
+    onChanged(cb: (repoPath: string, gitMoved?: boolean) => void): Unsubscribe;
   };
   fs: {
     readFile(path: string): Promise<ReadFileResult>;

@@ -10,6 +10,25 @@
  * channels power lives here. Every bridge method is feature-detected
  * (`typeof git.branches === 'function'`) so the SCM view degrades to the
  * round-0 surface against an older preload.
+ *
+ * PHASE 371: A SAVED FILE ASKS GIT NOTHING HERE. A change that carries
+ * `gitMoved: false` (state/repo-changed.ts) re-reads only what is OWED: a read
+ * that has not been answered, one that failed, or a file's history walked
+ * under another scope. Everything else this store draws can only be moved by
+ * git's own data, and main says true whenever it is not sure. Three rules hold
+ * that up, and each is there because at the parent the NEXT saved file used to
+ * repair what it protects:
+ *
+ * - An answer that does not settle its question leaves the read owed, so the
+ *   next change of any kind asks it again, and nothing asks by itself.
+ * - The reads a change causes run one at a time per repository with one
+ *   behind (./one-behind.ts). What a person presses does not wait on that
+ *   line: `refresh`, `loadMore`, `setLogScope` and `setQuery` start at once.
+ * - An older answer never lands over a newer one.
+ *
+ * The rules they must not undo: a file window is re-read on the same beat as
+ * the log (Phase 198), a change search on screen is never re-run by a
+ * repository change, and the newest walk owns the pane (Phase 199).
  */
 
 import { create } from 'zustand';
@@ -34,6 +53,7 @@ import { onRepoChanged } from '../state/repo-changed';
 import { shortSha } from './format';
 import { bareCommitAsMessage, toSearch } from './history-search';
 import type { HistoryQuery } from './history-search';
+import { oneBehind } from './one-behind';
 
 // ---------------------------------------------------------------------------
 // Bridge access (feature-detected)
@@ -191,6 +211,13 @@ const FILE_WINDOWS_KEPT = 8;
 export const fileHistoryKey = (repoPath: string, relPath: string): string =>
   `${repoPath}\0${relPath}`;
 
+/** The repository half of a `fileHistoryKey`. */
+const fileRepo = (key: string): string => key.slice(0, key.indexOf('\0'));
+
+/** The four reads of one repository a change can ask for (Phase 371). */
+const DEPTH_READS = ['log', 'branches', 'remoteBranches', 'remotes'] as const;
+type DepthRead = (typeof DEPTH_READS)[number];
+
 interface DepthState {
   repos: Record<string, RepoDepthState>;
   /** Commit details keyed `${repoPath}\0${sha}` (hover card cache). */
@@ -211,7 +238,7 @@ interface DepthState {
    * Omitted (BRANCHES, which does not own the choice) leaves the default.
    */
   ensure(repoPath: string, scope?: GitLogScope): void;
-  /** Re-pull log + branches at the current limit (git:changed, refresh ↻). */
+  /** Re-pull log + branches at the current limit (↻, and every Tortie verb). */
   refresh(repoPath: string): Promise<void>;
   /** Grow the history window by HISTORY_PAGE and refetch. */
   loadMore(repoPath: string): Promise<void>;
@@ -381,10 +408,72 @@ let subscribed = false;
 export const useGitDepth = create<DepthState>((set, get) => {
   const inflightDetails = new Map<string, Promise<GitCommitDetail | null>>();
 
+  /**
+   * Phase 371. The reads no answer has settled yet, per repository. A
+   * repository registers owing all four; a read that lands takes itself out
+   * and one that fails puts itself back. Outside the store's state, because
+   * nothing renders it.
+   */
+  const owed = new Map<string, Set<DepthRead>>();
+
+  const owe = (repoPath: string, read: DepthRead): void => {
+    const reads = owed.get(repoPath);
+    if (reads === undefined) owed.set(repoPath, new Set([read]));
+    else reads.add(read);
+  };
+  const settle = (repoPath: string, read: DepthRead): void => {
+    owed.get(repoPath)?.delete(read);
+  };
+  const owes = (repoPath: string, read: DepthRead): boolean =>
+    owed.get(repoPath)?.has(read) === true;
+
+  /**
+   * The scope one file window's rows were walked under, by `fileHistoryKey`;
+   * absent until a walk has answered and after one fails. Phase 371: the one
+   * question a change that moved no git data asks of a window. The scope is
+   * in it because choosing another one re-walks History at once and leaves
+   * the file windows to the next change.
+   */
+  const fileScope = new Map<string, GitLogScope>();
+
+  /**
+   * Phase 371. Each call of a read takes a number, because a person's read
+   * and the line's can overlap. An answer older than the last one drawn
+   * changes nothing; a failure older than it changes nothing either; and an
+   * answer older than a failure is drawn (it is still the newest there is)
+   * without settling the read, because the newer question was never answered.
+   */
+  const turns = new Map<string, { last: number; landed: number; failed: number }>();
+
+  const takeTurn = (key: string) => {
+    const turn = turns.get(key) ?? { last: 0, landed: 0, failed: 0 };
+    turns.set(key, turn);
+    turn.last += 1;
+    const n = turn.last;
+    return {
+      /** True when a newer answer is already on screen. */
+      stale: (): boolean => n < turn.landed,
+      /** This answer was drawn. True when it also settles the read. */
+      landed: (): boolean => {
+        turn.landed = n;
+        return n > turn.failed;
+      },
+      /** This call failed. True when nothing newer has landed. */
+      failed: (): boolean => {
+        if (n < turn.landed) return false;
+        turn.failed = Math.max(turn.failed, n);
+        return true;
+      }
+    };
+  };
+
   const patchRepo = (
     repoPath: string,
     patch: Partial<RepoDepthState>
   ): void => {
+    if (get().repos[repoPath] === undefined) {
+      owed.set(repoPath, new Set(DEPTH_READS));
+    }
     set((s) => ({
       repos: {
         ...s.repos,
@@ -408,18 +497,21 @@ export const useGitDepth = create<DepthState>((set, get) => {
     subscribed = true;
     // One debounce for every surface (state/repo-changed.ts) — this store's
     // own 250 ms window was why History reloaded 50 ms after Changes cleared.
-    onRepoChanged((repoPath) => {
+    onRepoChanged((repoPath, gitMoved) => {
       // Phase 198. A file window is re-read on the same beat as the log, so
       // the section under History cannot say something the section above
       // stopped saying. Unknown repos are free here too.
       for (const key of Object.keys(get().files)) {
-        if (key.startsWith(`${repoPath}\0`)) {
-          void fetchFile(repoPath, key.slice(repoPath.length + 1));
-        }
+        if (!key.startsWith(`${repoPath}\0`)) continue;
+        if (gitMoved) void askFile(key);
+        else if (owesFile(key)) void fileLine(key);
       }
       // Only repos the history UI has ensured — unknown paths are free.
       if (get().repos[repoPath] === undefined) return;
-      void get().refresh(repoPath);
+      for (const read of DEPTH_READS) {
+        if (gitMoved) void ask(repoPath, read);
+        else if (owes(repoPath, read)) void lines[read](repoPath);
+      }
     });
   };
 
@@ -439,7 +531,10 @@ export const useGitDepth = create<DepthState>((set, get) => {
       const keys = Object.keys(files);
       if (keys.length > FILE_WINDOWS_KEPT) {
         const oldest = keys.find((k) => k !== key);
-        if (oldest !== undefined) delete files[oldest];
+        if (oldest !== undefined) {
+          delete files[oldest];
+          fileScope.delete(oldest);
+        }
       }
       return { files };
     });
@@ -450,6 +545,10 @@ export const useGitDepth = create<DepthState>((set, get) => {
    * only ever follows a file, and a folder is refused by the service with the
    * sentence the section then draws. The scope is the repository's own, so
    * the list under History cannot cover refs the list above does not.
+   *
+   * Phase 371. The answers are numbered (`takeTurn`) rather than owned by the
+   * newest walk, so a first read that answers while a change's read is out
+   * still draws when it lands.
    */
   const fetchFile = async (repoPath: string, relPath: string): Promise<void> => {
     const bridge = depthBridge();
@@ -457,6 +556,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
     const key = fileHistoryKey(repoPath, relPath);
     const win = get().files[key] ?? emptyFile;
     const scope = (get().repos[repoPath] ?? emptyRepo).scope;
+    const turn = takeTurn(`file\0${key}`);
     patchFile(key, { loading: true });
     try {
       const result = await bridge.graphLog({
@@ -466,13 +566,21 @@ export const useGitDepth = create<DepthState>((set, get) => {
         path: relPath,
         follow: true
       });
+      if (turn.stale()) return;
       patchFile(key, {
         rows: result.entries,
         hasMore: result.hasMore,
         loading: false,
         error: null
       });
+      if (!turn.landed()) return;
+      // A folder git could not read as a repository answers with no rows and
+      // no refusal, which is no answer about the file.
+      if (result.isRepo === false) fileScope.delete(key);
+      else fileScope.set(key, scope);
     } catch (err) {
+      if (!turn.failed()) return;
+      fileScope.delete(key);
       patchFile(key, {
         rows: [],
         hasMore: false,
@@ -480,6 +588,29 @@ export const useGitDepth = create<DepthState>((set, get) => {
         error: gitErrorLine(err)
       });
     }
+  };
+
+  /** True when that window's rows do not answer what it shows now. */
+  const owesFile = (key: string): boolean =>
+    fileScope.get(key) !== (get().repos[fileRepo(key)] ?? emptyRepo).scope;
+
+  /** The windows a change that may have moved git's data has asked for. */
+  const movedFiles = new Set<string>();
+
+  /**
+   * Phase 371. One file walk a window in flight for changes, one behind it.
+   * Whether it is still needed is asked when it runs, so a read a saved file
+   * asked for is not made again when the one before it has answered.
+   */
+  const fileLine = oneBehind(async (key) => {
+    if (!movedFiles.delete(key) && !owesFile(key)) return;
+    const repoPath = fileRepo(key);
+    await fetchFile(repoPath, key.slice(repoPath.length + 1));
+  });
+
+  const askFile = (key: string): Promise<void> => {
+    movedFiles.add(key);
+    return fileLine(key);
   };
 
   /**
@@ -502,7 +633,33 @@ export const useGitDepth = create<DepthState>((set, get) => {
    */
   const logGen = new Map<string, number>();
 
-  const fetchLog = async (repoPath: string, pinRefs = false): Promise<void> => {
+  /** The walk that is out for a repo, newest started. Cleared as it settles. */
+  const walks = new Map<string, { out: Promise<void>; pinned: boolean }>();
+
+  /**
+   * Phase 371. Every walk goes through here, so the line below knows one is
+   * out and waits for it.
+   *
+   * A PINNED walk answers for the ref set it was handed and not for the
+   * repository, so it never settles the log, and one that ends an unpinned
+   * walk leaves the log owed: the walk it ended was the one resolving a ref
+   * that moved, and nothing else would ask again.
+   */
+  const fetchLog = (repoPath: string, pinRefs = false): Promise<void> => {
+    const pinned =
+      pinRefs && (get().repos[repoPath] ?? emptyRepo).logRefs !== null;
+    if (pinned && walks.get(repoPath)?.pinned === false) owe(repoPath, 'log');
+    const walk = {
+      pinned,
+      out: walkLog(repoPath, pinned).finally(() => {
+        if (walks.get(repoPath) === walk) walks.delete(repoPath);
+      })
+    };
+    walks.set(repoPath, walk);
+    return walk.out;
+  };
+
+  const walkLog = async (repoPath: string, pinned: boolean): Promise<void> => {
     const gmux = gmuxBridge();
     if (!gmux) return;
     const repo = get().repos[repoPath] ?? emptyRepo;
@@ -525,7 +682,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
             repoPath,
             maxCount: limit,
             scope: repo.scope,
-            ...(pinRefs && repo.logRefs !== null ? { refs: repo.logRefs } : {}),
+            ...(pinned && repo.logRefs !== null ? { refs: repo.logRefs } : {}),
             ...(search === undefined ? {} : { search }),
             // Every History walk shares one queue per repo, so this call
             // ends the one before it on the main side.
@@ -553,6 +710,8 @@ export const useGitDepth = create<DepthState>((set, get) => {
           searchError: null,
           logLoading: false
         });
+        if (result.isRepo === false) owe(repoPath, 'log');
+        else if (!pinned) settle(repoPath, 'log');
         return;
       } catch (err) {
         // A superseded walk is done here: the walk that replaced it draws.
@@ -560,6 +719,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
         // thing that ends a walk on the main side is the newer walk this
         // store started for the same repo.
         if (!owns()) return;
+        owe(repoPath, 'log');
         // Under a query the refusal IS the answer, drawn where the rows
         // would be. The flat walk below carries no filter, so drawing it
         // here showed the plain walk's first page as if it matched, gutter
@@ -590,8 +750,12 @@ export const useGitDepth = create<DepthState>((set, get) => {
         hasMore: rows.length > limit,
         logLoading: false
       });
+      // The flat walk settles the log only where it is the only walk there
+      // is. Under a graph walk that failed it is what stands in for an answer.
+      if (typeof bridge?.graphLog !== 'function') settle(repoPath, 'log');
     } catch {
       if (!owns()) return;
+      owe(repoPath, 'log');
       // Empty/non-git repos: an empty history is a state, not an error.
       patchRepo(repoPath, { log: [], hasMore: false, logLoading: false });
     }
@@ -600,10 +764,14 @@ export const useGitDepth = create<DepthState>((set, get) => {
   const fetchBranches = async (repoPath: string): Promise<void> => {
     const bridge = depthBridge();
     if (typeof bridge?.branches !== 'function') return;
+    const turn = takeTurn(`branches\0${repoPath}`);
     try {
       const branches = await bridge.branches(repoPath);
+      if (turn.stale()) return;
       patchRepo(repoPath, { branches });
+      if (turn.landed()) settle(repoPath, 'branches');
     } catch {
+      if (turn.failed()) owe(repoPath, 'branches');
       /* keep the previous list — refs badges are decoration, not truth */
     }
   };
@@ -611,13 +779,17 @@ export const useGitDepth = create<DepthState>((set, get) => {
   const fetchRemoteBranches = async (repoPath: string): Promise<void> => {
     const bridge = depthBridge();
     if (typeof bridge?.remoteBranches !== 'function') return;
+    const turn = takeTurn(`remoteBranches\0${repoPath}`);
     try {
       const result = await bridge.remoteBranches(repoPath);
+      if (turn.stale()) return;
       patchRepo(repoPath, {
         remoteBranches: result.branches,
         lastFetchedAt: result.lastFetchedAt
       });
+      if (turn.landed()) settle(repoPath, 'remoteBranches');
     } catch {
+      if (turn.failed()) owe(repoPath, 'remoteBranches');
       /* keep the previous list — same decoration discipline as branches */
     }
   };
@@ -625,15 +797,89 @@ export const useGitDepth = create<DepthState>((set, get) => {
   const fetchRemotes = async (repoPath: string): Promise<void> => {
     const bridge = depthBridge();
     if (typeof bridge?.remotes !== 'function') return;
+    const turn = takeTurn(`remotes\0${repoPath}`);
     try {
       const result = await bridge.remotes(repoPath);
+      if (turn.stale()) return;
       patchRepo(repoPath, {
         remotes: result.remotes,
         upstream: result.upstream
       });
+      if (turn.landed()) settle(repoPath, 'remotes');
     } catch {
+      if (turn.failed()) owe(repoPath, 'remotes');
       /* keep the previous list — the remotes panel is not load-bearing */
     }
+  };
+
+  /**
+   * Phase 199. A change search runs from its button and from nothing else.
+   * With one on screen, a repository change re-reads the branches and leaves
+   * the rows and the printed time as the button drew them. Every file an
+   * agent writes in the repository is such a change, and each reread was a
+   * pickaxe over the whole history, seconds of CPU on a large one, aborting
+   * the one before it, that nobody pressed for.
+   */
+  const changeSearchOnScreen = (repoPath: string): boolean => {
+    const query = get().repos[repoPath]?.query ?? null;
+    return query !== null && query.change !== '';
+  };
+
+  /**
+   * The reads asked for outright: by a change that may have moved git's data,
+   * by a repository's first load, and by the header's two.
+   */
+  const moved: Record<DepthRead, Set<string>> = {
+    log: new Set(),
+    branches: new Set(),
+    remoteBranches: new Set(),
+    remotes: new Set()
+  };
+
+  /**
+   * Asked as a read is about to run and never when it was marked, so a read a
+   * saved file asked for is not made when the one before it has answered.
+   */
+  const due = (repoPath: string, read: DepthRead): boolean =>
+    moved[read].delete(repoPath) || owes(repoPath, read);
+
+  const readWhenDue = (
+    read: DepthRead,
+    fetch: (repoPath: string) => Promise<void>
+  ): ((repoPath: string) => Promise<void>) =>
+    oneBehind(async (repoPath) => {
+      if (due(repoPath, read)) await fetch(repoPath);
+    });
+
+  /** Phase 371. The reads a change causes: one in flight a repo, one behind. */
+  const lines: Record<DepthRead, (repoPath: string) => Promise<void>> = {
+    // A walk is not started over one that is out, whoever started it: a change
+    // used to end the walk before it, so under a git slower than the changes
+    // History never drew. Phase 199's question is asked again after the wait.
+    log: oneBehind(async (repoPath) => {
+      for (
+        let walk = walks.get(repoPath);
+        walk !== undefined;
+        walk = walks.get(repoPath)
+      ) {
+        await walk.out;
+      }
+      if (!due(repoPath, 'log') || get().repos[repoPath] === undefined) return;
+      if (changeSearchOnScreen(repoPath)) {
+        // Not read, so still owed once the search is off the screen.
+        owe(repoPath, 'log');
+        return;
+      }
+      await fetchLog(repoPath);
+    }),
+    branches: readWhenDue('branches', fetchBranches),
+    remoteBranches: readWhenDue('remoteBranches', fetchRemoteBranches),
+    remotes: readWhenDue('remotes', fetchRemotes)
+  };
+
+  const ask = (repoPath: string, read: DepthRead): Promise<void> => {
+    moved[read].add(repoPath);
+    return lines[read](repoPath);
   };
 
   /**
@@ -694,24 +940,16 @@ export const useGitDepth = create<DepthState>((set, get) => {
       // first read is already the one the header promises.
       patchRepo(repoPath, scope !== undefined ? { scope } : {});
       void fetchLog(repoPath);
-      void fetchBranches(repoPath);
+      void ask(repoPath, 'branches');
       void fetchRemote(repoPath);
-      void fetchRemoteBranches(repoPath);
-      void fetchRemotes(repoPath);
+      void ask(repoPath, 'remoteBranches');
+      void ask(repoPath, 'remotes');
     },
 
     async refresh(repoPath) {
-      const repo = get().repos[repoPath];
-      if (repo === undefined) return;
-      // Phase 199. A change search runs from its button and from nothing
-      // else. With one on screen, a repository change re-reads the branches
-      // and leaves the rows and the printed time as the button drew them.
-      // Every file an agent writes in the repository is such a change, and
-      // each reread was a pickaxe over the whole history, seconds of CPU on
-      // a large one, aborting the one before it, that nobody pressed for.
-      const keepRows = repo.query !== null && repo.query.change !== '';
+      if (get().repos[repoPath] === undefined) return;
       await Promise.all([
-        keepRows ? Promise.resolve() : fetchLog(repoPath),
+        changeSearchOnScreen(repoPath) ? Promise.resolve() : fetchLog(repoPath),
         fetchBranches(repoPath),
         fetchRemoteBranches(repoPath),
         fetchRemotes(repoPath)
@@ -941,11 +1179,11 @@ export const useGitDepth = create<DepthState>((set, get) => {
     // -- Phase 12 item 3 -------------------------------------------------------
 
     async loadRemotes(repoPath) {
-      await fetchRemotes(repoPath);
+      await ask(repoPath, 'remotes');
     },
 
     async loadFetchAge(repoPath) {
-      await fetchRemoteBranches(repoPath);
+      await ask(repoPath, 'remoteBranches');
     },
 
     async push(repoPath) {

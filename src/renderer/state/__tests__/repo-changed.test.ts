@@ -12,11 +12,11 @@ import { createRepoChangeBus, REPO_CHANGED_DEBOUNCE_MS } from '../repo-changed';
 
 /** A stand-in for `gmux.git.onChanged`, with a handle to emit events. */
 function fakeSource(): {
-  source: (cb: (repoPath: string) => void) => () => void;
-  emit: (repoPath: string) => void;
+  source: (cb: (repoPath: string, gitMoved?: boolean) => void) => () => void;
+  emit: (repoPath: string, gitMoved?: boolean) => void;
   attachCount: () => number;
 } {
-  const subs: Array<(repoPath: string) => void> = [];
+  const subs: Array<(repoPath: string, gitMoved?: boolean) => void> = [];
   return {
     source: (cb) => {
       subs.push(cb);
@@ -25,8 +25,8 @@ function fakeSource(): {
         if (i >= 0) subs.splice(i, 1);
       };
     },
-    emit: (repoPath) => {
-      for (const cb of [...subs]) cb(repoPath);
+    emit: (...message) => {
+      for (const cb of [...subs]) cb(...message);
     },
     attachCount: () => subs.length
   };
@@ -67,7 +67,7 @@ describe('createRepoChangeBus', () => {
 
     vi.advanceTimersByTime(1);
     expect(a).toHaveBeenCalledTimes(1);
-    expect(a).toHaveBeenCalledWith('/repo');
+    expect(a).toHaveBeenCalledWith('/repo', true);
     expect(b).toHaveBeenCalledTimes(1);
   });
 
@@ -98,9 +98,9 @@ describe('createRepoChangeBus', () => {
     emit('/b');
     vi.advanceTimersByTime(50);
 
-    expect(seen.mock.calls).toEqual([['/a']]);
+    expect(seen.mock.calls).toEqual([['/a', true]]);
     vi.advanceTimersByTime(100);
-    expect(seen.mock.calls).toEqual([['/a'], ['/b']]);
+    expect(seen.mock.calls).toEqual([['/a', true], ['/b', true]]);
   });
 
   it('stops delivering after unsubscribe, without disturbing the others', () => {
@@ -135,5 +135,80 @@ describe('createRepoChangeBus', () => {
     emit('/repo');
     vi.advanceTimersByTime(REPO_CHANGED_DEBOUNCE_MS);
     expect(later).toHaveBeenCalledTimes(2);
+  });
+
+  // Phase 371: the one bit, whether git's own data may have moved.
+
+  it('R1 joins two messages of one window as OR, in both orders', () => {
+    for (const order of [
+      [true, false],
+      [false, true]
+    ]) {
+      const { source, emit } = fakeSource();
+      const bus = createRepoChangeBus(source);
+      const seen = vi.fn();
+      bus.subscribe(seen);
+
+      for (const gitMoved of order) {
+        emit('/repo', gitMoved);
+        vi.advanceTimersByTime(REPO_CHANGED_DEBOUNCE_MS - 1);
+      }
+      vi.advanceTimersByTime(1);
+      expect(seen.mock.calls).toEqual([['/repo', true]]);
+    }
+  });
+
+  it('R2 reads a message that carries nothing as a move', () => {
+    const { source, emit } = fakeSource();
+    const bus = createRepoChangeBus(source);
+    const seen = vi.fn();
+    bus.subscribe(seen);
+
+    emit('/repo');
+    vi.advanceTimersByTime(REPO_CHANGED_DEBOUNCE_MS);
+    emit('/repo', undefined);
+    emit('/repo', false);
+    vi.advanceTimersByTime(REPO_CHANGED_DEBOUNCE_MS);
+    expect(seen.mock.calls).toEqual([
+      ['/repo', true],
+      ['/repo', true]
+    ]);
+  });
+
+  it('R3 hands over a false window, and the next window starts clean', () => {
+    const { source, emit } = fakeSource();
+    const bus = createRepoChangeBus(source);
+    const seen = vi.fn();
+    bus.subscribe(seen);
+
+    for (const gitMoved of [false, true, false]) {
+      emit('/repo', gitMoved);
+      vi.advanceTimersByTime(REPO_CHANGED_DEBOUNCE_MS);
+    }
+    expect(seen.mock.calls).toEqual([
+      ['/repo', false],
+      ['/repo', true],
+      ['/repo', false]
+    ]);
+  });
+
+  it('R4 keeps the bit per repo, and wakes a listener that takes one argument', () => {
+    const { source, emit } = fakeSource();
+    const bus = createRepoChangeBus(source);
+    const seen = vi.fn();
+    const plain: string[] = [];
+    bus.subscribe(seen);
+    bus.subscribe((repoPath) => {
+      plain.push(repoPath);
+    });
+
+    emit('/a', true);
+    emit('/b', false);
+    vi.advanceTimersByTime(REPO_CHANGED_DEBOUNCE_MS);
+    expect(seen.mock.calls).toEqual([
+      ['/a', true],
+      ['/b', false]
+    ]);
+    expect(plain).toEqual(['/a', '/b']);
   });
 });
