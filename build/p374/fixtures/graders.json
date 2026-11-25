@@ -1,0 +1,4392 @@
+{
+ "OFF": {
+  "honest": {
+   "parent": {
+    "creates": {
+     "create": {
+      "spawned": [],
+      "recorded": [
+       "<run>/w/h/.local/bin/agy"
+      ],
+      "resume": [
+       "<run>/w/h/.local/bin/agy",
+       "--conversation",
+       "10000000-0000-4000-8000-000000000001"
+      ],
+      "splice": [
+       "the first word is undefined"
+      ],
+      "alive": true,
+      "flavour": "",
+      "ms": 25,
+      "conversation": "10000000-0000-4000-8000-000000000001"
+     },
+     "extras": {
+      "spawned": [
+       "--model",
+       "example model",
+       "--sandbox"
+      ],
+      "recorded": [
+       "<run>/w/h/.local/bin/agy",
+       "--model",
+       "example model",
+       "--sandbox"
+      ],
+      "resume": [
+       "<run>/w/h/.local/bin/agy",
+       "--conversation",
+       "10000000-0000-4000-8000-000000000002",
+       "--model",
+       "example model",
+       "--sandbox"
+      ],
+      "splice": [
+       "the first word is undefined"
+      ],
+      "alive": true,
+      "flavour": "",
+      "ms": 25,
+      "conversation": "10000000-0000-4000-8000-000000000002"
+     },
+     "captured": {
+      "spawned": [],
+      "recorded": [
+       "<run>/app/build/vendor/specstory/bin/specstory",
+       "run",
+       "antigravity",
+       "--no-version-check",
+       "--silent",
+       "--no-cloud-sync",
+       "-c",
+       "<run>/w/h/.local/bin/agy"
+      ],
+      "resume": null,
+      "splice": [
+       "the first word is undefined"
+      ],
+      "alive": true,
+      "flavour": "",
+      "ms": 25,
+      "conversation": null
+     },
+     "asked": 3
+    },
+    "lines": {
+     "restore": {
+      "armed": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001",
+      "drawn": true,
+      "ran": [
+       "--conversation",
+       "10000000-0000-4000-8000-000000000001"
+      ]
+     },
+     "resumeInPlace": {
+      "line": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001",
+      "landing": "armed"
+     },
+     "restart": {
+      "spawned": [
+       "--model",
+       "example model",
+       "--sandbox"
+      ],
+      "splice": [
+       "x"
+      ]
+     },
+     "paneSettings": 0
+    }
+   },
+   "head": {
+    "creates": {
+     "create": {
+      "spawned": [],
+      "recorded": [
+       "<run>/w/h/.local/bin/agy"
+      ],
+      "resume": [
+       "<run>/w/h/.local/bin/agy",
+       "--conversation",
+       "10000000-0000-4000-8000-000000000001"
+      ],
+      "splice": [
+       "the first word is undefined"
+      ],
+      "alive": true,
+      "flavour": "",
+      "ms": 25,
+      "conversation": "10000000-0000-4000-8000-000000000001"
+     },
+     "extras": {
+      "spawned": [
+       "--model",
+       "example model",
+       "--sandbox"
+      ],
+      "recorded": [
+       "<run>/w/h/.local/bin/agy",
+       "--model",
+       "example model",
+       "--sandbox"
+      ],
+      "resume": [
+       "<run>/w/h/.local/bin/agy",
+       "--conversation",
+       "10000000-0000-4000-8000-000000000002",
+       "--model",
+       "example model",
+       "--sandbox"
+      ],
+      "splice": [
+       "the first word is undefined"
+      ],
+      "alive": true,
+      "flavour": "",
+      "ms": 25,
+      "conversation": "10000000-0000-4000-8000-000000000002"
+     },
+     "captured": {
+      "spawned": [],
+      "recorded": [
+       "<run>/app/build/vendor/specstory/bin/specstory",
+       "run",
+       "antigravity",
+       "--no-version-check",
+       "--silent",
+       "--no-cloud-sync",
+       "-c",
+       "<run>/w/h/.local/bin/agy"
+      ],
+      "resume": null,
+      "splice": [
+       "the first word is undefined"
+      ],
+      "alive": true,
+      "flavour": "",
+      "ms": 25,
+      "conversation": null
+     },
+     "asked": 3
+    },
+    "lines": {
+     "restore": {
+      "armed": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001",
+      "drawn": true,
+      "ran": [
+       "--conversation",
+       "10000000-0000-4000-8000-000000000001"
+      ]
+     },
+     "resumeInPlace": {
+      "line": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001",
+      "landing": "armed"
+     },
+     "restart": {
+      "spawned": [
+       "--model",
+       "example model",
+       "--sandbox"
+      ],
+      "splice": [
+       "x"
+      ]
+     },
+     "paneSettings": 0
+    },
+    "runs": 0,
+    "folder": false
+   }
+  },
+  "broken": [
+   {
+    "name": "both builds created all three sessions and the stand-in said how each was started",
+    "ops": [
+     {
+      "set": "parent.creates.extras.spawned",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "both builds typed a restore and a resume in place and started a Restart",
+    "ops": [
+     {
+      "set": "head.lines.resumeInPlace.line",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the stand-in’s runs and the folder were read",
+    "ops": [
+     {
+      "del": "head.runs"
+     }
+    ]
+   },
+   {
+    "name": "create: spawned as the parent spawned it",
+    "ops": [
+     {
+      "set": "head.creates.create.spawned",
+      "to": [
+       "--zz"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "extras: spawned as the parent spawned it",
+    "ops": [
+     {
+      "set": "head.creates.extras.spawned",
+      "to": [
+       "--zz"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "captured: spawned as the parent spawned it",
+    "ops": [
+     {
+      "set": "head.creates.captured.spawned",
+      "to": [
+       "--zz"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "create: recorded as the parent recorded it",
+    "ops": [
+     {
+      "set": "head.creates.create.resume",
+      "to": [
+       "--zz"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "extras: recorded as the parent recorded it",
+    "ops": [
+     {
+      "set": "head.creates.extras.resume",
+      "to": [
+       "--zz"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "captured: recorded as the parent recorded it",
+    "ops": [
+     {
+      "set": "head.creates.captured.resume",
+      "to": [
+       "--zz"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the restore types the parent’s line",
+    "ops": [
+     {
+      "set": "head.lines.restore.armed",
+      "to": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001--settings{}"
+     }
+    ]
+   },
+   {
+    "name": "the resume in place types the parent’s line",
+    "ops": [
+     {
+      "set": "head.lines.resumeInPlace.line",
+      "to": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001--settings{}"
+     }
+    ]
+   },
+   {
+    "name": "the Restart starts as the parent starts it",
+    "ops": [
+     {
+      "set": "head.lines.restart.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}",
+       "--model",
+       "example model",
+       "--sandbox"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no argv holds --settings",
+    "ops": [
+     {
+      "set": "head.creates.create.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     },
+     {
+      "set": "parent.creates.create.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the folder was never made",
+    "ops": [
+     {
+      "set": "head.folder",
+      "to": true
+     }
+    ]
+   },
+   {
+    "name": "no status line run",
+    "ops": [
+     {
+      "set": "head.runs",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "both builds learned the two conversations, so each resume argv is a reading",
+    "ops": [
+     {
+      "set": "head.creates.extras.conversation",
+      "to": null
+     },
+     {
+      "set": "head.creates.extras.resume",
+      "to": null
+     },
+     {
+      "set": "parent.creates.extras.conversation",
+      "to": null
+     },
+     {
+      "set": "parent.creates.extras.resume",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "both builds captured the third inside the stand-in SpecStory",
+    "ops": [
+     {
+      "set": "head.creates.captured.recorded",
+      "to": [
+       "<run>/w/h/.local/bin/agy"
+      ]
+     },
+     {
+      "set": "parent.creates.captured.recorded",
+      "to": [
+       "<run>/w/h/.local/bin/agy"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every session with the switch off was asked to run a line",
+    "ops": [
+     {
+      "set": "head.creates.asked",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "both restored programs said how they were started",
+    "ops": [
+     {
+      "set": "head.lines.restore.ran",
+      "to": null
+     },
+     {
+      "set": "parent.lines.restore.ran",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the restored program starts as the parent’s",
+    "ops": [
+     {
+      "set": "head.lines.restore.ran",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}",
+       "--conversation",
+       "10000000-0000-4000-8000-000000000001"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "ON": {
+  "honest": {
+   "spawned": [
+    "--settings",
+    "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+   ],
+   "recorded": [
+    "<run>/w/h/.local/bin/agy"
+   ],
+   "resume": [
+    "<run>/w/h/.local/bin/agy",
+    "--conversation",
+    "10000000-0000-4000-8000-000000000005"
+   ],
+   "splice": [],
+   "alive": true,
+   "flavour": "",
+   "ms": 21,
+   "parentSpawned": [],
+   "parentRecorded": [
+    "<run>/w/h/.local/bin/agy"
+   ],
+   "runs": {
+    "sent": 42,
+    "logged": 42,
+    "codes": [
+     0
+    ],
+    "nonZero": 0,
+    "outBytes": 0,
+    "errBytes": 0,
+    "killedByNext": 0,
+    "errorBlocks": 0,
+    "ms": {
+     "max": 59,
+     "p50": 14
+    }
+   },
+   "keptTail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false}}}",
+   "lastTail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false}}}",
+   "face": "30% 5h · 37% wk",
+   "wantFace": "30% 5h · 37% wk",
+   "moved": {
+    "sawFirst": true,
+    "first": "29% 5h · 36% wk",
+    "then": "30% 5h · 37% wk"
+   },
+   "faceMs": 3547,
+   "card": [
+    "Antigravity",
+    "Example Tier plan",
+    "30% 5h, Resets in 3h 11m",
+    "37% wk, Resets in 5d 2h",
+    "Claude and GPT 0% 5h",
+    "Claude and GPT 0% wk"
+   ],
+   "loginControls": 0,
+   "wantSecond": [
+    "Claude and GPT 0% 5h",
+    "Claude and GPT 0% wk"
+   ],
+   "behind": {
+    "heldMs": 11503,
+    "faceBefore": "30% 5h · 37% wk",
+    "faceAfter": "30% 5h · 37% wk",
+    "faceThen": "47% 5h · 16% wk",
+    "wantThen": "47% 5h · 16% wk",
+    "wrote": true
+   },
+   "conversation": "10000000-0000-4000-8000-000000000005",
+   "parentResume": [
+    "<run>/w/h/.local/bin/agy",
+    "--conversation",
+    "10000000-0000-4000-8000-000000000005"
+   ],
+   "startLine": "\"agy --settings '{\\\"statusLine\\\":…}'\""
+  },
+  "broken": [
+   {
+    "name": "the session started and said hello",
+    "ops": [
+     {
+      "set": "spawned",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "every replayed run was logged",
+    "ops": [
+     {
+      "set": "runs.logged",
+      "to": 41
+     }
+    ]
+   },
+   {
+    "name": "the face and the card were read, and there is a number to want",
+    "ops": [
+     {
+      "set": "card",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the numbers the timed run moved were drawn first",
+    "ops": [
+     {
+      "set": "moved.sawFirst",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the window behind was held for longer than two looks",
+    "ops": [
+     {
+      "set": "behind.heldMs",
+      "to": 4000
+     }
+    ]
+   },
+   {
+    "name": "the flag is straight after the name and holds one key of three",
+    "ops": [
+     {
+      "set": "splice",
+      "to": [
+       "the first word is \"--model\""
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the rest of the argv is the parent’s",
+    "ops": [
+     {
+      "set": "spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}",
+       "--zz"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the row is recorded as the parent records it",
+    "ops": [
+     {
+      "set": "recorded",
+      "to": [
+       "<run>/w/h/.local/bin/agy",
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every run exits 0",
+    "ops": [
+     {
+      "set": "runs.nonZero",
+      "to": 1
+     },
+     {
+      "set": "runs.codes",
+      "to": [
+       0,
+       1
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no run wrote a byte",
+    "ops": [
+     {
+      "set": "runs.errBytes",
+      "to": 3
+     }
+    ]
+   },
+   {
+    "name": "no error block",
+    "ops": [
+     {
+      "set": "runs.errorBlocks",
+      "to": 2
+     }
+    ]
+   },
+   {
+    "name": "no run over the 300 ms overlap",
+    "ops": [
+     {
+      "set": "runs.killedByNext",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "the kept file is the last payload’s",
+    "ops": [
+     {
+      "set": "keptTail",
+      "to": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false}}} "
+     }
+    ]
+   },
+   {
+    "name": "the face draws the last numbers",
+    "ops": [
+     {
+      "set": "face",
+      "to": "29% 5h · 36% wk"
+     }
+    ]
+   },
+   {
+    "name": "within 6000 ms",
+    "ops": [
+     {
+      "set": "faceMs",
+      "to": 6001
+     }
+    ]
+   },
+   {
+    "name": "a full bucket draws no reset and the card has the second group",
+    "ops": [
+     {
+      "set": "card",
+      "to": [
+       "Antigravity",
+       "Claude and GPT 0% 5h, Resets in 4h 59m",
+       "Claude and GPT 0% wk"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the card has no login line and no Choose login for this row",
+    "ops": [
+     {
+      "set": "loginControls",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "the second group is not on the face",
+    "ops": [
+     {
+      "set": "face",
+      "to": "30% 5h · 37% wk · Claude and GPT 0%"
+     },
+     {
+      "set": "wantFace",
+      "to": "30% 5h · 37% wk · Claude and GPT 0%"
+     }
+    ]
+   },
+   {
+    "name": "a window behind moved nothing",
+    "ops": [
+     {
+      "set": "behind.faceAfter",
+      "to": "47% 5h · 16% wk"
+     }
+    ]
+   },
+   {
+    "name": "the face and the card were read, and there is a number to want",
+    "ops": [
+     {
+      "set": "wantSecond",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "the face and the card were read, and there is a number to want",
+    "ops": [
+     {
+      "set": "keptTail",
+      "to": null
+     },
+     {
+      "set": "lastTail",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the face and the card were read, and there is a number to want",
+    "ops": [
+     {
+      "set": "face",
+      "to": ""
+     },
+     {
+      "set": "wantFace",
+      "to": ""
+     },
+     {
+      "set": "moved.first",
+      "to": "a"
+     }
+    ]
+   },
+   {
+    "name": "the parent’s create, its row and this row were read",
+    "ops": [
+     {
+      "set": "recorded",
+      "to": null
+     },
+     {
+      "set": "parentRecorded",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the parent’s create, its row and this row were read",
+    "ops": [
+     {
+      "set": "parentSpawned",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "this session’s conversation was learned, so its resume argv is a reading",
+    "ops": [
+     {
+      "set": "conversation",
+      "to": null
+     },
+     {
+      "set": "resume",
+      "to": null
+     },
+     {
+      "set": "parentResume",
+      "to": null
+     },
+     {
+      "set": "parentResume",
+      "to": [
+       "<run>/w/h/.local/bin/agy"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a new file landed while it was behind, with other numbers",
+    "ops": [
+     {
+      "set": "behind.wrote",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a new file landed while it was behind, with other numbers",
+    "ops": [
+     {
+      "set": "behind.wantThen",
+      "to": "30% 5h · 37% wk"
+     },
+     {
+      "set": "behind.faceThen",
+      "to": "30% 5h · 37% wk"
+     }
+    ]
+   },
+   {
+    "name": "it resumes by the parent’s argv",
+    "ops": [
+     {
+      "set": "resume",
+      "to": [
+       "<run>/w/h/.local/bin/agy",
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}",
+       "--conversation",
+       "10000000-0000-4000-8000-000000000005"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every run exits 0",
+    "ops": [
+     {
+      "set": "runs.codes",
+      "to": [
+       null
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every run exits 0",
+    "ops": [
+     {
+      "set": "runs.codes",
+      "to": [
+       0,
+       null
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the card draws the same two, each with its reset",
+    "ops": [
+     {
+      "set": "card",
+      "to": [
+       "Antigravity",
+       "Example Tier plan",
+       "30% 5h, Resets in 3h 11m",
+       "Claude and GPT 0% 5h",
+       "Claude and GPT 0% wk",
+       "37% wk"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the flag is straight after the name and holds one key of three",
+    "ops": [
+     {
+      "set": "splice",
+      "to": [
+       "agy refused it: unknown setting x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "what the pane was started with was read",
+    "ops": [
+     {
+      "set": "startLine",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "a plain create is one line for the person’s own shell, as the parent’s one word is",
+    "ops": [
+     {
+      "set": "startLine",
+      "to": "agy --settings \"{\\\"statusLine\\\":…}\""
+     }
+    ]
+   }
+  ]
+ },
+ "FLOOR": {
+  "honest": {
+   "old": {
+    "spawned": [],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [
+     "the first word is undefined"
+    ],
+    "alive": true,
+    "flavour": "",
+    "ms": 25,
+    "words": "Needs Antigravity CLI 1.4.10 or later.",
+    "scan": "1.4.9"
+   },
+   "unread": {
+    "spawned": [],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [
+     "the first word is undefined"
+    ],
+    "alive": true,
+    "flavour": "",
+    "ms": 25,
+    "scan": "no version here"
+   },
+   "control": {
+    "spawned": [
+     "--settings",
+     "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+    ],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [],
+    "alive": true,
+    "flavour": "",
+    "ms": 25,
+    "scan": "1.6.0"
+   },
+   "replaced": {
+    "spawned": [],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [
+     "the first word is undefined"
+    ],
+    "alive": true,
+    "flavour": "",
+    "ms": 25,
+    "versionsMore": 1
+   },
+   "next": {
+    "spawned": [
+     "--settings",
+     "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+    ],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [],
+    "alive": true,
+    "flavour": "",
+    "ms": 25
+   },
+   "script": {
+    "spawned": [],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [
+     "the first word is undefined"
+    ],
+    "alive": true,
+    "flavour": "",
+    "ms": 25,
+    "scan": "1.6.0"
+   },
+   "elsewhere": {
+    "spawned": [],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [
+     "the first word is undefined"
+    ],
+    "alive": true,
+    "flavour": "elsewhere",
+    "ms": 25,
+    "scan": "1.6.0"
+   }
+  },
+  "broken": [
+   {
+    "name": "every create was started and said hello",
+    "ops": [
+     {
+      "set": "script.spawned",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the bare name resolved elsewhere",
+    "ops": [
+     {
+      "set": "elsewhere.flavour",
+      "to": ""
+     }
+    ]
+   },
+   {
+    "name": "below the floor: none",
+    "ops": [
+     {
+      "set": "old.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "below the floor: the words",
+    "ops": [
+     {
+      "set": "old.words",
+      "to": "Shows after a new Antigravity session starts."
+     }
+    ]
+   },
+   {
+    "name": "unread: none",
+    "ops": [
+     {
+      "set": "unread.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "at the floor: spliced",
+    "ops": [
+     {
+      "set": "control.splice",
+      "to": [
+       "x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "replaced since the scan: none",
+    "ops": [
+     {
+      "set": "replaced.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the replaced file is read exactly once more",
+    "ops": [
+     {
+      "set": "replaced.versionsMore",
+      "to": 2
+     }
+    ]
+   },
+   {
+    "name": "the session after it: spliced",
+    "ops": [
+     {
+      "set": "next.splice",
+      "to": [
+       "x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a wrapper script: none",
+    "ops": [
+     {
+      "set": "script.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a bare name that resolves elsewhere: none",
+    "ops": [
+     {
+      "set": "elsewhere.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every re-scan read the version the arm planted",
+    "ops": [
+     {
+      "set": "old.scan",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "every re-scan read the version the arm planted",
+    "ops": [
+     {
+      "set": "old.scan",
+      "to": "1.6.0"
+     }
+    ]
+   },
+   {
+    "name": "every re-scan read the version the arm planted",
+    "ops": [
+     {
+      "set": "unread.scan",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "every re-scan read the version the arm planted",
+    "ops": [
+     {
+      "set": "script.scan",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "every re-scan read the version the arm planted",
+    "ops": [
+     {
+      "set": "elsewhere.scan",
+      "to": "1.4.9"
+     }
+    ]
+   }
+  ]
+ },
+ "ASIDE": {
+  "honest": {
+   "flags": {
+    "two": {
+     "spawned": [
+      "--settings",
+      "{\"model\":\"example\"}"
+     ],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy",
+      "--settings",
+      "{\"model\":\"example\"}"
+     ],
+     "resume": null,
+     "splice": [],
+     "alive": true,
+     "flavour": "",
+     "ms": 25,
+     "asked": [
+      "--settings",
+      "{\"model\":\"example\"}"
+     ],
+     "words": "Your own Antigravity status line or settings are in use."
+    },
+    "equals": {
+     "spawned": [
+      "--settings={\"model\":\"example\"}"
+     ],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy",
+      "--settings={\"model\":\"example\"}"
+     ],
+     "resume": null,
+     "splice": [
+      "the first word is undefined"
+     ],
+     "alive": true,
+     "flavour": "",
+     "ms": 25,
+     "asked": [
+      "--settings={\"model\":\"example\"}"
+     ],
+     "words": null
+    },
+    "one": {
+     "spawned": [
+      "-settings",
+      "{\"model\":\"example\"}"
+     ],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy",
+      "-settings",
+      "{\"model\":\"example\"}"
+     ],
+     "resume": null,
+     "splice": [
+      "the first word is undefined"
+     ],
+     "alive": true,
+     "flavour": "",
+     "ms": 25,
+     "asked": [
+      "-settings",
+      "{\"model\":\"example\"}"
+     ],
+     "words": null
+    },
+    "dir": {
+     "spawned": [
+      "--gemini_dir",
+      "/example"
+     ],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy",
+      "--gemini_dir",
+      "/example"
+     ],
+     "resume": null,
+     "splice": [
+      "the first word is undefined"
+     ],
+     "alive": true,
+     "flavour": "",
+     "ms": 25,
+     "asked": [
+      "--gemini_dir",
+      "/example"
+     ],
+     "words": null
+    }
+   },
+   "files": {
+    "own": {
+     "spawned": [],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy"
+     ],
+     "resume": null,
+     "splice": [
+      "the first word is undefined"
+     ],
+     "alive": true,
+     "flavour": "",
+     "ms": 25
+    },
+    "disabled": {
+     "spawned": [
+      "--settings",
+      "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+     ],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy"
+     ],
+     "resume": null,
+     "splice": [],
+     "alive": true,
+     "flavour": "",
+     "ms": 25
+    },
+    "without": {
+     "spawned": [
+      "--settings",
+      "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+     ],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy"
+     ],
+     "resume": null,
+     "splice": [],
+     "alive": true,
+     "flavour": "",
+     "ms": 25
+    },
+    "unreadable": {
+     "spawned": [],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy"
+     ],
+     "resume": null,
+     "splice": [
+      "the first word is undefined"
+     ],
+     "alive": true,
+     "flavour": "",
+     "ms": 25
+    },
+    "huge": {
+     "spawned": [],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy"
+     ],
+     "resume": null,
+     "splice": [
+      "the first word is undefined"
+     ],
+     "alive": true,
+     "flavour": "",
+     "ms": 25
+    },
+    "broken": {
+     "spawned": [],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy"
+     ],
+     "resume": null,
+     "splice": [
+      "the first word is undefined"
+     ],
+     "alive": true,
+     "flavour": "",
+     "ms": 25
+    },
+    "fifo": {
+     "spawned": [],
+     "recorded": [
+      "<run>/w/h/.local/bin/agy"
+     ],
+     "resume": null,
+     "splice": [
+      "the first word is undefined"
+     ],
+     "alive": true,
+     "flavour": "",
+     "ms": 25
+    }
+   },
+   "fifo": {
+    "parentMs": 23,
+    "headMs": 20
+   }
+  },
+  "broken": [
+   {
+    "name": "every create was started and said hello",
+    "ops": [
+     {
+      "set": "files.huge.spawned",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "both builds timed the FIFO create",
+    "ops": [
+     {
+      "set": "fifo.parentMs",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "his own flag in every spelling is the only one",
+    "ops": [
+     {
+      "set": "flags.one.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}",
+       "-settings",
+       "{\"model\":\"example\"}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "his own flag: the words",
+    "ops": [
+     {
+      "set": "flags.two.words",
+      "to": ""
+     }
+    ]
+   },
+   {
+    "name": "a status line of his own: none",
+    "ops": [
+     {
+      "set": "files.own.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "switched off by him: spliced",
+    "ops": [
+     {
+      "set": "files.disabled.splice",
+      "to": [
+       "x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no status line in the file: spliced",
+    "ops": [
+     {
+      "set": "files.without.splice",
+      "to": [
+       "x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "unreadable: none",
+    "ops": [
+     {
+      "set": "files.unreadable.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "huge: none",
+    "ops": [
+     {
+      "set": "files.huge.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "not JSON: none",
+    "ops": [
+     {
+      "set": "files.broken.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a FIFO: none",
+    "ops": [
+     {
+      "set": "files.fifo.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a FIFO makes the create no slower",
+    "ops": [
+     {
+      "set": "fifo.headMs",
+      "to": 1524
+     }
+    ]
+   }
+  ]
+ },
+ "CAP": {
+  "honest": {
+   "spawned": [],
+   "recorded": [
+    "<run>/app/build/vendor/specstory/bin/specstory",
+    "run",
+    "antigravity",
+    "--no-version-check",
+    "--silent",
+    "--no-cloud-sync",
+    "-c",
+    "<run>/w/h/.local/bin/agy"
+   ],
+   "resume": null,
+   "splice": [
+    "the first word is undefined"
+   ],
+   "alive": true,
+   "flavour": "",
+   "ms": 25,
+   "before": "Shows after a new Antigravity session starts.",
+   "words": "A session SpecStory captures does not report its plan.",
+   "wrapped": true,
+   "parentRecorded": [
+    "<run>/app/build/vendor/specstory/bin/specstory",
+    "run",
+    "antigravity",
+    "--no-version-check",
+    "--silent",
+    "--no-cloud-sync",
+    "-c",
+    "<run>/w/h/.local/bin/agy"
+   ]
+  },
+  "broken": [
+   {
+    "name": "the captured session said hello",
+    "ops": [
+     {
+      "set": "spawned",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "it ran inside the stand-in SpecStory",
+    "ops": [
+     {
+      "set": "wrapped",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the words were read before and after",
+    "ops": [
+     {
+      "set": "words",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "no flag",
+    "ops": [
+     {
+      "set": "spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "recorded as the parent records it",
+    "ops": [
+     {
+      "set": "recorded",
+      "to": [
+       "<run>/w/h/.local/bin/agy"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the row waits with its own words first",
+    "ops": [
+     {
+      "set": "before",
+      "to": ""
+     }
+    ]
+   },
+   {
+    "name": "then the captured words",
+    "ops": [
+     {
+      "set": "words",
+      "to": "Shows after a new Antigravity session starts."
+     }
+    ]
+   },
+   {
+    "name": "the row and the parent’s row were read",
+    "ops": [
+     {
+      "set": "recorded",
+      "to": null
+     },
+     {
+      "set": "parentRecorded",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the row and the parent’s row were read",
+    "ops": [
+     {
+      "set": "parentRecorded",
+      "to": null
+     }
+    ]
+   }
+  ]
+ },
+ "GUARD": {
+  "honest": {
+   "first": {
+    "spawned": [
+     "--settings",
+     "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+    ],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [],
+    "alive": true,
+    "flavour": "",
+    "ms": 25,
+    "ended": true
+   },
+   "logLines": 1,
+   "waitingFor": "start-failed",
+   "words": "A new Antigravity session ended at once, so this row waits for the next Antigravity update, or until this meter is turned off and on.",
+   "second": {
+    "spawned": [],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [
+     "the first word is undefined"
+    ],
+    "alive": true,
+    "flavour": "",
+    "ms": 25
+   },
+   "third": {
+    "spawned": [
+     "--settings",
+     "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+    ],
+    "recorded": [
+     "<run>/w/h/.local/bin/agy"
+    ],
+    "resume": null,
+    "splice": [],
+    "alive": true,
+    "flavour": "",
+    "ms": 25
+   },
+   "logBytes": 40000
+  },
+  "broken": [
+   {
+    "name": "the first session was spliced and ended with exit 1",
+    "ops": [
+     {
+      "set": "first.ended",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the log was read",
+    "ops": [
+     {
+      "set": "logLines",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "one log line",
+    "ops": [
+     {
+      "set": "logLines",
+      "to": 2
+     }
+    ]
+   },
+   {
+    "name": "the row says it",
+    "ops": [
+     {
+      "set": "waitingFor",
+      "to": "session"
+     }
+    ]
+   },
+   {
+    "name": "the next create is plain",
+    "ops": [
+     {
+      "set": "second.spawned",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "and alive",
+    "ops": [
+     {
+      "set": "second.alive",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a changed file is spliced again",
+    "ops": [
+     {
+      "set": "third.splice",
+      "to": [
+       "x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the log was read",
+    "ops": [
+     {
+      "set": "logBytes",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "the next create is plain",
+    "ops": [
+     {
+      "set": "second.spawned",
+      "to": null
+     }
+    ]
+   }
+  ]
+ },
+ "TYPED": {
+  "honest": {
+   "switchOn": true,
+   "parent": {
+    "restore": {
+     "armed": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001",
+     "drawn": true,
+     "ran": [
+      "--conversation",
+      "10000000-0000-4000-8000-000000000001"
+     ]
+    },
+    "resumeInPlace": {
+     "line": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001",
+     "landing": "armed"
+    },
+    "restart": {
+     "spawned": [
+      "--model",
+      "example model",
+      "--sandbox"
+     ],
+     "splice": [
+      "x"
+     ]
+    },
+    "paneSettings": 0
+   },
+   "head": {
+    "restore": {
+     "armed": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001",
+     "drawn": true,
+     "ran": [
+      "--conversation",
+      "10000000-0000-4000-8000-000000000001"
+     ]
+    },
+    "resumeInPlace": {
+     "line": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001",
+     "landing": "armed"
+    },
+    "restart": {
+     "spawned": [
+      "--settings",
+      "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}",
+      "--model",
+      "example model",
+      "--sandbox"
+     ],
+     "splice": []
+    },
+    "paneSettings": 0
+   }
+  },
+  "broken": [
+   {
+    "name": "the switch was on and all three paths were driven",
+    "ops": [
+     {
+      "set": "switchOn",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the restore types the parent’s line",
+    "ops": [
+     {
+      "set": "head.restore.armed",
+      "to": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001--settings{}"
+     }
+    ]
+   },
+   {
+    "name": "the resumed program got no flag",
+    "ops": [
+     {
+      "set": "head.restore.ran",
+      "to": [
+       "--settings",
+       "{\"statusLine\":{\"type\":\"command\",\"command\":\"trap \\u0027exit 0\\u0027 0; exec >/dev/null 2>&1; [ -r \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027 ] && . \\u0027<run>/w/p/gmux/antigravity-usage/status.sh\\u0027; exit 0\",\"stack_with_default\":true}}",
+       "--conversation",
+       "x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the resume in place types the parent’s line",
+    "ops": [
+     {
+      "set": "head.resumeInPlace.line",
+      "to": "<run>/w/h/.local/bin/agy--conversation10000000-0000-4000-8000-000000000001x"
+     }
+    ]
+   },
+   {
+    "name": "no --settings on any pane",
+    "ops": [
+     {
+      "set": "head.paneSettings",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "the Restart is spliced and the rest is the parent’s",
+    "ops": [
+     {
+      "set": "head.restart.spawned",
+      "to": [
+       "--model",
+       "example model",
+       "--sandbox"
+      ]
+     },
+     {
+      "set": "head.restart.splice",
+      "to": [
+       "x"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the parent’s three were read",
+    "ops": [
+     {
+      "set": "parent",
+      "to": {}
+     }
+    ]
+   },
+   {
+    "name": "the parent’s three were read",
+    "ops": [
+     {
+      "set": "parent.restore.armed",
+      "to": null
+     },
+     {
+      "set": "parent.resumeInPlace.line",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the resumed program said how it was started",
+    "ops": [
+     {
+      "set": "head.restore.ran",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "no --settings on any pane",
+    "ops": [
+     {
+      "set": "head.paneSettings",
+      "to": null
+     }
+    ]
+   }
+  ]
+ },
+ "STATUS": {
+  "honest": {
+   "parentOwn": {
+    "settled": true,
+    "samples": 135,
+    "working": 24,
+    "events": [],
+    "seen": [
+     "idle",
+     "running"
+    ],
+    "runs": 100,
+    "nonZero": 0,
+    "ms": {
+     "p50": 6,
+     "max": 21
+    },
+    "splice": [
+     "the command names no script of Tortie’s folder"
+    ],
+    "zero": 100,
+    "killed": 0,
+    "held": {
+     "aliveMs": 4100,
+     "samples": 15,
+     "working": 15,
+     "seen": [
+      "running"
+     ],
+     "stat": [
+      "Ss"
+     ],
+     "idleFirst": "idle"
+    },
+    "argvShown": true
+   },
+   "plain": {
+    "settled": true,
+    "samples": 134,
+    "working": 0,
+    "events": [],
+    "seen": [
+     "idle"
+    ],
+    "runs": 100,
+    "nonZero": 0,
+    "ms": {
+     "p50": 14,
+     "max": 314
+    },
+    "splice": [],
+    "zero": 99,
+    "killed": 1,
+    "held": {
+     "aliveMs": 4100,
+     "samples": 15,
+     "working": 0,
+     "seen": [
+      "idle"
+     ],
+     "stat": [
+      "S+"
+     ],
+     "idleFirst": "idle"
+    },
+    "argvShown": true
+   },
+   "setsid": {
+    "settled": true,
+    "samples": 135,
+    "working": 0,
+    "events": [],
+    "seen": [
+     "idle"
+    ],
+    "runs": 100,
+    "nonZero": 0,
+    "ms": {
+     "p50": 12,
+     "max": 26
+    },
+    "splice": [],
+    "zero": 100,
+    "killed": 0,
+    "held": {
+     "aliveMs": 4100,
+     "samples": 15,
+     "working": 0,
+     "seen": [
+      "idle"
+     ],
+     "stat": [
+      "Ss"
+     ],
+     "idleFirst": "idle"
+    },
+    "argvShown": true
+   }
+  },
+  "broken": [
+   {
+    "name": "both flavours settled idle first",
+    "ops": [
+     {
+      "set": "setsid.settled",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a hundred runs each were logged",
+    "ops": [
+     {
+      "set": "plain.runs",
+      "to": 99
+     }
+    ]
+   },
+   {
+    "name": "the status was read throughout",
+    "ops": [
+     {
+      "set": "plain.samples",
+      "to": 3
+     }
+    ]
+   },
+   {
+    "name": "plain: never working",
+    "ops": [
+     {
+      "set": "plain.seen",
+      "to": [
+       "idle",
+       "running"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a session of its own: never working",
+    "ops": [
+     {
+      "set": "setsid.seen",
+      "to": [
+       "idle",
+       "running"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every run exited 0",
+    "ops": [
+     {
+      "set": "setsid.nonZero",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "a run was seen alive for longer than the app’s slowest look",
+    "ops": [
+     {
+      "set": "plain.held",
+      "to": {
+       "aliveMs": 0,
+       "samples": 0,
+       "working": 0,
+       "seen": [],
+       "stat": []
+      }
+     }
+    ]
+   },
+   {
+    "name": "a run was seen alive for longer than the app’s slowest look",
+    "ops": [
+     {
+      "del": "setsid.held"
+     }
+    ]
+   },
+   {
+    "name": "a run was seen alive for longer than the app’s slowest look",
+    "ops": [
+     {
+      "set": "setsid.held.aliveMs",
+      "to": 900
+     }
+    ]
+   },
+   {
+    "name": "a run was seen alive for longer than the app’s slowest look",
+    "ops": [
+     {
+      "set": "plain.held.seen",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "the held run was of its own flavour",
+    "ops": [
+     {
+      "set": "setsid.held.stat",
+      "to": [
+       "S+"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the held run was of its own flavour",
+    "ops": [
+     {
+      "set": "plain.held.stat",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "nearly all of them ended by themselves",
+    "ops": [
+     {
+      "set": "plain.zero",
+      "to": 12
+     }
+    ]
+   },
+   {
+    "name": "nearly all of them ended by themselves",
+    "ops": [
+     {
+      "del": "setsid.zero"
+     }
+    ]
+   },
+   {
+    "name": "plain: not with a run held alive either",
+    "ops": [
+     {
+      "set": "plain.held.seen",
+      "to": [
+       "idle",
+       "running"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a session of its own: not with a run held alive either",
+    "ops": [
+     {
+      "set": "setsid.held.seen",
+      "to": [
+       "running"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "a session of its own: never working",
+    "ops": [
+     {
+      "set": "setsid.seen",
+      "to": [
+       "idle",
+       "running"
+      ]
+     },
+     {
+      "set": "setsid.working",
+      "to": 12
+     }
+    ]
+   },
+   {
+    "name": "the command line showed the flag, as a real agy’s does",
+    "ops": [
+     {
+      "set": "setsid.argvShown",
+      "to": false
+     }
+    ]
+   }
+  ]
+ },
+ "ACCT": {
+  "honest": {
+   "firstDrawn": true,
+   "secondFileAt": 3000,
+   "samples": [
+    {
+     "at": 1000,
+     "face": "30% 5h · 37% wk"
+    },
+    {
+     "at": 1500,
+     "face": "30% 5h · 37% wk"
+    },
+    {
+     "at": 2000,
+     "face": "30% 5h · 37% wk"
+    },
+    {
+     "at": 2500,
+     "face": "30% 5h · 37% wk"
+    },
+    {
+     "at": 3000,
+     "face": "30% 5h · 37% wk"
+    },
+    {
+     "at": 3500,
+     "face": "30% 5h · 37% wk"
+    },
+    {
+     "at": 4000,
+     "face": "30% 5h · 37% wk"
+    },
+    {
+     "at": 4500,
+     "face": "30% 5h · 37% wk"
+    },
+    {
+     "at": 5000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 5500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 6000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 6500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 7000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 7500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 8000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 8500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 9000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 9500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 10000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 10500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 11000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 11500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 12000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 12500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 13000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 13500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 14000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 14500,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 15000,
+     "face": "47% 5h · 16% wk"
+    },
+    {
+     "at": 15500,
+     "face": "47% 5h · 16% wk"
+    }
+   ],
+   "searched": 40,
+   "signedOutSame": true,
+   "firstFaces": [
+    "30% 5h · 37% wk"
+   ],
+   "secondFaces": [
+    "47% 5h · 16% wk"
+   ],
+   "finalFace": "47% 5h · 16% wk",
+   "wantFinal": "47% 5h · 16% wk",
+   "hits": [],
+   "hashes": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+   ],
+   "firstKept": "{\"v\":1,\"h\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"p\":\"Example Tier\",\"q\":{}}",
+   "signedOut": {
+    "runs": 1,
+    "code": 0,
+    "moved": true
+   },
+   "searchedControl": true,
+   "unread": []
+  },
+  "broken": [
+   {
+    "name": "the first account was drawn, the second reported",
+    "ops": [
+     {
+      "set": "secondFileAt",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "the face was sampled throughout",
+    "ops": [
+     {
+      "set": "samples",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "the bytes were searched, every file of them, and a byte that is there was found",
+    "ops": [
+     {
+      "set": "searched",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "signed out wrote nothing",
+    "ops": [
+     {
+      "set": "signedOutSame",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "every drawn pair is one account’s",
+    "ops": [
+     {
+      "set": "samples.12.face",
+      "to": "47% 5h · 37% wk"
+     }
+    ]
+   },
+   {
+    "name": "never the first again",
+    "ops": [
+     {
+      "set": "samples.12.face",
+      "to": "30% 5h · 37% wk"
+     }
+    ]
+   },
+   {
+    "name": "the first is gone within 6000 ms of the second's first file",
+    "ops": [
+     {
+      "set": "secondFileAt",
+      "to": -9000
+     },
+     {
+      "set": "secondFileAt",
+      "to": 500
+     },
+     {
+      "set": "samples.20.face",
+      "to": "30% 5h · 37% wk"
+     }
+    ]
+   },
+   {
+    "name": "the second’s last numbers are drawn",
+    "ops": [
+     {
+      "set": "finalFace",
+      "to": "30% 5h · 37% wk"
+     }
+    ]
+   },
+   {
+    "name": "no address byte in any file",
+    "ops": [
+     {
+      "set": "hits",
+      "to": [
+       "/p/x: person@example.com"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the two hashes differ",
+    "ops": [
+     {
+      "set": "hashes",
+      "to": [
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the bytes were searched, every file of them, and a byte that is there was found",
+    "ops": [
+     {
+      "set": "searchedControl",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the bytes were searched, every file of them, and a byte that is there was found",
+    "ops": [
+     {
+      "set": "unread",
+      "to": [
+       "/p/x: EACCES"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the two accounts draw different numbers",
+    "ops": [
+     {
+      "set": "secondFaces",
+      "to": [
+       "30% 5h · 37% wk"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the two accounts draw different numbers",
+    "ops": [
+     {
+      "set": "firstFaces",
+      "to": [
+       ""
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the two accounts draw different numbers",
+    "ops": [
+     {
+      "set": "secondFaces",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "the first account’s file was read",
+    "ops": [
+     {
+      "set": "firstKept",
+      "to": null
+     },
+     {
+      "set": "signedOutSame",
+      "to": true
+     }
+    ]
+   },
+   {
+    "name": "the signed out run ran to its end, over numbers the file does not hold",
+    "ops": [
+     {
+      "set": "signedOut.runs",
+      "to": 0
+     },
+     {
+      "set": "signedOut.code",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the signed out run ran to its end, over numbers the file does not hold",
+    "ops": [
+     {
+      "set": "signedOut.code",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the signed out run ran to its end, over numbers the file does not hold",
+    "ops": [
+     {
+      "set": "signedOut.moved",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "and after the second account’s time was up",
+    "ops": [
+     {
+      "set": "secondFileAt",
+      "to": 10000
+     }
+    ]
+   }
+  ]
+ },
+ "LIFE": {
+  "honest": {
+   "closed": {
+    "runs": 32,
+    "appGone": true,
+    "nonZero": 0,
+    "bytes": 0,
+    "zero": 32
+   },
+   "reopened": {
+    "face": "30% 5h · 37% wk",
+    "want": "30% 5h · 37% wk",
+    "readAt": 1000000,
+    "fileAt": 1000000.4,
+    "before": "29% 5h · 36% wk"
+   },
+   "aged": {
+    "face": "30% 5h · 37% wk",
+    "state": "stale",
+    "card": [
+     "Antigravity",
+     "Last reported 42m ago"
+    ]
+   },
+   "sweep": {
+    "planted": 4,
+    "orphanFaceSeen": false,
+    "orphanGone": true,
+    "tmpGone": true,
+    "strangerStays": true,
+    "ownStays": true,
+    "orphanFace": "47% 5h · 16% wk"
+   },
+   "removed": {
+    "fileGone": true,
+    "had": true,
+    "taken": true
+   },
+   "off": {
+    "left": [
+     "notes.txt"
+    ],
+    "rows": 0,
+    "runs": 3,
+    "nonZero": 0,
+    "bytes": 0,
+    "spliced": true,
+    "hadFile": true,
+    "zero": 3
+   }
+  },
+  "broken": [
+   {
+    "name": "the session went on reporting while the app was closed",
+    "ops": [
+     {
+      "set": "closed.appGone",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the reopened face was read",
+    "ops": [
+     {
+      "set": "reopened.face",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the swept files were planted, the orphan with numbers of its own",
+    "ops": [
+     {
+      "set": "sweep.planted",
+      "to": 3
+     }
+    ]
+   },
+   {
+    "name": "the aged file was read at a relaunch",
+    "ops": [
+     {
+      "set": "aged.card",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "reopened on the last number",
+    "ops": [
+     {
+      "set": "reopened.face",
+      "to": "47% 5h · 16% wk"
+     }
+    ]
+   },
+   {
+    "name": "with the file’s own time",
+    "ops": [
+     {
+      "set": "reopened.readAt",
+      "to": 1005000
+     }
+    ]
+   },
+   {
+    "name": "every run while closed exited 0 and said nothing",
+    "ops": [
+     {
+      "set": "closed.bytes",
+      "to": 4
+     }
+    ]
+   },
+   {
+    "name": "an old reading says its age",
+    "ops": [
+     {
+      "set": "aged.card",
+      "to": [
+       "Antigravity",
+       "Last read failed"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the boot sweep takes what no row owns",
+    "ops": [
+     {
+      "set": "sweep.tmpGone",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "and nothing of it was drawn",
+    "ops": [
+     {
+      "set": "sweep.orphanFaceSeen",
+      "to": true
+     }
+    ]
+   },
+   {
+    "name": "a stranger’s file and the live session’s stay",
+    "ops": [
+     {
+      "set": "sweep.strangerStays",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a removed session’s file goes",
+    "ops": [
+     {
+      "set": "removed.fileGone",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "off removes exactly its own",
+    "ops": [
+     {
+      "set": "off.left",
+      "to": [
+       "notes.txt",
+       "status.sh"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "off draws no row",
+    "ops": [
+     {
+      "set": "off.rows",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "a session still running after off exits 0 and says nothing",
+    "ops": [
+     {
+      "set": "off.nonZero",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "the session went on reporting while the app was closed",
+    "ops": [
+     {
+      "set": "closed.zero",
+      "to": 0
+     },
+     {
+      "set": "closed.nonZero",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "it is not the number the app last drew",
+    "ops": [
+     {
+      "set": "reopened.before",
+      "to": "30% 5h · 37% wk"
+     }
+    ]
+   },
+   {
+    "name": "it is not the number the app last drew",
+    "ops": [
+     {
+      "set": "reopened.before",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "the swept files were planted, the orphan with numbers of its own",
+    "ops": [
+     {
+      "set": "sweep.orphanFace",
+      "to": "30% 5h · 37% wk"
+     }
+    ]
+   },
+   {
+    "name": "the removed session had a file, and Remove was taken",
+    "ops": [
+     {
+      "set": "removed.had",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the removed session had a file, and Remove was taken",
+    "ops": [
+     {
+      "set": "removed.taken",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a spliced session was running its line when the switch went off",
+    "ops": [
+     {
+      "set": "off.spliced",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a spliced session was running its line when the switch went off",
+    "ops": [
+     {
+      "set": "off.hadFile",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "a session still running after off exits 0 and says nothing",
+    "ops": [
+     {
+      "set": "off.zero",
+      "to": 0
+     }
+    ]
+   }
+  ]
+ },
+ "RECT": {
+  "honest": {
+   "parent": {
+    "full160": {
+     "cls": "usage-meter usage-full",
+     "meter": [
+      1287,
+      851,
+      147,
+      49
+     ],
+     "refresh": [
+      1410,
+      866,
+      20,
+      20
+     ],
+     "rows": [
+      {
+       "r": [
+        1291,
+        858,
+        115,
+        16
+       ],
+       "bar": [
+        1311,
+        864,
+        18,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        1335,
+        858,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1291,
+        878,
+        115,
+        16
+       ],
+       "bar": [
+        1311,
+        884,
+        18,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1335,
+        878,
+        85.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "full": {
+     "cls": "usage-meter usage-full",
+     "meter": [
+      1239,
+      851,
+      195,
+      49
+     ],
+     "refresh": [
+      1410,
+      866,
+      20,
+      20
+     ],
+     "rows": [
+      {
+       "r": [
+        1243,
+        858,
+        163,
+        16
+       ],
+       "bar": [
+        1263,
+        864,
+        44.42,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        1313.42,
+        858,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1243,
+        878,
+        163,
+        16
+       ],
+       "bar": [
+        1263,
+        884,
+        51.42,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1320.42,
+        878,
+        85.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "dockWidth": 208,
+    "mini": {
+     "cls": "usage-meter usage-mini",
+     "meter": [
+      1393,
+      821,
+      47,
+      43
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        1401,
+        830,
+        31,
+        11
+       ],
+       "bar": [
+        1416,
+        833.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      },
+      {
+       "r": [
+        1401,
+        845,
+        31,
+        11
+       ],
+       "bar": [
+        1416,
+        848.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      }
+     ],
+     "still": true
+    },
+    "strip1440": {
+     "cls": "usage-meter usage-compact",
+     "meter": [
+      1027.84,
+      45.5,
+      326.16,
+      20
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        1037.84,
+        47.5,
+        152.58,
+        16
+       ],
+       "bar": [
+        1057.84,
+        53.5,
+        34,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        1097.84,
+        47.5,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1198.42,
+        47.5,
+        145.58,
+        16
+       ],
+       "bar": [
+        1218.42,
+        53.5,
+        34,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1258.42,
+        47.5,
+        85.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "strip960": {
+     "cls": "usage-meter usage-compact",
+     "meter": [
+      547.84,
+      45.5,
+      326.16,
+      20
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        557.84,
+        47.5,
+        152.58,
+        16
+       ],
+       "bar": [
+        577.84,
+        53.5,
+        34,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        617.84,
+        47.5,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        718.42,
+        47.5,
+        145.58,
+        16
+       ],
+       "bar": [
+        738.42,
+        53.5,
+        34,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        778.42,
+        47.5,
+        85.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "dock160": 160
+   },
+   "head2": {
+    "full160": {
+     "cls": "usage-meter usage-full",
+     "meter": [
+      1287,
+      851,
+      147,
+      49
+     ],
+     "refresh": [
+      1410,
+      866,
+      20,
+      20
+     ],
+     "rows": [
+      {
+       "r": [
+        1291,
+        858,
+        115,
+        16
+       ],
+       "bar": [
+        1311,
+        864,
+        18,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        1335,
+        858,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1291,
+        878,
+        115,
+        16
+       ],
+       "bar": [
+        1311,
+        884,
+        18,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1335,
+        878,
+        85.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "full": {
+     "cls": "usage-meter usage-full",
+     "meter": [
+      1239,
+      851,
+      195,
+      49
+     ],
+     "refresh": [
+      1410,
+      866,
+      20,
+      20
+     ],
+     "rows": [
+      {
+       "r": [
+        1243,
+        858,
+        163,
+        16
+       ],
+       "bar": [
+        1263,
+        864,
+        44.42,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        1313.42,
+        858,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1243,
+        878,
+        163,
+        16
+       ],
+       "bar": [
+        1263,
+        884,
+        51.42,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1320.42,
+        878,
+        85.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "dockWidth": 208,
+    "mini": {
+     "cls": "usage-meter usage-mini",
+     "meter": [
+      1393,
+      821,
+      47,
+      43
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        1401,
+        830,
+        31,
+        11
+       ],
+       "bar": [
+        1416,
+        833.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      },
+      {
+       "r": [
+        1401,
+        845,
+        31,
+        11
+       ],
+       "bar": [
+        1416,
+        848.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      }
+     ],
+     "still": true
+    },
+    "strip1440": {
+     "cls": "usage-meter usage-compact",
+     "meter": [
+      1027.84,
+      45.5,
+      326.16,
+      20
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        1037.84,
+        47.5,
+        152.58,
+        16
+       ],
+       "bar": [
+        1057.84,
+        53.5,
+        34,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        1097.84,
+        47.5,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1198.42,
+        47.5,
+        145.58,
+        16
+       ],
+       "bar": [
+        1218.42,
+        53.5,
+        34,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1258.42,
+        47.5,
+        85.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "strip960": {
+     "cls": "usage-meter usage-compact",
+     "meter": [
+      547.84,
+      45.5,
+      326.16,
+      20
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        557.84,
+        47.5,
+        152.58,
+        16
+       ],
+       "bar": [
+        577.84,
+        53.5,
+        34,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        617.84,
+        47.5,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        718.42,
+        47.5,
+        145.58,
+        16
+       ],
+       "bar": [
+        738.42,
+        53.5,
+        34,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        778.42,
+        47.5,
+        85.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "dock160": 160
+   },
+   "head3": {
+    "full160": {
+     "cls": "usage-meter usage-full",
+     "meter": [
+      1287,
+      831,
+      147,
+      69
+     ],
+     "refresh": [
+      1410,
+      856,
+      20,
+      20
+     ],
+     "rows": [
+      {
+       "r": [
+        1291,
+        838,
+        115,
+        16
+       ],
+       "bar": [
+        1311,
+        844,
+        18,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        1335,
+        838,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1291,
+        858,
+        115,
+        16
+       ],
+       "bar": [
+        1311,
+        864,
+        18,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1335,
+        858,
+        85.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1291,
+        878,
+        115,
+        16
+       ],
+       "bar": [
+        1311,
+        884,
+        18,
+        4
+       ],
+       "t": "30% 5h · 37% wk",
+       "tr": [
+        1335,
+        878,
+        92.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "full": {
+     "cls": "usage-meter usage-full",
+     "meter": [
+      1239,
+      831,
+      195,
+      69
+     ],
+     "refresh": [
+      1410,
+      856,
+      20,
+      20
+     ],
+     "rows": [
+      {
+       "r": [
+        1243,
+        838,
+        163,
+        16
+       ],
+       "bar": [
+        1263,
+        844,
+        44.42,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        1313.42,
+        838,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1243,
+        858,
+        163,
+        16
+       ],
+       "bar": [
+        1263,
+        864,
+        51.42,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1320.42,
+        858,
+        85.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1243,
+        878,
+        163,
+        16
+       ],
+       "bar": [
+        1263,
+        884,
+        44.42,
+        4
+       ],
+       "t": "30% 5h · 37% wk",
+       "tr": [
+        1313.42,
+        878,
+        92.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "dockWidth": 208,
+    "mini": {
+     "cls": "usage-meter usage-mini",
+     "meter": [
+      1393,
+      806,
+      47,
+      58
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        1401,
+        815,
+        31,
+        11
+       ],
+       "bar": [
+        1416,
+        818.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      },
+      {
+       "r": [
+        1401,
+        830,
+        31,
+        11
+       ],
+       "bar": [
+        1416,
+        833.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      },
+      {
+       "r": [
+        1401,
+        845,
+        31,
+        11
+       ],
+       "bar": [
+        1416,
+        848.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      }
+     ],
+     "still": true
+    },
+    "strip1440": {
+     "cls": "usage-meter usage-compact",
+     "meter": [
+      867.27,
+      45.5,
+      486.73,
+      20
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        877.27,
+        47.5,
+        152.58,
+        16
+       ],
+       "bar": [
+        897.27,
+        53.5,
+        34,
+        4
+       ],
+       "t": "37% 5h · 12% wk",
+       "tr": [
+        937.27,
+        47.5,
+        92.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1037.84,
+        47.5,
+        145.58,
+        16
+       ],
+       "bar": [
+        1057.84,
+        53.5,
+        34,
+        4
+       ],
+       "t": "41% 5h · 9% wk",
+       "tr": [
+        1097.84,
+        47.5,
+        85.58,
+        16
+       ]
+      },
+      {
+       "r": [
+        1191.42,
+        47.5,
+        152.58,
+        16
+       ],
+       "bar": [
+        1211.42,
+        53.5,
+        34,
+        4
+       ],
+       "t": "30% 5h · 37% wk",
+       "tr": [
+        1251.42,
+        47.5,
+        92.58,
+        16
+       ]
+      }
+     ],
+     "still": true
+    },
+    "strip960": {
+     "cls": "usage-meter usage-mini",
+     "meter": [
+      761,
+      46,
+      113,
+      19
+     ],
+     "refresh": null,
+     "rows": [
+      {
+       "r": [
+        767,
+        50,
+        31,
+        11
+       ],
+       "bar": [
+        782,
+        53.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      },
+      {
+       "r": [
+        802,
+        50,
+        31,
+        11
+       ],
+       "bar": [
+        817,
+        53.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      },
+      {
+       "r": [
+        837,
+        50,
+        31,
+        11
+       ],
+       "bar": [
+        852,
+        53.5,
+        16,
+        4
+       ],
+       "t": null,
+       "tr": null
+      }
+     ],
+     "still": true
+    },
+    "dock160": 160
+   }
+  },
+  "broken": [
+   {
+    "name": "both builds read two rows in all three placements",
+    "ops": [
+     {
+      "set": "parent.mini.rows",
+      "to": []
+     }
+    ]
+   },
+   {
+    "name": "three rows were read in all three",
+    "ops": [
+     {
+      "set": "head3.full.rows",
+      "to": [
+       {
+        "r": [
+         1243,
+         838,
+         163,
+         16
+        ],
+        "bar": [
+         1263,
+         844,
+         44.42,
+         4
+        ],
+        "t": "37% 5h · 12% wk",
+        "tr": [
+         1313.42,
+         838,
+         92.58,
+         16
+        ]
+       },
+       {
+        "r": [
+         1243,
+         858,
+         163,
+         16
+        ],
+        "bar": [
+         1263,
+         864,
+         51.42,
+         4
+        ],
+        "t": "41% 5h · 9% wk",
+        "tr": [
+         1320.42,
+         858,
+         85.58,
+         16
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the strip was read",
+    "ops": [
+     {
+      "set": "head3.strip960.cls",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "full: two rows are the parent’s, every rectangle and word",
+    "ops": [
+     {
+      "set": "head2.full.rows.0.r.2",
+      "to": 156
+     }
+    ]
+   },
+   {
+    "name": "full160: two rows are the parent’s, every rectangle and word",
+    "ops": [
+     {
+      "set": "head2.full160.rows.0.r.2",
+      "to": 156
+     }
+    ]
+   },
+   {
+    "name": "mini: two rows are the parent’s, every rectangle and word",
+    "ops": [
+     {
+      "set": "head2.mini.rows.0.r.2",
+      "to": 156
+     }
+    ]
+   },
+   {
+    "name": "full: the first two of three keep their left, width, height, bar and words",
+    "ops": [
+     {
+      "set": "head3.full.rows.1.bar.2",
+      "to": 48
+     }
+    ]
+   },
+   {
+    "name": "full160: the first two of three keep their left, width, height, bar and words",
+    "ops": [
+     {
+      "set": "head3.full160.rows.1.bar.2",
+      "to": 48
+     }
+    ]
+   },
+   {
+    "name": "mini: the first two of three keep their left, width, height, bar and words",
+    "ops": [
+     {
+      "set": "head3.mini.rows.1.bar.2",
+      "to": 48
+     }
+    ]
+   },
+   {
+    "name": "full: the third row is in step with them",
+    "ops": [
+     {
+      "set": "head3.full.rows.2.r.1",
+      "to": 900
+     }
+    ]
+   },
+   {
+    "name": "full160: the third row is in step with them",
+    "ops": [
+     {
+      "set": "head3.full160.rows.2.r.1",
+      "to": 900
+     }
+    ]
+   },
+   {
+    "name": "mini: the third row is in step with them",
+    "ops": [
+     {
+      "set": "head3.mini.rows.2.r.1",
+      "to": 900
+     }
+    ]
+   },
+   {
+    "name": "every row had been laid out, and a drawn one held its numbers",
+    "ops": [
+     {
+      "set": "head3.mini.rows.0.r",
+      "to": [
+       0,
+       0,
+       0,
+       0
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every row had been laid out, and a drawn one held its numbers",
+    "ops": [
+     {
+      "set": "head2.full.rows.0.t",
+      "to": null
+     },
+     {
+      "set": "parent.full.rows.0.t",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "every row had been laid out, and a drawn one held its numbers",
+    "ops": [
+     {
+      "set": "head2.full.rows.0.t",
+      "to": "Claude"
+     },
+     {
+      "set": "parent.full.rows.0.t",
+      "to": "Claude"
+     },
+     {
+      "set": "head3.full.rows.0.t",
+      "to": "Claude"
+     }
+    ]
+   },
+   {
+    "name": "every row had been laid out, and a drawn one held its numbers",
+    "ops": [
+     {
+      "set": "head2.full.rows.1.bar",
+      "to": null
+     },
+     {
+      "set": "parent.full.rows.1.bar",
+      "to": null
+     }
+    ]
+   },
+   {
+    "name": "every reading is of a page that had stopped moving",
+    "ops": [
+     {
+      "set": "head3.full160.still",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "every reading is of a page that had stopped moving",
+    "ops": [
+     {
+      "del": "parent.mini.still"
+     }
+    ]
+   },
+   {
+    "name": "each placement is the one it is called, at one width of the dock",
+    "ops": [
+     {
+      "set": "head3.dock160",
+      "to": 208
+     }
+    ]
+   },
+   {
+    "name": "each placement is the one it is called, at one width of the dock",
+    "ops": [
+     {
+      "set": "head3.dockWidth",
+      "to": 216
+     }
+    ]
+   },
+   {
+    "name": "each placement is the one it is called, at one width of the dock",
+    "ops": [
+     {
+      "set": "head2.mini",
+      "to": {
+       "cls": "usage-meter usage-full",
+       "meter": [
+        1239,
+        851,
+        195,
+        49
+       ],
+       "refresh": [
+        1410,
+        866,
+        20,
+        20
+       ],
+       "rows": [
+        {
+         "r": [
+          1243,
+          858,
+          163,
+          16
+         ],
+         "bar": [
+          1263,
+          864,
+          44.42,
+          4
+         ],
+         "t": "37% 5h · 12% wk",
+         "tr": [
+          1313.42,
+          858,
+          92.58,
+          16
+         ]
+        },
+        {
+         "r": [
+          1243,
+          878,
+          163,
+          16
+         ],
+         "bar": [
+          1263,
+          884,
+          51.42,
+          4
+         ],
+         "t": "41% 5h · 9% wk",
+         "tr": [
+          1320.42,
+          878,
+          85.58,
+          16
+         ]
+        }
+       ],
+       "still": true
+      }
+     },
+     {
+      "set": "parent.mini",
+      "to": {
+       "cls": "usage-meter usage-full",
+       "meter": [
+        1239,
+        851,
+        195,
+        49
+       ],
+       "refresh": [
+        1410,
+        866,
+        20,
+        20
+       ],
+       "rows": [
+        {
+         "r": [
+          1243,
+          858,
+          163,
+          16
+         ],
+         "bar": [
+          1263,
+          864,
+          44.42,
+          4
+         ],
+         "t": "37% 5h · 12% wk",
+         "tr": [
+          1313.42,
+          858,
+          92.58,
+          16
+         ]
+        },
+        {
+         "r": [
+          1243,
+          878,
+          163,
+          16
+         ],
+         "bar": [
+          1263,
+          884,
+          51.42,
+          4
+         ],
+         "t": "41% 5h · 9% wk",
+         "tr": [
+          1320.42,
+          878,
+          85.58,
+          16
+         ]
+        }
+       ],
+       "still": true
+      }
+     }
+    ]
+   },
+   {
+    "name": "the strip was read",
+    "ops": [
+     {
+      "del": "parent.strip1440"
+     }
+    ]
+   },
+   {
+    "name": "strip1440: two rows are the parent’s, every rectangle and word",
+    "ops": [
+     {
+      "set": "head2.strip1440.rows.1.r.0",
+      "to": 700
+     }
+    ]
+   },
+   {
+    "name": "strip960: two rows are the parent’s, every rectangle and word",
+    "ops": [
+     {
+      "set": "head2.strip960.rows.1.r.0",
+      "to": 700
+     }
+    ]
+   }
+  ]
+ },
+ "RUN": {
+  "honest": {
+   "launches": 7,
+   "scans": 7,
+   "agentsHeld": true,
+   "fixtures": 7,
+   "socketSamples": 14,
+   "searched": 240,
+   "peers": [],
+   "flagHits": [],
+   "census": "no change",
+   "left": 0,
+   "electrons": 0,
+   "history": true,
+   "returned": 7,
+   "socketed": 5,
+   "censused": 5,
+   "tableRead": true,
+   "worlds": 2,
+   "searchedWorlds": 2,
+   "unread": []
+  },
+  "broken": [
+   {
+    "name": "every launch was read",
+    "ops": [
+     {
+      "set": "scans",
+      "to": 6
+     }
+    ]
+   },
+   {
+    "name": "the app’s sockets were sampled",
+    "ops": [
+     {
+      "set": "socketSamples",
+      "to": 2
+     }
+    ]
+   },
+   {
+    "name": "the stores of every world were searched, and a byte that is there was found",
+    "ops": [
+     {
+      "set": "searched",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "the agents were hidden at every launch",
+    "ops": [
+     {
+      "set": "agentsHeld",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the usage fixture answered at every launch",
+    "ops": [
+     {
+      "set": "fixtures",
+      "to": 6
+     }
+    ]
+   },
+   {
+    "name": "no peer but this Mac",
+    "ops": [
+     {
+      "set": "peers",
+      "to": [
+       "192.0.2.1:443"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "the flag is in no store, log or backup",
+    "ops": [
+     {
+      "set": "flagHits",
+      "to": [
+       "/p/gmux/manifest.db: stack_with_default"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "no census change",
+    "ops": [
+     {
+      "set": "census",
+      "to": "APPEARED on gmux: x"
+     }
+    ]
+   },
+   {
+    "name": "no process of this run is left",
+    "ops": [
+     {
+      "set": "left",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "no Electron of this run is left",
+    "ops": [
+     {
+      "set": "electrons",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "his shell history is unmoved",
+    "ops": [
+     {
+      "set": "history",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "the stores of every world were searched, and a byte that is there was found",
+    "ops": [
+     {
+      "set": "searchedWorlds",
+      "to": 1
+     }
+    ]
+   },
+   {
+    "name": "the stores of every world were searched, and a byte that is there was found",
+    "ops": [
+     {
+      "set": "unread",
+      "to": [
+       "/p/gmux/manifest.db: EACCES"
+      ]
+     }
+    ]
+   },
+   {
+    "name": "every launch came back from its own teardown",
+    "ops": [
+     {
+      "set": "returned",
+      "to": 6
+     }
+    ]
+   },
+   {
+    "name": "the census was read around every launch that named its socket",
+    "ops": [
+     {
+      "set": "censused",
+      "to": 4
+     }
+    ]
+   },
+   {
+    "name": "the census was read around every launch that named its socket",
+    "ops": [
+     {
+      "set": "socketed",
+      "to": 0
+     },
+     {
+      "set": "censused",
+      "to": 0
+     }
+    ]
+   },
+   {
+    "name": "the process table was read",
+    "ops": [
+     {
+      "set": "tableRead",
+      "to": false
+     }
+    ]
+   },
+   {
+    "name": "no census change",
+    "ops": [
+     {
+      "set": "returned",
+      "to": 6
+     },
+     {
+      "set": "censused",
+      "to": 4
+     },
+     {
+      "set": "census",
+      "to": "-L gmux could not be read after this launch (tmux answered exit 1)"
+     }
+    ]
+   }
+  ]
+ }
+}

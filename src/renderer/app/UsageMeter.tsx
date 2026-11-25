@@ -28,17 +28,31 @@
  * card names the plan each login is on so a person can tell whose quota is on
  * screen. The card names a PLAN and never an identifier, and a provider that
  * named no plan gets no line rather than a guess.
+ *
+ * PHASE 374 ADDED A ROW NOBODY ASKS FOR. Antigravity's numbers arrive from its
+ * own sessions, so its row has no login, no Choose login and nothing a refresh
+ * could do. Which rows those are is the shared table's answer, `usageIsReceiver`
+ * and `usageLoginProvider`, and never a provider's name written here: a login
+ * control drawn for a provider with no login would hand that provider's id to
+ * a domain that reads credentials. The row's second model group is drawn on
+ * the card alone, because the face has room for two numbers and the bar must
+ * go on agreeing with the first of them.
  */
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { UsageProviderId, UsageProviderSnapshot } from '@shared/usage';
-import { clampUsagePercent, usageHasNumbers } from '@shared/usage';
+import type { UsageProviderId, UsageProviderSnapshot, UsageWindow } from '@shared/usage';
+import {
+  clampUsagePercent,
+  usageHasNumbers,
+  usageIsReceiver,
+  usageLoginProvider
+} from '@shared/usage';
 import type { UsageBarWindow } from '@shared/settings';
 import { AgentIcon, Codicon } from '../icons';
 import { useNow } from '../format';
 import { useUsage } from '../state/usage';
-import type { LoginsSnapshot } from '@shared/logins';
+import type { LoginProviderId, LoginsSnapshot } from '@shared/logins';
 import { DEFAULT_LOGIN_NAME } from '@shared/logins';
 import { loginsOf, useLogins } from '../state/logins';
 import { useApp } from '../state/store';
@@ -65,6 +79,7 @@ import {
   usageOtherLoginsLine,
   usagePercentText,
   usagePlanLine,
+  usageReportedLine,
   usageResetIn,
   usageSeverity,
   usageStateLine
@@ -157,6 +172,27 @@ function UsageRow({
   );
 }
 
+/** `2% 5h, Resets in 3h 0m` for each of a group's windows that has a number. */
+function windowLines(
+  fiveHour: UsageWindow | null,
+  sevenDay: UsageWindow | null,
+  now: number
+): string[] {
+  const out: string[] = [];
+  const windows: [string, UsageWindow | null][] = [
+    [USAGE_FIVE_HOUR, fiveHour],
+    [USAGE_SEVEN_DAY, sevenDay]
+  ];
+  for (const [label, win] of windows) {
+    if (win === null) continue;
+    const text = usagePercentText(win.percent, label);
+    if (text === '') continue;
+    const reset = win.resetsAt === null ? '' : usageResetIn(win.resetsAt, now);
+    out.push(reset === '' ? text : `${text}, ${reset}`);
+  }
+  return out;
+}
+
 /** The lines the hover card shows, and the accessible text the row carries. */
 export function cardLines(
   p: UsageProviderSnapshot,
@@ -184,18 +220,17 @@ export function cardLines(
   // PHASE 202. WHICH LOGIN these numbers belong to. The person's own default
   // sign in gets no line, because naming it would put a word on the card of
   // every install that has only ever had one login.
-  const login = usageLoginLine(p.login, email);
+  // PHASE 374. A provider with no login names none, whatever a snapshot holds.
+  const hasLogin = usageLoginProvider(p.provider) !== null;
+  const login = hasLogin ? usageLoginLine(p.login, email) : '';
   if (login !== '') out.push(login);
-  const windows: [string, typeof p.fiveHour][] = [
-    [USAGE_FIVE_HOUR, p.fiveHour],
-    [USAGE_SEVEN_DAY, p.sevenDay]
-  ];
-  for (const [label, win] of windows) {
-    if (win === null) continue;
-    const text = usagePercentText(win.percent, label);
-    if (text === '') continue;
-    const reset = win.resetsAt === null ? '' : usageResetIn(win.resetsAt, now);
-    out.push(reset === '' ? text : `${text}, ${reset}`);
+  out.push(...windowLines(p.fiveHour, p.sevenDay, now));
+  // PHASE 374. The second group, on the card and nowhere else. The comparison
+  // is loose on purpose: an older harness stages rows with no such field.
+  if (p.second != null) {
+    for (const text of windowLines(p.second.fiveHour, p.second.sevenDay, now)) {
+      out.push(`${p.second.label} ${text}`);
+    }
   }
   const scoped = p.scoped === null ? null : clampUsagePercent(p.scoped.percent);
   if (p.scoped !== null && scoped !== null) {
@@ -205,15 +240,21 @@ export function cardLines(
     // PHASE 202 FIX ROUND. Stale has two causes and they want different
     // words: a read that failed, and a person who chose another account a
     // moment ago, whose numbers on screen are still the previous account's.
-    out.push(p.loginChanged ? USAGE_LOGIN_SWITCHING : USAGE_STALE_MARK);
+    // PHASE 374. And a third: a row nobody asks for has only its age.
+    const mark = usageIsReceiver(p.provider)
+      ? usageReportedLine(p.readAt, now)
+      : p.loginChanged
+        ? USAGE_LOGIN_SWITCHING
+        : USAGE_STALE_MARK;
+    if (mark !== '') out.push(mark);
   }
-  const line = usageStateLine(p.provider, p.state);
+  const line = usageStateLine(p.provider, p.state, p.waitingFor);
   if (line !== '') out.push(line);
   // PHASE 202. A running session keeps the login it started with, so a person
   // who has just switched has sessions in front of them that these numbers are
   // not about. Research 72's rule is that the meter never lies across
   // accounts, and this is the line that keeps it honest about them.
-  const others = usageOtherLoginsLine(elsewhere);
+  const others = hasLogin ? usageOtherLoginsLine(elsewhere) : '';
   if (others !== '') out.push(others);
   return out;
 }
@@ -268,13 +309,16 @@ export function sessionsElsewhere(
  * than by widening what the meter sends.
  *
  * A NULL NAME IS THE DEFAULT LOGIN, which is why the match is against
- * `isDefault` rather than against a word.
+ * `isDefault` rather than against a word. A provider with no login has no
+ * address, and the list is not asked about one (Phase 374).
  */
 export function loginEmailOf(
   snapshot: LoginsSnapshot,
   p: UsageProviderSnapshot
 ): string | null {
-  const rows = loginsOf(snapshot, p.provider);
+  const provider = usageLoginProvider(p.provider);
+  if (provider === null) return null;
+  const rows = loginsOf(snapshot, provider);
   const row =
     p.login === null || p.login.length === 0
       ? rows.find((r) => r.isDefault)
@@ -335,7 +379,71 @@ export function usageCardTop(
  */
 export interface UsageCardGroup {
   provider: UsageProviderId;
+  /** Whose logins Choose login offers, or null for no such control (Phase 374). */
+  login: LoginProviderId | null;
   lines: string[];
+}
+
+/** Every drawn row's block on the card, in the order the rows are drawn. */
+export function usageCardGroups(
+  shown: readonly UsageProviderSnapshot[],
+  now: number,
+  sessions: readonly { agent: string; status: string; login?: string }[],
+  logins: LoginsSnapshot
+): UsageCardGroup[] {
+  return shown.map((p) => ({
+    provider: p.provider,
+    login: usageLoginProvider(p.provider),
+    lines: cardLines(p, now, sessionsElsewhere(sessions, p), loginEmailOf(logins, p))
+  }));
+}
+
+/**
+ * Is there a drawn row a refresh can do anything for? (Phase 374). A receiver
+ * is asked nothing, so a meter of nothing but receivers draws no control that
+ * would press and do nothing. One asked row is enough for the control to stay,
+ * and it asks for that row alone.
+ */
+export function usageCanRefresh(shown: readonly UsageProviderSnapshot[]): boolean {
+  return shown.some((p) => !usageIsReceiver(p.provider));
+}
+
+/** Exported for its test: this repository carries no jsdom and no portal. */
+export function UsageCardBlock({
+  group,
+  onChooseLogin
+}: {
+  group: UsageCardGroup;
+  onChooseLogin: ((provider: LoginProviderId, at: DOMRect) => void) | null;
+}): React.JSX.Element {
+  const login = group.login;
+  return (
+    <div className="usage-card-group">
+      {group.lines.map((text, j) => (
+        <div
+          className={j === 0 ? 'usage-card-name' : 'usage-card-line'}
+          key={text}
+        >
+          {text}
+        </div>
+      ))}
+      {onChooseLogin === null || login === null ? null : (
+        <button
+          type="button"
+          className="usage-card-action"
+          data-login-control={login}
+          onClick={(e) =>
+            onChooseLogin(
+              login,
+              (e.currentTarget as HTMLElement).getBoundingClientRect()
+            )
+          }
+        >
+          {USAGE_LOGIN_CONTROL}
+        </button>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -355,7 +463,7 @@ function UsageCard({
   onEnter: () => void;
   onLeave: () => void;
   /** Null on a build whose preload has no logins member or no popup menu. */
-  onChooseLogin: ((provider: UsageProviderId, at: DOMRect) => void) | null;
+  onChooseLogin: ((provider: LoginProviderId, at: DOMRect) => void) | null;
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
   const [top, setTop] = useState<number | null>(null);
@@ -382,34 +490,47 @@ function UsageCard({
       }
     >
       {groups.map((group, i) => (
-        <div className="usage-card-group" key={group.lines[0] ?? String(i)}>
-          {group.lines.map((text, j) => (
-            <div
-              className={j === 0 ? 'usage-card-name' : 'usage-card-line'}
-              key={text}
-            >
-              {text}
-            </div>
-          ))}
-          {onChooseLogin === null ? null : (
-            <button
-              type="button"
-              className="usage-card-action"
-              data-login-control={group.provider}
-              onClick={(e) =>
-                onChooseLogin(
-                  group.provider,
-                  (e.currentTarget as HTMLElement).getBoundingClientRect()
-                )
-              }
-            >
-              {USAGE_LOGIN_CONTROL}
-            </button>
-          )}
-        </div>
+        <UsageCardBlock
+          key={group.lines[0] ?? String(i)}
+          group={group}
+          onChooseLogin={onChooseLogin}
+        />
       ))}
     </div>,
     document.body
+  );
+}
+
+/**
+ * The box the two smaller densities draw their rows in, and the press on it.
+ *
+ * The same box with no press when there is nothing to refresh (Phase 374): a
+ * button that does nothing is a control a person presses twice, so it is not
+ * one at all, and the box keeps its padding and its gaps so no row moves.
+ */
+function UsagePress({
+  onPress,
+  busy,
+  children
+}: {
+  onPress: (() => void) | null;
+  busy: boolean;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  if (onPress === null) {
+    return <div className="usage-press usage-press-still">{children}</div>;
+  }
+  return (
+    <button
+      type="button"
+      className="usage-press"
+      aria-label={USAGE_REFRESH}
+      title={USAGE_REFRESH}
+      disabled={busy}
+      onClick={onPress}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -452,15 +573,8 @@ export function UsageMeter({
   const shown = snapshot.providers.filter((p) => p.state !== 'off');
   if (shown.length === 0) return null;
 
-  const groups: UsageCardGroup[] = shown.map((p) => ({
-    provider: p.provider,
-    lines: cardLines(
-      p,
-      now,
-      sessionsElsewhere(sessions, p),
-      loginEmailOf(loginsSnapshot, p)
-    )
-  }));
+  const groups = usageCardGroups(shown, now, sessions, loginsSnapshot);
+  const canRefresh = usageCanRefresh(shown);
 
   const cancelClose = (): void => {
     if (closeTimer.current !== null) clearTimeout(closeTimer.current);
@@ -475,7 +589,8 @@ export function UsageMeter({
     const el = hostRef.current;
     if (el === null) return;
     cancelClose();
-    void loadLogins();
+    // A card that names no login asks for none (Phase 374).
+    if (groups.some((group) => group.login !== null)) void loadLogins();
     const r = el.getBoundingClientRect();
     setCard({
       x: Math.max(VIEWPORT_MARGIN, window.innerWidth - r.left + ANCHOR_GAP),
@@ -505,7 +620,7 @@ export function UsageMeter({
   const onChooseLogin =
     popup === undefined || !loginsAvailable
       ? null
-      : (provider: UsageProviderId, at: DOMRect): void => {
+      : (provider: LoginProviderId, at: DOMRect): void => {
           const rows = loginsOf(loginsSnapshot, provider);
           void popup
             .call(gmuxBridge(), {
@@ -530,6 +645,8 @@ export function UsageMeter({
             .catch(() => undefined);
         };
 
+  const press = canRefresh ? (): void => void refresh() : null;
+
   if (density === 'full') {
     return (
       <div
@@ -543,16 +660,18 @@ export function UsageMeter({
             <UsageRow key={p.provider} p={p} now={now} bar={bar} />
           ))}
         </div>
-        <button
-          type="button"
-          className="icon-btn usage-refresh"
-          aria-label={USAGE_REFRESH}
-          title={USAGE_REFRESH}
-          disabled={refreshing}
-          onClick={() => void refresh()}
-        >
-          <Codicon name="refresh" size="sm" />
-        </button>
+        {canRefresh ? (
+          <button
+            type="button"
+            className="icon-btn usage-refresh"
+            aria-label={USAGE_REFRESH}
+            title={USAGE_REFRESH}
+            disabled={refreshing}
+            onClick={() => void refresh()}
+          >
+            <Codicon name="refresh" size="sm" />
+          </button>
+        ) : null}
         {card !== null ? (
           <UsageCard
             anchor={card}
@@ -574,18 +693,11 @@ export function UsageMeter({
         data-slot="usage-meter"
         {...hover}
       >
-        <button
-          type="button"
-          className="usage-press"
-          aria-label={USAGE_REFRESH}
-          title={USAGE_REFRESH}
-          disabled={refreshing}
-          onClick={() => void refresh()}
-        >
+        <UsagePress onPress={press} busy={refreshing}>
           {shown.map((p) => (
             <UsageRow key={p.provider} p={p} now={now} bar={bar} />
           ))}
-        </button>
+        </UsagePress>
         {card !== null ? (
           <UsageCard
             anchor={card}
@@ -606,14 +718,7 @@ export function UsageMeter({
       data-slot="usage-meter"
       {...hover}
     >
-      <button
-        type="button"
-        className="usage-press"
-        aria-label={USAGE_REFRESH}
-        title={USAGE_REFRESH}
-        disabled={refreshing}
-        onClick={() => void refresh()}
-      >
+      <UsagePress onPress={press} busy={refreshing}>
         {shown.map((p) => {
           const percent = barPercent(p, bar);
           return (
@@ -625,14 +730,14 @@ export function UsageMeter({
                 <UsageBar percent={percent} />
               )}
               <span className="usage-hidden">
-                {usageHasNumbers(p)
+                {usageHasNumbers(p) || p.second != null
                   ? cardLines(p, now).join('. ')
-                  : usageStateLine(p.provider, p.state)}
+                  : usageStateLine(p.provider, p.state, p.waitingFor)}
               </span>
             </span>
           );
         })}
-      </button>
+      </UsagePress>
       {card !== null ? (
         <UsageCard
           anchor={card}

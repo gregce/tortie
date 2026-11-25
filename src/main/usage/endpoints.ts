@@ -12,6 +12,12 @@
  * 2026-08-31 and recorded in docs/research/72 sections 8.2 and 8.3. Sending
  * exactly what the CLI sends is the point: the vendor sees the same shape of
  * request it would have seen from the agent the person already runs.
+ *
+ * THERE ARE TWO AND THERE IS NO THIRD, although the meter draws a third row
+ * (Phase 374). Antigravity's numbers arrive by themselves and nobody is asked
+ * for them, because Google has said no in writing to a program that asks
+ * (docs/research/146 §8.1). Which of these two a credential may travel to is
+ * decided by one entry of ./providers.ts, chosen whole.
  */
 
 export const CLAUDE_USAGE_HOST = 'api.anthropic.com';

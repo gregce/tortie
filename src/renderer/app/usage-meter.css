@@ -177,8 +177,14 @@
   cursor: pointer;
 }
 
-.usage-press:hover:not(:disabled) {
+.usage-press:hover:not(:disabled):not(.usage-press-still) {
   background: var(--bg-raised);
+}
+
+/* PHASE 374. The same box when every drawn row is one nobody asks for: no
+   button, so no pointer and no hover ground promising a press. */
+.usage-press-still {
+  cursor: default;
 }
 
 .usage-press:disabled {

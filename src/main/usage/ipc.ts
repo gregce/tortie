@@ -6,9 +6,18 @@
  *
  * Two channels, and both READ. Neither spawns a process, writes the manifest,
  * touches tmux or sets a session's status. Registering them opens nothing:
- * the service is built on the first call, and while both provider switches
- * are off that first call still opens no keychain, reads no credentials file
- * and makes no request.
+ * the service is built on the first call, and while every provider switch
+ * is off that first call still opens no keychain, reads no credentials file,
+ * opens no folder of received numbers and makes no request.
+ *
+ * PHASE 374 ADDED ONE SLOW CLOCK AND NO CHANNEL. A received row changes with
+ * nobody asking, so while its switch is on and the service is open this file
+ * asks the service to look every five seconds. The look does nothing unless a
+ * window of Tortie's is in front, and once something is held it lists the
+ * folder only when the folder's own time moved or the minute did. It is not a file watch, so Phase 365's
+ * rules for those do not reach it. It is armed here and nowhere else, and it is
+ * cleared by the first look that answers stop, by the disposal, and by anything
+ * that replaces the service.
  *
  * The payload is numbers, timestamps and a state code. The Codex usage body
  * carries the person's email address, user id and account id at its top level
@@ -16,8 +25,9 @@
  * fields at all.
  */
 
-import type { IpcMain } from 'electron';
+import { BrowserWindow, type IpcMain } from 'electron';
 import type { ClaudeStatusLineState, UsageSnapshot } from '@shared/usage';
+import { USAGE_PROVIDERS, usageIsReceiver } from '@shared/usage';
 import { EVT_USAGE_CHANGED } from '@shared/ipc';
 import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
@@ -31,9 +41,21 @@ import { effectiveLogin, loginsRoot } from '../logins';
 // at most three files under the person's own `.claude`, and that is all it
 // does: no keychain, no request, no write, nothing spawned.
 import { claudeStatusLineState } from '../activity/hooks';
+// PHASE 374. The received row's three parts: the folder of Tortie's own, the
+// last launch decision, and the pure reader. None spawns, none sends, and none
+// opens a credential.
+import {
+  antigravityFolderMtime,
+  antigravitySlotOpened,
+  clearAntigravityUsage,
+  listAntigravityFiles
+} from './antigravity/folder';
+import { antigravityWaiting, clearAntigravityGuard } from './antigravity/launch';
+import { newestReading } from './antigravity/receive';
 import { defaultCredentialDeps } from './credentials';
 import {
   createUsageService,
+  type UsageReceiverPort,
   type UsageService,
   type UsageShutdownReport
 } from './service';
@@ -47,6 +69,65 @@ import { httpsTransport, type UsageTransport } from './transport';
 const log = getLog('usage');
 
 let service: UsageService | null = null;
+
+/** How often the received row is looked at while its switch is on (Phase 374). */
+export const USAGE_PULSE_MS = 5_000;
+
+/** The one clock of this domain, or null when nothing needs looking at. */
+let pulseTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopUsagePulse(): void {
+  if (pulseTimer === null) return;
+  clearInterval(pulseTimer);
+  pulseTimer = null;
+}
+
+/**
+ * Arm the clock for this service, once, and only when a received row is on.
+ * It is `unref`ed, so it can never be what keeps the process up at a quit.
+ */
+function armUsagePulse(of: UsageService): void {
+  if (pulseTimer !== null || shuttingDown) return;
+  const on = getSettings().usage;
+  if (!USAGE_PROVIDERS.some((p) => usageIsReceiver(p) && on[p])) return;
+  pulseTimer = setInterval(() => {
+    // A look may not be the thing that breaks main, and a service that was
+    // replaced is not this clock's to look at.
+    let more = false;
+    try {
+      more = of === service && of.pulse();
+    } catch {
+      more = false;
+    }
+    if (!more) stopUsagePulse();
+  }, USAGE_PULSE_MS);
+  pulseTimer.unref?.();
+}
+
+/** Is a window of Tortie's in front right now? */
+function usageWindowFocused(): boolean {
+  return BrowserWindow.getAllWindows().some((w) => !w.isDestroyed() && w.isFocused());
+}
+
+/**
+ * The received row's port over the real folder (Phase 374). Which files are
+ * listed, and that a name nobody knows is dropped, is ./antigravity/folder.ts's.
+ */
+function antigravityReceiver(): UsageReceiverPort {
+  const seen = new Map<string, number>();
+  return {
+    read: () => newestReading(listAntigravityFiles(), Date.now(), seen),
+    clear: () => {
+      clearAntigravityUsage();
+      clearAntigravityGuard();
+    },
+    opened: () => antigravitySlotOpened(),
+    waiting: () => antigravityWaiting(),
+    mtime: () => antigravityFolderMtime(),
+    focused: usageWindowFocused
+  };
+}
+
 /**
  * PHASE 200. Shutdown admission for the whole domain, set before anything is
  * cancelled and never unset in this process.
@@ -78,6 +159,7 @@ export function setUsageHarnessOverride(
 ): void {
   harness = over;
   service = null;
+  stopUsagePulse();
 }
 
 /**
@@ -100,7 +182,9 @@ export function usageService(): UsageService {
       // PHASE 202. Which login each meter reads, resolved on every call so a
       // choice made in the hover card is followed within one poll. A build
       // with no logins file answers the default for both providers, which is
-      // exactly what Phase 181 read.
+      // exactly what Phase 181 read. PHASE 374: the service asks this for the
+      // login an entry names and for nothing else, so a provider with no login
+      // is not a value this function can be handed.
       logins: (provider) => {
         try {
           const login = effectiveLogin(loginsRoot(), provider);
@@ -113,10 +197,11 @@ export function usageService(): UsageService {
           return { name: null, dir: null };
         }
       },
+      receiver: antigravityReceiver(),
       now: () => Date.now(),
       log: (event, fields) => log.warn(event, fields),
-      // Phase 182. A live tap moved the numbers and nobody asked, so every
-      // window is told. The payload is the same one the two reads answer
+      // Phase 182. A live tap moved the numbers and nobody asked, or since
+      // Phase 374 a received row did, so every window is told. The payload is the same one the two reads answer
       // with, being numbers, timestamps and a state code.
       onChanged: (snapshot) => broadcastEvent(EVT_USAGE_CHANGED, snapshot)
     });
@@ -159,6 +244,7 @@ export function usageShutdownRefusal(): Error {
  */
 export async function disposeUsageService(): Promise<UsageShutdownReport> {
   shuttingDown = true;
+  stopUsagePulse();
   const held = service;
   service = null;
   if (held === null) {
@@ -181,6 +267,12 @@ export async function disposeUsageService(): Promise<UsageShutdownReport> {
 export function resetUsageServiceForTests(): void {
   service = null;
   shuttingDown = false;
+  stopUsagePulse();
+}
+
+/** Test seam ONLY: is the received row's clock armed? */
+export function usagePulseArmed(): boolean {
+  return pulseTimer !== null;
 }
 
 /**
@@ -270,11 +362,15 @@ export function registerUsageIpc(ipc: IpcMain): void {
   // gets the same `SHUTTING_DOWN` word every other capability answers with.
   handle(ipc, 'usage:read', (): Promise<UsageSnapshot> => {
     if (shuttingDown) return Promise.reject(usageShutdownRefusal());
-    return usageService().read();
+    const s = usageService();
+    armUsagePulse(s);
+    return s.read();
   });
   handle(ipc, 'usage:refresh', (): Promise<UsageSnapshot> => {
     if (shuttingDown) return Promise.reject(usageShutdownRefusal());
-    return usageService().refresh();
+    const s = usageService();
+    armUsagePulse(s);
+    return s.refresh();
   });
   /**
    * PHASE 219, ITEM 8. Why a launched claude session has no managed status

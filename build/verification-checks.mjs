@@ -412,6 +412,20 @@ export const CHECKS = [
   // scans the shipping source for the refusals and runs the shipping store
   // over a scratch root and over four ablated copies of itself.
   pure('conformance:logins'),
+  // PHASE 374 (build/p374/SPEC.md §7.2). Where a usage token goes, and what the
+  // received row may touch: build/conformance-usage.mjs reads src/main/usage,
+  // src/shared/usage.ts, src/shared/settings.ts and the Antigravity splice in
+  // src/main/sessions/create-local.ts with the TypeScript parser and its type
+  // checker (a module, not a process) and drives the SHIPPING service, table
+  // and generated script through build/usage-conformance-probe.mts. Eleven
+  // rules, G1 to G11, each asked again over copies with it broken, the Codex
+  // fall-through first, every one red on exactly its own rules beside an
+  // unedited control. It starts the pinned tsx and, below it, /bin/sh over the
+  // generated script in a scratch directory; its copies are dot-named siblings
+  // of src/main/usage removed in a `finally`. No Electron, no tmux, no network,
+  // no keychain, no agent, nothing under the person's home.
+  // `ablation:p374` is the attack beside it.
+  pure('conformance:usage'),
   // Phase 204. The credential store Tortie owns: it runs
   // build/conformance-credentials.mjs, which scans the shipping source for the
   // refusals, being the payload never on a command line, -A never passed and
@@ -1927,6 +1941,25 @@ export const CHECKS = [
     'probe:p370',
     `${NEEDS.electron}; a built parent checkout (P370_PARENT_CHECKOUT); an arm whose input is absent reads UNREADABLE`
   ),
+  // PHASE 374 (build/p374/SPEC.md §8): the meter reading the Antigravity plan
+  // from its status line. Electrons through build/electron-run.mjs ONE AT A
+  // TIME and never at once, the parent first (P374_PARENT_CHECKOUT, a built
+  // 6ebc22e6, required), each launch on its own scratch profile, HOME and
+  // ZDOTDIR with HISTFILE=/dev/null and SHELL=/bin/sh and the socket gmux-p374…,
+  // named as its tmuxSocket but for LIFE's first two, whose server outlives the
+  // app. `agy` is build/p374/stand-in.mjs behind a launcher compiled with clang
+  // into the run, under its bare name on a closed PATH, replaying the redacted
+  // recordings of build/fixtures/p374; SpecStory is a stand-in too. Every other
+  // probed registry row is hidden through build/hidden-agents.mjs and
+  // `agents:list` read back, the two other meters read GMUX_USAGE_FIXTURE, and
+  // the app's sockets are sampled, so no agent runs, no token is spent and
+  // nothing leaves the Mac. `--grader-self-test` grades
+  // build/p374/fixtures/graders.json; it, `--preflight` and `--list-graders`
+  // start nothing.
+  electron(
+    'probe:p374',
+    `${NEEDS.electron}; a built parent checkout (P374_PARENT_CHECKOUT) and clang for the stand-in's launcher; an arm whose input is absent reads UNREADABLE`
+  ),
   // PHASE 364 (build/p364/SPEC.md §8): the diagnostic Tortie he will run as his
   // everyday app, beside the normal app it must leave unchanged. Electrons
   // through build/electron-run.mjs ONE AT A TIME and never at once, each launch
@@ -3179,6 +3212,18 @@ export const CHECKS = [
   // last, every file restored by sha256. No Electron, no tmux, no agent, no
   // token.
   pure('ablation:p3251', NEEDS.vitest),
+  // PHASE 374's attack (build/p374/SPEC.md §7.1, §7.3): each clause of the
+  // Antigravity meter taken out of the SHIPPING source one at a time over a
+  // `cp -Rc` clone of src/, build/, resources/ and the configs under
+  // `P374_SCRATCH` (node_modules a link), vitest run there over the rows that
+  // own them, U1 to U10, L1 to L8, S1 to S5, F1 and R1 to R4: the receiver made
+  // a Codex fetch, the splice unconditional or before the row, each clause of
+  // the floor, the stand-asides and the guard, the script's charsets and exits,
+  // the age and range rules and the face. Each red BY NAME on the row that owns
+  // it, an unedited control green first and last, every file restored by
+  // sha256. No Electron, no tmux, no agent, no token. `P374_ONLY` runs named
+  // arms.
+  pure('ablation:p374', NEEDS.vitest),
   // PHASE 331's attack on its own clauses (build/p331/SPEC.md §2.10): seventeen
   // arms over a `cp -Rc` clone of src/, resources/ and build/ (build/vendor
   // symlinked), one clause each broken in the SHIPPING source: the scrollback

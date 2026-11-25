@@ -34,6 +34,7 @@ import { isGmuxError } from '../../errors';
 import { guardedChildPids } from '../../proc/guarded';
 import { KEYCHAIN_BIN, keychainReader, type CredentialDeps } from '../credentials';
 import { createUsageService } from '../service';
+import { forbiddenReceiver } from './p374-receiver';
 import type { UsageRequest, UsageResponse } from '../transport';
 import type { UsageSettings } from '@shared/settings';
 
@@ -177,6 +178,7 @@ function tokenDeps(): CredentialDeps {
 const settingsOn = (): UsageSettings => ({
   claude: true,
   codex: false,
+  antigravity: false,
   bar: 'five-hour'
 });
 
@@ -198,6 +200,7 @@ describe('a held endpoint request', () => {
       transport,
       settings: settingsOn,
       logins: () => ({ name: null, dir: null }),
+      receiver: forbiddenReceiver(),
       now: () => Date.now(),
       log: () => undefined
     });
@@ -268,6 +271,7 @@ describe('a keychain child that never exits', () => {
       },
       settings: settingsOn,
       logins: () => ({ name: null, dir: null }),
+      receiver: forbiddenReceiver(),
       now: () => Date.now(),
       log: () => undefined
     });
@@ -342,6 +346,7 @@ describe('after the usage shutdown', () => {
       },
       settings: settingsOn,
       logins: () => ({ name: null, dir: null }),
+      receiver: forbiddenReceiver(),
       now: () => Date.now(),
       log: () => undefined
     });

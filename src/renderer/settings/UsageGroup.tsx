@@ -7,16 +7,22 @@
  * decision. It is a MOVE and not a redesign: the same two switches, the same
  * default off, the same guarantees, and no new control.
  *
- * TWO SWITCHES AND ONE CHOICE, the shape Catch Me Up and Architecture
+ * THREE SWITCHES SINCE PHASE 374, AND ONE CHOICE, the shape Catch Me Up and Architecture
  * settled. Phase 181.2 added the choice, being which window the bar fills to,
  * because the bar filled to whichever window was further along and said so
- * nowhere. BOTH SWITCHES DEFAULT OFF, and off is load bearing rather than
+ * nowhere. EVERY SWITCH DEFAULTS OFF, and off is load bearing rather than
  * polite:
  * while a provider is off main opens no keychain, reads no credentials file
- * and makes no request at all. Turning one on is the whole of the consent,
- * because the only thing it can cause is one HTTPS GET to the vendor that
- * issued the login being sent, and that address is compiled in and cannot be
- * named by any settings file.
+ * and makes no request at all. Turning Claude's or Codex's on is the whole of
+ * the consent, because the only thing it can cause is one HTTPS GET to the
+ * vendor that issued the login being sent, and that address is compiled in and
+ * cannot be named by any settings file.
+ *
+ * ANTIGRAVITY'S IS THE THIRD (Phase 374) and it causes no request and reads no
+ * login: it lets a session started afterwards report the numbers its own status
+ * line is given. So its row has no logins list below it, and it carries one
+ * line that is always drawn, saying Google was asked and has not answered. The
+ * switch selects a compiled script and no settings field can name another.
  *
  * There is no interval control, no account control and no plan control. The
  * meter is read only: no reset credits, no account switching, no plan
@@ -47,6 +53,9 @@ import {
   USAGE_ABOUT_READONLY,
   USAGE_ABOUT_WHEN,
   USAGE_ABOUT_WHERE,
+  USAGE_ANTIGRAVITY_CAPTION,
+  USAGE_ANTIGRAVITY_LABEL,
+  USAGE_ANTIGRAVITY_NOTE,
   USAGE_BAR_CAPTION,
   USAGE_BAR_FIVE_HOUR,
   USAGE_BAR_LABEL,
@@ -159,13 +168,19 @@ export function UsageRow({
   provider,
   label,
   caption,
-  note
+  note,
+  noteWarns = true
 }: {
   provider: UsageProviderId;
   label: string;
   caption: string;
   /** One short line under the caption, drawn only while it is true. */
   note?: string | null;
+  /**
+   * False for a line that is a fact to know rather than something in the way
+   * (Phase 374). The warning ink is for a meter that is not working as asked.
+   */
+  noteWarns?: boolean;
 }): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   return (
@@ -174,7 +189,10 @@ export function UsageRow({
         <span className="set-row-label">{label}</span>
         <span className="set-row-caption">{caption}</span>
         {note == null ? null : (
-          <span className="set-row-caption set-row-warn" data-usage-note={provider}>
+          <span
+            className={noteWarns ? 'set-row-caption set-row-warn' : 'set-row-caption'}
+            data-usage-note={provider}
+          >
             {note}
           </span>
         )}
@@ -193,7 +211,7 @@ export function UsageRow({
 /**
  * Which window the one bar per provider fills to (Phase 181.2).
  *
- * ONE ROW FOR BOTH PROVIDERS AND FOR ALL THREE METERS. There is deliberately
+ * ONE ROW FOR EVERY PROVIDER AND FOR ALL THREE METERS. There is deliberately
  * no per provider variant: the confusion being fixed is that a bar and the
  * number beside a bar named different windows, and a per provider answer
  * makes that worse rather than better. The hover card goes on naming every
@@ -349,6 +367,13 @@ export function UsageGroup(): React.JSX.Element {
           label={USAGE_CODEX_LABEL}
           caption={USAGE_CODEX_CAPTION}
         />
+        <UsageRow
+          provider="antigravity"
+          label={USAGE_ANTIGRAVITY_LABEL}
+          caption={USAGE_ANTIGRAVITY_CAPTION}
+          note={USAGE_ANTIGRAVITY_NOTE}
+          noteWarns={false}
+        />
         <BarWindowRow />
         <div className="set-row">
           <div className="set-row-text">
@@ -359,7 +384,8 @@ export function UsageGroup(): React.JSX.Element {
 
       {/* PHASE 202. The logins, listed here so the meter's own card stays
           short. This block is a list and a remove; choosing is done from the
-          card, beside the numbers the choice is about. */}
+          card, beside the numbers the choice is about.
+          PHASE 374 ADDED NO BLOCK HERE: Antigravity's meter has no login. */}
       <div className="set-group-label">{USAGE_LOGINS_LABEL}</div>
       <div className="set-card">
         <LoginsBlock provider="claude" label={USAGE_CLAUDE_LABEL} />

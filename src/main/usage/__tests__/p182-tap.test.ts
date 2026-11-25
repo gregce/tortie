@@ -23,6 +23,7 @@ import {
   USAGE_TAP_SUPPRESS_MS,
   createUsageService
 } from '../service';
+import { forbiddenReceiver } from './p374-receiver';
 import {
   TAP_BODY_CAP_BYTES,
   parseTapBody,
@@ -202,7 +203,7 @@ function harness(over: Partial<Harness> = {}): Harness {
     sent: [] as UsageRequest[],
     pushes: 0,
     now: NOW,
-    on: { claude: true, codex: false, bar: 'five-hour' } as UsageSettings,
+    on: { claude: true, codex: false, antigravity: false, bar: 'five-hour' } as UsageSettings,
     env: {} as Record<string, string | undefined>,
     login: null as string | null,
     loginDir: null as string | null,
@@ -226,6 +227,7 @@ function harness(over: Partial<Harness> = {}): Harness {
     // is the empty string on the wire, which is what a pane on the default
     // login encodes for itself.
     logins: () => ({ name: h.login, dir: h.loginDir }),
+    receiver: forbiddenReceiver(),
     now: () => h.now,
     log: () => undefined,
     onChanged: () => {
@@ -241,7 +243,7 @@ function claudeRow(snap: { providers: { provider: string }[] }): any {
 
 describe('rule 1 — nothing while off', () => {
   it('drops a post while the switch is off, and the meter stays empty', () => {
-    const h = harness({ on: { claude: false, codex: false, bar: 'five-hour' } });
+    const h = harness({ on: { claude: false, codex: false, antigravity: false, bar: 'five-hour' } });
     expect(h.service.applyTap('sess-1', goodBody())).toBe('off');
     expect(claudeRow(h.service.current()).state).toBe('off');
     expect(h.pushes).toBe(0);

@@ -66,6 +66,13 @@ import {
   hashScreen,
   normalizeCapture
 } from './screen';
+// PHASE 374. Tortie's own status line runs are not an agent's tools.
+import {
+  STATUS_RUN_READS,
+  isStatusLineRun,
+  sessionLeadersUnder,
+  withoutLeaders
+} from './status-line-runs';
 import {
   binaryCandidatesFor,
   commandNamesAgent,
@@ -346,6 +353,8 @@ export class SessionActivityMonitor {
   private readonly lastPane = new Map<string, PaneFacts>();
   private readonly claude: ClaudeSessionRegistry;
   private readonly readProc: () => Promise<ProcSnapshot | null>;
+  /** PHASE 374. The session leaders already found to be an agent's tools, per session. */
+  private readonly agentTools = new Map<string, ReadonlySet<number>>();
   private readonly readWitness: (pid: number) => Promise<WitnessReading>;
   private readonly readCommand: (pid: number) => Promise<string | null>;
   private readonly readChildren: (pid: number) => Promise<number[]>;
@@ -459,6 +468,7 @@ export class SessionActivityMonitor {
     this.states.delete(sessionId);
     this.lastPane.delete(sessionId);
     this.rejectedChild.delete(sessionId);
+    this.agentTools.delete(sessionId); // PHASE 374
     // PHASE 312. A session nobody is watching any more has no choice to draw
     // and no clear to send: the surface drops the whole row.
     this.choiceMark.delete(sessionId);
@@ -664,6 +674,9 @@ export class SessionActivityMonitor {
         !e.pane.inMode &&
         (ambiguous.has(e.session.id) || e.st.state === 'needs_input')
     );
+    // PHASE 374. Beside the captures too, and only for an Antigravity session
+    // with a session leader under it. See `readStatusRuns`.
+    const statusRuns = this.readStatusRuns(live, proc);
     // PHASE 321. Beside the captures, and never instead of one: who holds the
     // terminal of each session whose row lists a question shape, read only
     // when that changed. See `readForegrounds`.
@@ -674,6 +687,7 @@ export class SessionActivityMonitor {
       ),
       this.readForegrounds(wantCapture, proc)
     ]);
+    const tables = await statusRuns;
     if (this.disposed) return;
 
     // PHASE 312. One update per session per tick, keyed so a choice cleared by
@@ -684,7 +698,7 @@ export class SessionActivityMonitor {
       const capture = captures.get(e.pane.paneId);
       const ctx = {
         now,
-        proc,
+        proc: tables.get(e.session.id) ?? proc,
         ...(capture !== undefined ? { capture } : {})
       };
       const verdict: ActivityVerdict | null =
@@ -761,6 +775,48 @@ export class SessionActivityMonitor {
         noteForeground(e.st, e.pane, pid, command, e.session.agent);
       })
     );
+  }
+
+  /**
+   * PHASE 374. The table each Antigravity session is judged by, when it is not
+   * the one everybody is: with Tortie's own status line runs no longer read as
+   * a session leader (./status-line-runs.ts, which holds the rule and its one
+   * trade). A session with no session leader under it, which is every session
+   * between two runs, costs nothing, and a leader already found to be a tool is
+   * not asked about again while it lives. Never rejects.
+   */
+  private async readStatusRuns(
+    live: readonly LiveSession[],
+    proc: ProcSnapshot | null
+  ): Promise<Map<string, ProcSnapshot>> {
+    const tables = new Map<string, ProcSnapshot>();
+    if (proc === null) return tables;
+    await Promise.all(
+      live.map(async (e) => {
+        if (e.session.agent !== 'antigravity') return;
+        const leaders = sessionLeadersUnder(proc, e.pane.panePid);
+        const known = this.agentTools.get(e.session.id);
+        const tools = new Set(leaders.filter((pid) => known?.has(pid) === true));
+        const runs = new Set<number>();
+        await Promise.all(
+          leaders
+            .filter((pid) => !tools.has(pid))
+            .slice(0, STATUS_RUN_READS)
+            .map(async (pid) => {
+              const [command, parent] = await Promise.all([
+                this.readCommand(pid),
+                this.readCommand(proc.ppid.get(pid) ?? 0)
+              ]);
+              if (isStatusLineRun(command, parent)) runs.add(pid);
+              else if (command !== null && parent !== null) tools.add(pid);
+            })
+        );
+        if (tools.size > 0) this.agentTools.set(e.session.id, tools);
+        else this.agentTools.delete(e.session.id);
+        if (runs.size > 0) tables.set(e.session.id, withoutLeaders(proc, runs));
+      })
+    );
+    return tables;
   }
 
   // -------------------------------------------------------------------------

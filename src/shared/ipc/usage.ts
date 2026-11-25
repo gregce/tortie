@@ -12,6 +12,11 @@
  * While a provider's switch is off, `usage:read` opens no keychain, opens no
  * credentials file and makes no request.
  *
+ * ANTIGRAVITY'S ROW IS RECEIVED AND NEVER ASKED FOR (Phase 374). While its
+ * switch is on, both channels list one folder of Tortie's own; `usage:refresh`
+ * asks nobody for it, because there is nobody to ask. While it is off that
+ * folder is not opened.
+ *
  * The payload carries numbers, timestamps and a state code. The Codex usage
  * body carries the person's email address, user id and account id; none of
  * that is in `UsageSnapshot` and none of it crosses this pair.
@@ -40,10 +45,12 @@ export const EVT_USAGE_CHANGED = 'usage:changed' as const;
 /**
  * Payload of EVT_USAGE_CHANGED (broadcast to EVERY window).
  *
- * Broadcast ONLY when something changed that nobody asked for, which today is
- * exactly one thing: a live post from a Tortie launched claude session's
- * managed status line. The answer to a read is not broadcast, because the
- * window that asked already has it.
+ * Broadcast ONLY when something changed that nobody asked for, which is two
+ * things: a live post from a Tortie launched claude session's managed status
+ * line, and since Phase 374 an Antigravity row that moved while a window was
+ * in front. The second carries the OTHER rows exactly as a window was last
+ * answered, so it can never move Claude's or Codex's. The answer to a read is
+ * not broadcast, because the window that asked already has it.
  */
 export interface UsageEventPayloadMap {
   'usage:changed': [snapshot: UsageSnapshot];

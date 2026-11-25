@@ -31,7 +31,7 @@ function stub(bar: UsageBarWindow): string[] {
   useSettingsStore.setState({
     settings: {
       ...defaultGmuxSettings(),
-      usage: { claude: true, codex: true, bar }
+      usage: { claude: true, codex: true, antigravity: false, bar }
     },
     settingsLoaded: true,
     async update(patch) {
@@ -84,11 +84,13 @@ describe('the row a person changes the bar with', () => {
 });
 
 describe('what the row writes', () => {
-  it('patches the one field and leaves both switches alone', async () => {
+  it('patches the one field and leaves every switch alone', async () => {
     const wrote = stub('five-hour');
     await setUsageBarWindow('seven-day');
     expect(wrote).toEqual([
-      JSON.stringify({ usage: { claude: true, codex: true, bar: 'seven-day' } })
+      JSON.stringify({
+        usage: { claude: true, codex: true, antigravity: false, bar: 'seven-day' }
+      })
     ]);
     expect(useSettingsStore.getState().settings.usage.bar).toBe('seven-day');
   });

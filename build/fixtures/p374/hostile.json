@@ -1,0 +1,381 @@
+{
+ "note": "Phase 374. Every value invented by build/p374/make-fixtures.mjs. @@PAD@@ stands for 65,536 x.",
+ "payloads": [
+  {
+   "name": "honest",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "the control",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "reset at the epoch",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"1970-01-01T00:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "a passed reset voids its window",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"1970-01-01T00:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "reset at Go’s zero time",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"0001-01-01T00:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "a passed reset voids its window",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"0001-01-01T00:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "fraction NaN",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":null,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "NaN is not a JSON number",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":NaN,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "fraction 1e309",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":1e309,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "Infinity draws nothing",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":1e309,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "fraction -3",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":-3,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "the clamp alone would draw it as a FULL bar",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":-3,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "fraction 1.5",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":1.5,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "over 1 is not a fraction",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":1.5,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "fraction 007",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":null,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "a number JSON refuses would make the kept line unparseable",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":007,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "fraction a string",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":null,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "a string is not a number",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":\"0.5\",\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "fraction an object",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":null,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "deeper than the bucket is not the fraction",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":{\"v\":0.5},\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "fraction null",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":null,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "absent is never zero",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":null,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "disabled at 1 beside a weekly 0",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":1,\"r\":\"2030-01-01T02:00:00Z\",\"d\":true,\"a\":false},\"gemini-weekly\":{\"f\":0,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "a disabled bucket draws nothing, and the spent week beside it is a full bar of its own",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\",\"disabled\":true},\"gemini-weekly\":{\"remaining_fraction\":0,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "disabled a word",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":true,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "anything but false or null reads as disabled",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\",\"disabled\":\"no\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "disabled false",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":false,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "the honest false",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\",\"disabled\":false},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "amount alone",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":null,\"r\":null,\"d\":null,\"a\":true},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "an amount is not a fraction",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_amount\":\"5\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "amount beside a fraction",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":true},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "an amount draws nothing",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\",\"remaining_amount\":\"5\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "no address",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "a file with no account is never written",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "address null",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "a file with no account is never written",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":null,\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "address empty",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "a file with no account is never written",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "address an object",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "a file with no account is never written",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":{\"email\":\"person@example.com\"},\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "address deeper only",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "only the top level says whose payload it is",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\",\"email\":\"person@example.com\"}}"
+  },
+  {
+   "name": "address with escapes",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "the raw JSON token is hashed and never kept",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"a\\\"b\\\\c\\né@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "address as the plan",
+   "close": true,
+   "tail": "\"p\":null,\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "the plan word refuses @ and .",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"person@example.com\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "address as a reset",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":null,\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "a reset holds no letter but T and Z",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"person@example.com\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "address as a bucket",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "an unknown id is dropped",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"},\"person@example.com\":{\"remaining_fraction\":0.1}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "a third group and an id that differs by case",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "the ids are compiled and matched exactly",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"},\"argon-5h\":{\"remaining_fraction\":0.2},\"Gemini-5h\":{\"remaining_fraction\":0.2},\"gemini-5h \":{\"remaining_fraction\":0.2}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "keys spelled with an escape",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": null,
+   "why": "a key is matched as it is written, so an escaped bucket is dropped",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini\\u002d5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "the address key spelled with an escape",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "a key is matched as it is written, so there is no account",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"em\\u0061il\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "only unknown buckets",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "nothing this app knows",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"argon-5h\":{\"remaining_fraction\":0.2}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "a bucket inside the title",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "a title is text",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"},\"conversation_title\":\"\\\"quota\\\":{\\\"gemini-5h\\\":{\\\"remaining_fraction\\\":0.01}},\\\"email\\\":\\\"other@example.org\\\"\"}"
+  },
+  {
+   "name": "a quota nested elsewhere",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "only the top level quota is the quota",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\",\"sub\":{\"remaining_fraction\":0.02}},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\",\"quota\":{\"gemini-5h\":{\"remaining_fraction\":0.01}}}}"
+  },
+  {
+   "name": "quota empty",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "nothing this app knows",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "quota null",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "absent is never zero",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":null,\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "quota an array",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "not the documented shape",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":[{\"gemini-5h\":{\"remaining_fraction\":0.2}}],\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "an array at the top",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "not one object",
+   "raw": "[{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}]"
+  },
+  {
+   "name": "truncated",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "not a whole document",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"p"
+  },
+  {
+   "name": "one brace short",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "every field was read and the document still never closed",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}"
+  },
+  {
+   "name": "two objects",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "not one object",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  },
+  {
+   "name": "trailing junk",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "not one object",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}} x"
+  },
+  {
+   "name": "empty",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "nothing at all",
+   "raw": ""
+  },
+  {
+   "name": "garbage",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "not JSON",
+   "raw": "\u0001{{{ \"quota\""
+  },
+  {
+   "name": "pretty printed",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "white space is nothing",
+   "raw": "{\n  \"agent_state\": \"idle\",\n  \"context_window\": {\n    \"context_window_size\": 1000000,\n    \"current_usage\": null,\n    \"remaining_percentage\": 100,\n    \"total_input_tokens\": 0,\n    \"total_output_tokens\": 0,\n    \"used_percentage\": 0\n  },\n  \"conversation_id\": \"\",\n  \"cwd\": \"/Users/example/work/repo\",\n  \"cycle_mode\": \"default\",\n  \"email\": \"person@example.com\",\n  \"exceeds_200k_tokens\": null,\n  \"model\": {\n    \"display_name\": \"Example Model\",\n    \"effort\": \"high\",\n    \"id\": \"example-model\"\n  },\n  \"plan_tier\": \"Example Tier\",\n  \"product\": \"antigravity\",\n  \"quota\": {\n    \"3p-5h\": {\n      \"remaining_fraction\": 1,\n      \"reset_in_seconds\": 18000,\n      \"reset_time\": \"2030-01-01T05:00:00Z\"\n    },\n    \"3p-weekly\": {\n      \"remaining_fraction\": 0.9,\n      \"reset_in_seconds\": 518400,\n      \"reset_time\": \"2030-01-07T00:00:00Z\"\n    },\n    \"gemini-5h\": {\n      \"remaining_fraction\": 0.75,\n      \"reset_in_seconds\": 7200,\n      \"reset_time\": \"2030-01-01T02:00:00Z\"\n    },\n    \"gemini-weekly\": {\n      \"remaining_fraction\": 0.6,\n      \"reset_in_seconds\": 345600,\n      \"reset_time\": \"2030-01-05T00:00:00Z\"\n    }\n  },\n  \"sandbox\": {\n    \"enabled\": false\n  },\n  \"session_id\": \"7d0f4e0a-0000-4000-8000-00000000a374\",\n  \"terminal_width\": 120,\n  \"transcript_path\": \"/Users/example/.example/transcript.jsonl\",\n  \"vcs\": {\n    \"type\": \"git\"\n  },\n  \"version\": \"1.6.0\",\n  \"workspace\": {\n    \"current_dir\": \"/Users/example/work/repo\",\n    \"project_dir\": \"/Users/example/work/repo\"\n  }\n}"
+  },
+  {
+   "name": "carriage returns",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "white space is nothing",
+   "raw": "{\r\n \"agent_state\": \"idle\",\r\n \"context_window\": {\r\n  \"context_window_size\": 1000000,\r\n  \"current_usage\": null,\r\n  \"remaining_percentage\": 100,\r\n  \"total_input_tokens\": 0,\r\n  \"total_output_tokens\": 0,\r\n  \"used_percentage\": 0\r\n },\r\n \"conversation_id\": \"\",\r\n \"cwd\": \"/Users/example/work/repo\",\r\n \"cycle_mode\": \"default\",\r\n \"email\": \"person@example.com\",\r\n \"exceeds_200k_tokens\": null,\r\n \"model\": {\r\n  \"display_name\": \"Example Model\",\r\n  \"effort\": \"high\",\r\n  \"id\": \"example-model\"\r\n },\r\n \"plan_tier\": \"Example Tier\",\r\n \"product\": \"antigravity\",\r\n \"quota\": {\r\n  \"3p-5h\": {\r\n   \"remaining_fraction\": 1,\r\n   \"reset_in_seconds\": 18000,\r\n   \"reset_time\": \"2030-01-01T05:00:00Z\"\r\n  },\r\n  \"3p-weekly\": {\r\n   \"remaining_fraction\": 0.9,\r\n   \"reset_in_seconds\": 518400,\r\n   \"reset_time\": \"2030-01-07T00:00:00Z\"\r\n  },\r\n  \"gemini-5h\": {\r\n   \"remaining_fraction\": 0.75,\r\n   \"reset_in_seconds\": 7200,\r\n   \"reset_time\": \"2030-01-01T02:00:00Z\"\r\n  },\r\n  \"gemini-weekly\": {\r\n   \"remaining_fraction\": 0.6,\r\n   \"reset_in_seconds\": 345600,\r\n   \"reset_time\": \"2030-01-05T00:00:00Z\"\r\n  }\r\n },\r\n \"sandbox\": {\r\n  \"enabled\": false\r\n },\r\n \"session_id\": \"7d0f4e0a-0000-4000-8000-00000000a374\",\r\n \"terminal_width\": 120,\r\n \"transcript_path\": \"/Users/example/.example/transcript.jsonl\",\r\n \"vcs\": {\r\n  \"type\": \"git\"\r\n },\r\n \"version\": \"1.6.0\",\r\n \"workspace\": {\r\n  \"current_dir\": \"/Users/example/work/repo\",\r\n  \"project_dir\": \"/Users/example/work/repo\"\r\n }\r\n}"
+  },
+  {
+   "name": "a shell in the title",
+   "close": true,
+   "tail": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.75,\"r\":\"2030-01-01T02:00:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6,\"r\":\"2030-01-05T00:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":0.9,\"r\":\"2030-01-07T00:00:00Z\",\"d\":null,\"a\":false}}}",
+   "draws": 25,
+   "why": "nothing of the payload is ever run or formatted",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"},\"conversation_title\":\"$(/usr/bin/touch p374-pwned) `id` %s %n ' \\\" ; rm -rf . # \\\\\"}"
+  },
+  {
+   "name": "64 KB",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "over the bound, and the bound is why a huge payload costs nothing",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"},\"pad\":\"@@PAD@@\"}"
+  },
+  {
+   "name": "100 deep",
+   "close": true,
+   "tail": null,
+   "draws": null,
+   "why": "over the depth",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"},\"z\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"
+  },
+  {
+   "name": "standard input that never closes",
+   "close": false,
+   "tail": null,
+   "draws": null,
+   "why": "agy kills it at its next run or at 5 s; nothing is left behind",
+   "raw": "{\"agent_state\":\"idle\",\"context_window\":{\"context_window_size\":1000000,\"current_usage\":null,\"remaining_percentage\":100,\"total_input_tokens\":0,\"total_output_tokens\":0,\"used_percentage\":0},\"conversation_id\":\"\",\"cwd\":\"/Users/example/work/repo\",\"cycle_mode\":\"default\",\"email\":\"person@example.com\",\"exceeds_200k_tokens\":null,\"model\":{\"display_name\":\"Example Model\",\"effort\":\"high\",\"id\":\"example-model\"},\"plan_tier\":\"Example Tier\",\"product\":\"antigravity\",\"quota\":{\"3p-5h\":{\"remaining_fraction\":1,\"reset_in_seconds\":18000,\"reset_time\":\"2030-01-01T05:00:00Z\"},\"3p-weekly\":{\"remaining_fraction\":0.9,\"reset_in_seconds\":518400,\"reset_time\":\"2030-01-07T00:00:00Z\"},\"gemini-5h\":{\"remaining_fraction\":0.75,\"reset_in_seconds\":7200,\"reset_time\":\"2030-01-01T02:00:00Z\"},\"gemini-weekly\":{\"remaining_fraction\":0.6,\"reset_in_seconds\":345600,\"reset_time\":\"2030-01-05T00:00:00Z\"}},\"sandbox\":{\"enabled\":false},\"session_id\":\"7d0f4e0a-0000-4000-8000-00000000a374\",\"terminal_width\":120,\"transcript_path\":\"/Users/example/.example/transcript.jsonl\",\"vcs\":{\"type\":\"git\"},\"version\":\"1.6.0\",\"workspace\":{\"current_dir\":\"/Users/example/work/repo\",\"project_dir\":\"/Users/example/work/repo\"}}"
+  }
+ ]
+}

@@ -33,6 +33,24 @@
  *
  * NO TOKEN REFRESH, EVER, IN THIS PHASE. An expired token draws a plain line
  * saying to run the agent, which is what actually refreshes it.
+ *
+ * PHASE 374, AND THREE RULES A LATER ROUND COULD UNDO WITHOUT NOTICING.
+ *
+ *  - NO PROVIDER IS EVER COMPARED HERE. Everything that differs between two
+ *    providers is one compiled entry in ./providers.ts. "Not claude" meant
+ *    Codex in three places of this file, and a third member sent the Codex
+ *    sign in to the Codex host under its own name. `npm run conformance:usage`
+ *    refuses a comparison on a provider anywhere in this domain.
+ *  - A RECEIVER IS DECIDED BEFORE ANY LOGIN LINE. `run` branches on the entry's
+ *    kind first, so a received row reads no login, claims no slot, moves no
+ *    `lastAttemptAt`, has no retry and reaches neither a credential reader nor
+ *    the transport. Its numbers come from one port, and that port's folder is
+ *    opened only while the switch is on.
+ *  - THE PULSE NEVER MOVES ANOTHER ROW. A received row is the one thing that
+ *    changes with nobody asking on a clock, so its broadcast carries the other
+ *    rows exactly as a window was last ANSWERED. Composing them afresh would
+ *    push a half finished read of Claude's or Codex's to every window, which
+ *    is a face today's build never draws.
  */
 
 import type {
@@ -42,25 +60,22 @@ import type {
   UsageState,
   UsageWindow
 } from '@shared/usage';
-import { USAGE_PROVIDERS, emptyUsageProvider } from '@shared/usage';
+import {
+  USAGE_PROVIDERS,
+  USAGE_STALE_MS,
+  emptyUsageProvider,
+  usageIsReceiver
+} from '@shared/usage';
+import type { UsageWaitingFor } from '@shared/usage';
+import type { LoginProviderId } from '@shared/logins';
 import type { UsageSettings } from '@shared/settings';
-import {
-  claudeUsageHeaders,
-  codexUsageHeaders,
-  CLAUDE_USAGE_HOST,
-  CLAUDE_USAGE_PATH,
-  CODEX_USAGE_HOST,
-  CODEX_USAGE_PATH
-} from './endpoints';
+import type { AntigravityReading } from './antigravity/receive';
+import { antigravityRow, heldReading } from './antigravity/receive';
 import type { CredentialDeps, CredentialResult } from './credentials';
-import { readClaudeCredential, readCodexCredential } from './credentials';
-import {
-  EMPTY_PARSE,
-  boundParsedResets,
-  parseClaudeUsage,
-  parseCodexUsage
-} from './parse';
+import { EMPTY_PARSE, boundParsedResets } from './parse';
 import type { ParsedUsage } from './parse';
+import type { UsageFetchEntry } from './providers';
+import { usageEntry } from './providers';
 import type { TapSample } from './statusline';
 import { decodeConfigKey, normalizeConfigDir, parseTapBody } from './statusline';
 import type { UsageTransport } from './transport';
@@ -69,8 +84,12 @@ import type { UsageTransport } from './transport';
 export const USAGE_POLL_MS = 15 * 60 * 1000;
 /** The floor the refresh control cannot go under. */
 export const USAGE_REFRESH_FLOOR_MS = 60 * 1000;
-/** How long old numbers stay on screen under a glyph after a failure. */
-export const USAGE_STALE_MS = 30 * 60 * 1000;
+/**
+ * How long old numbers stay on screen under a glyph after a failure. The value
+ * is in the shared contract since Phase 374, because a received row ages by the
+ * same one at compose time.
+ */
+export { USAGE_STALE_MS };
 /** The same, after a rate limit, where a longer memory is the kinder answer. */
 export const USAGE_STALE_RATE_LIMITED_MS = 24 * 60 * 60 * 1000;
 /**
@@ -89,6 +108,30 @@ export const USAGE_TAP_DEDUPE_MS = 30 * 1000;
  */
 export const USAGE_SHUTDOWN_JOIN_MS = 1_000;
 
+/**
+ * Where a received row's numbers come from (Phase 374). THERE IS ONE, because
+ * there is one receiver; a second needs a port of its own before it may have a
+ * row (./providers.ts).
+ *
+ * EVERY MEMBER IS CHEAP AND LOCAL. None spawns, none reaches a network, none
+ * opens a credential, and `read` and `mtime` are never called while the switch
+ * is off.
+ */
+export interface UsageReceiverPort {
+  /** The newest reading in the folder, or null. Opens the folder. */
+  read(): AntigravityReading | null;
+  /** Remove every file of it. Called once when the switch is found off. */
+  clear(): void;
+  /** Did a create of this process make a place in it since? Memory alone. */
+  opened(): boolean;
+  /** What a row with no numbers waits for, from the last launch decision. */
+  waiting(): UsageWaitingFor;
+  /** The folder's own modified time, or null when there is no folder. */
+  mtime(): number | null;
+  /** Is a window of Tortie's in front? The pulse looks at nothing otherwise. */
+  focused(): boolean;
+}
+
 export interface UsageServiceDeps {
   credentials: CredentialDeps;
   transport: UsageTransport;
@@ -104,14 +147,17 @@ export interface UsageServiceDeps {
    * install has before a second login is added, so a build with no logins file
    * answers exactly what Phase 181 answered.
    */
-  logins(provider: UsageProviderId): { name: string | null; dir: string | null };
+  logins(provider: LoginProviderId): { name: string | null; dir: string | null };
+  /** The received row's port (Phase 374). Untouched while its switch is off. */
+  receiver: UsageReceiverPort;
   now(): number;
   /** A provider name and a fixed sentence. NEVER a token, a body or a header. */
   log(event: string, fields: Record<string, unknown>): void;
   /**
-   * The held snapshot changed without anybody asking for it (Phase 182).
-   * Only a live tap does that; every other change is the answer to a call the
-   * renderer already made. Absent in tests and in any wiring with no window.
+   * The held snapshot changed without anybody asking for it (Phase 182). A
+   * live tap does that, and since Phase 374 a received row that moved; every
+   * other change is the answer to a call the renderer already made. Absent in
+   * tests and in any wiring with no window.
    */
   onChanged?(snapshot: UsageSnapshot): void;
 }
@@ -140,6 +186,16 @@ export interface UsageService {
    * not the one the body claims; the two are compared here.
    */
   applyTap(sessionId: string, body: string): TapOutcome;
+  /**
+   * Phase 374. One look at the received row, for the registrar's slow clock.
+   * Once something is held it lists the folder only when the folder's own time
+   * moved or the minute did, and it broadcasts only when the row it would draw
+   * changed.
+   *
+   * FALSE MEANS STOP: the switch is off or the service is closed, and nothing
+   * will change until somebody asks again.
+   */
+  pulse(): boolean;
   /**
    * PHASE 200. Close the service as one joined operation: refuse everything
    * from the first line, cancel the request and the keychain child each held
@@ -267,6 +323,8 @@ function viewOf(provider: UsageProviderId, held: Held): UsageProviderSnapshot {
     fiveHour: held.parsed.fiveHour,
     sevenDay: held.parsed.sevenDay,
     scoped: held.parsed.scoped,
+    second: null,
+    waitingFor: null,
     plan: held.parsed.plan,
     login: held.loginName,
     loginChanged: held.state === 'stale' && held.loginChanged,
@@ -327,45 +385,84 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
    */
   let stopped = false;
 
-  async function credentialFor(
-    provider: UsageProviderId,
-    loginDir: string | null
-  ): Promise<CredentialResult> {
-    return provider === 'claude'
-      ? readClaudeCredential(deps.credentials, loginDir)
-      : readCodexCredential(deps.credentials, loginDir);
+  // -------------------------------------------------------------------------
+  // PHASE 374. THE RECEIVED ROW
+  // -------------------------------------------------------------------------
+
+  /** True once a run of this process found the receiver's switch on. */
+  let receiving = false;
+  /** The newest reading met so far, whole. Nothing is merged into it. */
+  let received: AntigravityReading | null = null;
+  /** The folder's time and the minute of the last look, for the pulse. */
+  let lookedMtime: number | null = null;
+  let lookedMinute = -1;
+  /** The rows a window was last answered with, or null before any answer. */
+  let lastAnswered: UsageProviderSnapshot[] | null = null;
+
+  /** Look at the folder once, and hold the newer of what it says and what is held. */
+  function receive(now: number): void {
+    receiving = true;
+    try {
+      lookedMtime = deps.receiver.mtime();
+      lookedMinute = Math.floor(now / 60_000);
+      received = heldReading(received, deps.receiver.read(), now);
+    } catch {
+      // A folder that could not be listed says nothing, so what is held stands
+      // and goes on ageing. It is a convenience and may not fail a read.
+    }
+  }
+
+  /**
+   * THE SWITCH IS OFF. A process that had it on takes the numbers off the face
+   * and removes the files they came from, once. Having it on is a read that
+   * found it on, or a create that made a place before any read did. A process
+   * that never had it on opens nothing here: that folder is the boot's to
+   * sweep, not a read's.
+   */
+  function receiverOff(): void {
+    if (!receiving && !deps.receiver.opened()) return;
+    receiving = false;
+    received = null;
+    lookedMtime = null;
+    lookedMinute = -1;
+    try {
+      deps.receiver.clear();
+    } catch {
+      /* a file that would not go is swept at the next boot */
+    }
+  }
+
+  /** The received row now. PURE over what is held and the clock; it opens nothing. */
+  function receivedRow(provider: UsageProviderId, now: number): UsageProviderSnapshot {
+    return receiving
+      ? antigravityRow(received, now, deps.receiver.waiting())
+      : emptyUsageProvider(provider);
   }
 
   async function fetchProvider(
-    provider: UsageProviderId,
+    entry: UsageFetchEntry,
     loginDir: string | null,
     signal: AbortSignal
   ): Promise<Outcome> {
     let cred: CredentialResult;
     try {
-      cred = await credentialFor(provider, loginDir);
+      cred = await entry.credential(deps.credentials, loginDir);
     } catch {
       return { kind: 'unavailable' };
     }
     if (cred.kind === 'missing') return { kind: 'signed-out' };
     if (cred.kind === 'api-key') return { kind: 'api-key' };
-    const request =
-      provider === 'claude'
-        ? {
-            host: CLAUDE_USAGE_HOST,
-            path: CLAUDE_USAGE_PATH,
-            headers: claudeUsageHeaders(cred.token),
-            signal
-          }
-        : {
-            host: CODEX_USAGE_HOST,
-            path: CODEX_USAGE_PATH,
-            headers: codexUsageHeaders(cred.token, cred.accountId ?? ''),
-            signal
-          };
+    // ONE ENTRY, WHOLE (Phase 374). The host, the headers and the credential
+    // come from the same object, so a token can only go to the vendor whose
+    // reader found it.
     let res;
     try {
-      res = await deps.transport(request);
+      res = await deps.transport({
+        host: entry.host,
+        path: entry.path,
+        headers: entry.headers(cred),
+        signal
+      });
     } catch {
       return { kind: 'unavailable' };
     }
@@ -374,13 +471,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     const body = parseBody(res.body);
     if (body === null) return { kind: 'unavailable' };
     const now = deps.now();
-    const parsed =
-      provider === 'claude'
-        ? // The Claude body names no plan, so the word comes off the login
-          // that was just read. It is a plan and never an identifier: the
-          // credential reader put it through `usagePlanWord` already.
-          { ...parseClaudeUsage(body), plan: cred.plan }
-        : parseCodexUsage(body, now);
+    const parsed = entry.parse(body, cred, now);
     return { kind: 'ok', parsed: boundParsedResets(parsed, now) };
   }
 
@@ -448,10 +539,70 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
   }
 
   function compose(): UsageSnapshot {
+    const at = deps.now();
     return {
-      at: deps.now(),
-      providers: USAGE_PROVIDERS.map((p) => viewOf(p, held.get(p) ?? freshHeld()))
+      at,
+      providers: USAGE_PROVIDERS.map((p) =>
+        usageIsReceiver(p) ? receivedRow(p, at) : viewOf(p, held.get(p) ?? freshHeld())
+      )
     };
+  }
+
+  /** Compose, and remember the rows as what every window was last told. */
+  function answer(): UsageSnapshot {
+    const snapshot = compose();
+    lastAnswered = snapshot.providers;
+    return snapshot;
+  }
+
+  /**
+   * One look at the received row on the registrar's clock (Phase 374 D17, D24).
+   *
+   * NOTHING OF CLAUDE'S OR CODEX'S IS COMPOSED HERE. Their rows are the ones a
+   * window was last answered with, emptied where a switch has gone off since,
+   * so a broadcast this starts can never draw a state that no read answered.
+   * Before any answer there is nothing to repeat and nothing is sent.
+   */
+  function pulse(): boolean {
+    if (stopped) return false;
+    const on = deps.settings();
+    if (!USAGE_PROVIDERS.some((p) => usageIsReceiver(p) && on[p])) {
+      receiverOff();
+      return false;
+    }
+    try {
+      if (!deps.receiver.focused()) return true;
+      const now = deps.now();
+      const minute = Math.floor(now / 60_000);
+      // UNTIL SOMETHING IS HELD EVERY LOOK LISTS. The folder answers nothing
+      // before the boot has said which sessions there are, and a window can ask
+      // before that, so its time not having moved proves nothing yet.
+      if (
+        received !== null &&
+        minute === lookedMinute &&
+        deps.receiver.mtime() === lookedMtime
+      ) {
+        return true;
+      }
+      receive(now);
+      const told = lastAnswered;
+      if (told === null) return true;
+      let moved = false;
+      const providers = told.map((row) => {
+        if (!on[row.provider]) return emptyUsageProvider(row.provider);
+        if (!usageIsReceiver(row.provider)) return row;
+        const fresh = receivedRow(row.provider, now);
+        if (JSON.stringify(fresh) === JSON.stringify(row)) return row;
+        moved = true;
+        return fresh;
+      });
+      if (!moved) return true;
+      lastAnswered = providers;
+      deps.onChanged?.({ at: now, providers });
+    } catch {
+      /* a look that failed changes nothing, and the next one is seconds away */
+    }
+    return true;
   }
 
   /**
@@ -555,7 +706,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     // moving it too would push the first poll after a quiet tap out by a
     // second interval. `retryAfter` is not cleared either: a wait the vendor
     // asked for is not answered by a number that arrived another way.
-    deps.onChanged?.(compose());
+    deps.onChanged?.(answer());
     return 'applied';
   }
 
@@ -570,6 +721,15 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     const now = deps.now();
     const waits: Promise<void>[] = [];
     for (const provider of USAGE_PROVIDERS) {
+      const entry = usageEntry(provider);
+      // PHASE 374. A RECEIVER IS DECIDED FIRST, above every line that reads a
+      // login or claims a slot. Nothing is asked for it, on a read or on a
+      // refresh: one folder of Tortie's own is listed, and only while it is on.
+      if (entry.kind === 'receiver') {
+        if (on[provider]) receive(now);
+        else receiverOff();
+        continue;
+      }
       const h = held.get(provider);
       if (h === undefined) continue;
       if (!on[provider]) {
@@ -597,7 +757,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       // `retryAfter` is deliberately not cleared. A wait the vendor asked for
       // is not answered by a person choosing a different account, and the same
       // vendor is being asked either way.
-      const login = deps.logins(provider);
+      const login = deps.logins(entry.login);
       if (!sameLogin(h.loginName, login.name)) {
         if (h.readAt !== null && hasAnything(h.parsed)) {
           h.state = 'stale';
@@ -636,7 +796,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       // wait out a ten second network deadline.
       const cancel = new AbortController();
       h.cancel = cancel;
-      const job = fetchProvider(provider, login.dir, cancel.signal)
+      const job = fetchProvider(entry, login.dir, cancel.signal)
         .then((outcome) => {
           if (!sameLogin(h.loginName, issuedFor)) {
             // DROPPED WHOLE, and `lastAttemptAt` is deliberately not moved, so
@@ -670,7 +830,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       waits.push(job);
     }
     await Promise.all(waits);
-    return compose();
+    return answer();
   }
 
   /**
@@ -724,6 +884,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     refresh: () => run(true),
     current: () => compose(),
     applyTap,
+    pulse,
     shutdown
   };
 }

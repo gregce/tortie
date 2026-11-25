@@ -167,6 +167,9 @@ export const useUsage = create<UsageStoreState>((set, get) => ({
      * nothing was asked. It costs no request either way, because main holds
      * the numbers already and a live post is what suppresses its poll.
      * A window that never gets one is fifteen minutes behind and never wrong.
+     *
+     * PHASE 374. A row nobody asks for arrives by this same push and by no
+     * other road of its own: the read beside it answers what main holds.
      */
     unwatchUsage = bridge.usage.onChanged?.((snapshot) => set({ snapshot }));
   },

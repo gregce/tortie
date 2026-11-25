@@ -24,6 +24,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { EVT_CAPTURE_NOTICE } from '@shared/ipc';
 import { LOGIN_SIGN_IN_ARGV, loginProviderForAgent } from '@shared/logins';
 import { sanitizeTerminalSize, type TerminalSize } from '@shared/terminal-size';
@@ -48,6 +49,10 @@ import {
   // runs, read off the last resolved scan.
   piInlineFloorFor
 } from '../agents';
+// PHASE 374. The one file-bound version reading the plan meter's flag asks,
+// and the one row read again after a create met a file the scan had not read.
+// Direct, as ../agents/detection is pure Node.
+import { probedVersionFor, rereadAgent } from '../agents/detection';
 // PHASE 23. One lookup, into the merged agent table, in memory. It is used to
 // find a configured agent's binary NAME when the compiled registry has never
 // heard of the id. It grants nothing: the confirm gate lives in
@@ -97,6 +102,11 @@ import * as tmux from '../tmux';
 // Phase 16 (G1, event half): the one "send to every live window" loop, in
 // ../typed-events. Same channels, same payloads, same isDestroyed() guard.
 import { broadcastEvent } from '../typed-events';
+// PHASE 374. The Antigravity plan meter's two tokens for a new session, or
+// none, and the place one session's numbers go. Leaf imports, not the barrel.
+import { antigravityMeterOn, forgetAntigravitySession } from '../usage/antigravity/folder';
+import { antigravityMeterArgs } from '../usage/antigravity/launch';
+import { antigravityShellLine } from '../usage/antigravity/script';
 import type { IdCaptureOptions } from './id-harvest';
 import {
   agentNotFoundMessage,
@@ -826,12 +836,50 @@ export async function createLocalSession(
     resolvedEnv = envProbe.values;
   }
 
+  // PHASE 374 (build/p374/SPEC.md D4 to D9). The Antigravity plan meter's
+  // `--settings`, or nothing, straight after the program on THE ARGV ABOUT TO
+  // START and on nothing else.
+  //
+  // THE POSITION IS THE RULE. The row was written above and its argv, its armed
+  // resume and its env are never touched, so nothing this answers is replayed by
+  // a restore, a Restart, a resume in place or an older Tortie. And it is the
+  // last thing before the spawn, so what it read of the file, of the folder and
+  // of the person's own settings is what stands when agy starts.
+  //
+  // A PROGRAM WITH NOTHING AFTER IT STAYS ONE ELEMENT. tmux hands a command of
+  // one element to the person's shell and starts a command of several itself,
+  // so more elements would take agy off the road that reads their `~/.zshenv`
+  // (the proxy, the certificate file, the key set there). With flags of their
+  // own the argv was several already, and the two tokens go in as elements.
+  //
+  // For every other agent, and with the switch off, `spawnArgv` IS `launchArgv`.
+  // Nothing here awaits, starts anything or throws: any doubt answers `[]` and
+  // the session starts exactly as it starts with the switch off.
+  const meterOn = (input.agent as LaunchableAgentKind) === 'antigravity' && antigravityMeterOn();
+  const probed = meterOn ? probedVersionFor('antigravity', binPath, spawnedBy) : null;
+  const meterArgs = meterOn
+    ? antigravityMeterArgs({
+        sessionId: id,
+        probed,
+        argv: launchArgv,
+        captured: capture !== undefined,
+        home: homedir()
+      })
+    : [];
+  const [program, ...programArgs] = launchArgv;
+  const spawnArgv =
+    program === undefined || meterArgs.length === 0
+      ? launchArgv
+      : programArgs.length === 0
+        ? [antigravityShellLine(program, meterArgs)]
+        : [program, ...meterArgs, ...programArgs];
+
   let info: tmux.TmuxSessionInfo;
   try {
     info = await tmux.createSession({
       displayName: input.name,
       cwd,
-      argv: launchArgv,
+      argv: spawnArgv,
       // PHASE 202. The login layer goes in as its own argument rather than
       // through `spec.env`, because `spec.env` is written into the manifest
       // row verbatim and replayed at restore. The row carries the NAME and
@@ -844,6 +892,8 @@ export async function createLocalSession(
     // Spawn never happened — a lingering row would resurrect a session
     // the user never got.
     deps.createsInFlight.delete(id);
+    // PHASE 374. The place made for its numbers goes with it. Never throws.
+    if (meterArgs.length > 0) forgetAntigravitySession(id);
     deps.manifest.deleteSession(id);
     throw err;
   }
@@ -1019,6 +1069,19 @@ export async function createLocalSession(
       agent: input.agent,
       cwd: cwdReal
     });
+  }
+
+  // PHASE 374 (D8). No reading stood for the file this session runs, because
+  // agy replaced itself since the scan or nothing has been scanned. This session
+  // carries no flag and is not touched. The row is read again now, at most once
+  // for any one file, so the NEXT session does. Not awaited, and never an answer
+  // this create gives.
+  if (meterOn && probed === null) {
+    try {
+      void rereadAgent('antigravity').catch(() => undefined);
+    } catch {
+      /* a reading is a convenience; this session is already running */
+    }
   }
 
   // PHASE 360 (D4). The broadcast reads the session list and the project list

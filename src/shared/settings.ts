@@ -204,9 +204,11 @@ export interface GmuxSettings {
    */
   arch: ArchSettings;
   /**
-   * Which providers' subscription usage the meter reads (Phase 181). BOTH
-   * DEFAULT OFF, and off means nothing at all happens: main opens no
-   * keychain, opens no credentials file and makes no request.
+   * Which providers' subscription usage the meter reads (Phase 181). EVERY ONE
+   * DEFAULTS OFF, and off means nothing at all happens: main opens no
+   * keychain, opens no credentials file, makes no request and, for a row that
+   * is received rather than asked for, opens no folder and adds nothing to a
+   * launch.
    *
    * This value is NOT sealed, and that is a decision rather than an
    * oversight. The seal exists for refusal 8, being that nothing may cause a
@@ -227,6 +229,12 @@ export interface GmuxSettings {
    * boundary refusal 8 draws, being that configuration selects from choices
    * the compiled world already contains. It is also why Tortie refuses to
    * compose a status line command the person's own settings file names.
+   *
+   * PHASE 374 MAKES THE SAME ARGUMENT FOR `antigravity`. On, an Antigravity
+   * session started from then on is handed Tortie's own generated script for
+   * its status line, on its command line and nowhere else. The switch selects
+   * that script and can name nothing. Google was asked whether a program may
+   * show those numbers and has not answered, which Settings says beside it.
    *
    * IT REACHES A SESSION AT ITS NEXT LAUNCH OR RESTORE, because claude reads
    * its settings once at process start. Turning the switch off stops the
@@ -259,7 +267,7 @@ export interface GmuxSettings {
  * an unlabelled maximum is the confusion, so it became a choice a person
  * makes and the five hour window is the shipped answer.
  *
- * ONE SETTING FOR BOTH PROVIDERS. There is no per provider variant, and the
+ * ONE SETTING FOR EVERY PROVIDER. There is no per provider variant, and the
  * hover card goes on naming every window in full whatever this says.
  */
 export type UsageBarWindow = 'five-hour' | 'seven-day' | 'most-used';
@@ -280,17 +288,29 @@ export const DEFAULT_USAGE_BAR_WINDOW: UsageBarWindow = 'five-hour';
 /**
  * The per provider opt in (Phase 181) and the bar's window (Phase 181.2).
  * Absent on every settings file written before its phase: absent reads as off
- * for both switches, and as the five hour window for the bar.
+ * for every switch, and as the five hour window for the bar.
+ *
+ * ANTIGRAVITY'S SWITCH SELECTS A COMPILED SCRIPT (Phase 374) and can name
+ * nothing: no settings field holds a command, a path or a program, and a file
+ * that tried to would be dropped by the reader below like any other value that
+ * is not literally `true`. An OLDER Tortie reading a newer file drops the key
+ * and its next write turns the switch off, which is the safe direction.
  */
 export interface UsageSettings {
   claude: boolean;
   codex: boolean;
+  antigravity: boolean;
   bar: UsageBarWindow;
 }
 
-/** Both meters off, bar on the five hour window. The shipped answer. */
+/** Every meter off, bar on the five hour window. The shipped answer. */
 export function noUsageChosen(): UsageSettings {
-  return { claude: false, codex: false, bar: DEFAULT_USAGE_BAR_WINDOW };
+  return {
+    claude: false,
+    codex: false,
+    antigravity: false,
+    bar: DEFAULT_USAGE_BAR_WINDOW
+  };
 }
 
 /** A stored bar choice, or the shipped one when the value is not a choice. */
@@ -317,6 +337,7 @@ export function sanitizeUsageSettings(raw: unknown): UsageSettings {
   return {
     claude: obj['claude'] === true,
     codex: obj['codex'] === true,
+    antigravity: obj['antigravity'] === true,
     bar: sanitizeUsageBarWindow(obj['bar'])
   };
 }

@@ -45,7 +45,7 @@ function install(): {
   emit(): void;
 } {
   const state = {
-    on: { claude: false, codex: false, bar: 'five-hour' } as UsageSettings,
+    on: { claude: false, codex: false, antigravity: false, bar: 'five-hour' } as UsageSettings,
     reads: 0,
     emit: () => {}
   };

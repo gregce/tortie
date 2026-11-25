@@ -23,6 +23,7 @@ import { parseClaudeUsage, parseCodexUsage } from '../parse';
 import { readClaudeCredential, readCodexCredential } from '../credentials';
 import type { CredentialDeps } from '../credentials';
 import { createUsageService } from '../service';
+import { forbiddenReceiver } from './p374-receiver';
 
 const NOW = Date.UTC(2026, 7, 31, 12, 0, 0);
 
@@ -158,7 +159,7 @@ describe('the Claude usage body names no plan of its own', () => {
 });
 
 describe('what reaches the snapshot', () => {
-  const on: UsageSettings = { claude: true, codex: true, bar: 'five-hour' };
+  const on: UsageSettings = { claude: true, codex: true, antigravity: false, bar: 'five-hour' };
 
   function service(planWord: unknown) {
     return createUsageService({
@@ -186,6 +187,7 @@ describe('what reaches the snapshot', () => {
       settings: () => on,
       // Phase 202: the default login.
       logins: () => ({ name: null, dir: null }),
+      receiver: forbiddenReceiver(),
       now: () => NOW,
       log: () => undefined
     });
@@ -193,12 +195,12 @@ describe('what reaches the snapshot', () => {
 
   it('carries one plain plan word per provider and nothing else', async () => {
     const snap = await service('pro').read();
-    expect(snap.providers.map((p) => p.plan)).toEqual(['max', 'pro']);
+    expect(snap.providers.map((p) => p.plan)).toEqual(['max', 'pro', null]);
   });
 
   it('carries NO identifier even when the plan field holds one', async () => {
     const snap = await service(A_UUID).read();
-    expect(snap.providers.map((p) => p.plan)).toEqual(['max', null]);
+    expect(snap.providers.map((p) => p.plan)).toEqual(['max', null, null]);
     const text = JSON.stringify(snap);
     expect(text).not.toContain(A_UUID);
     expect(text).not.toContain('SENTINEL_EMAIL');
@@ -234,6 +236,10 @@ describe('what the plan gate is handed', () => {
   const ALLOWED: ReadonlyMap<string, string> = new Map([
     ['src/main/usage/credentials.ts', "bag['subscriptionType']"],
     ['src/main/usage/parse.ts', "obj['plan_type']"],
+    // Phase 374. The plan word Tortie's own Antigravity script kept. It holds
+    // letters, digits, spaces, underscores and hyphens, and the script refuses
+    // an address or a dot before it writes one.
+    ['src/main/usage/antigravity/receive.ts', "obj['p']"],
     ['src/renderer/app/usage-copy.ts', 'plan']
   ]);
 
@@ -251,6 +257,9 @@ describe('what the plan gate is handed', () => {
     for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
       a.name.localeCompare(b.name)
     )) {
+      // A dot name is a gate's own copy of a domain, made and removed while the
+      // gate runs, and it is not a production source.
+      if (entry.name.startsWith('.')) continue;
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (entry.name !== '__tests__') productionSources(full, out);

@@ -29,6 +29,7 @@
  */
 
 import type { LoginProviderId } from '@shared/logins';
+import type { UsageProviderId } from '@shared/usage';
 import { useLogins } from '../state/logins';
 import { useUsage } from '../state/usage';
 import { useApp } from '../state/store';
@@ -72,7 +73,7 @@ export interface P202Reading {
   cardOpen: boolean;
   /** Every line the card drew, in order, grouped by provider. */
   cardText: string[];
-  /** The label of every login control the card drew, one per provider group. */
+  /** The label of every login control the card drew, one per group whose provider has logins. */
   cardControls: string[];
   /** The provider each control belongs to, in the same order. */
   cardControlProviders: string[];
@@ -136,7 +137,7 @@ export interface P202Drive {
   /** Forget every toast, so the next sentence read is the next one posted. */
   clearToasts(): Promise<void>;
   /** Turn a provider's meter on, which is a person's own act in Settings. */
-  setUsageOn(provider: 'claude' | 'codex', on: boolean): Promise<void>;
+  setUsageOn(provider: UsageProviderId, on: boolean): Promise<void>;
 }
 
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));

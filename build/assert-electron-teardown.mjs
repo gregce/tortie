@@ -693,13 +693,23 @@ const HELPER = 'electron-run.mjs';
  * the app's PATH, every probed registry row hidden before every launch and
  * `agents:list` read back, no session and no agent started, and every writer,
  * stand-in and app ended by pid in its `finally`.
+ * PHASE 374 RAISED IT BY ONE (193 TO 194), for build/p374/probe-p374.mjs
+ * (`probe:p374`), the meter reading the Antigravity plan from its status line:
+ * Electrons through the helper ONE AT A TIME, the parent's
+ * (`P374_PARENT_CHECKOUT`, required) FIRST, each on a scratch profile, HOME and
+ * ZDOTDIR with HISTFILE=/dev/null and the socket gmux-p374… named as its
+ * `tmuxSocket` (his ruling of 2026-11-02) but for LIFE's first two launches,
+ * whose scratch server outlives the app and which its last launch ends, every
+ * probed registry row but Antigravity's hidden before every launch and
+ * `agents:list` read back, `agy` a compiled stand-in under its bare name, and
+ * every stand-in ended by pid in its `finally`.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 193;
+const HELPER_USER_FLOOR = 194;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

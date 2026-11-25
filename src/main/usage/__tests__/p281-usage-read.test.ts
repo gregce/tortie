@@ -84,6 +84,7 @@ import {
 import type { LoginAccountDeps } from '../login-accounts';
 import { readLoginPresence } from '../login-accounts';
 import { USAGE_POLL_MS, createUsageService } from '../service';
+import { forbiddenReceiver } from './p374-receiver';
 import type { UsageResponse } from '../transport';
 
 // ---------------------------------------------------------------------------
@@ -624,7 +625,7 @@ describe('(c) through the usage service, a fake transport and an injected clock'
     five_hour: { utilization: 12, resets_at: new Date(NOW + 3_600_000).toISOString() },
     seven_day: { utilization: 34, resets_at: new Date(NOW + 86_400_000).toISOString() }
   });
-  const ON: UsageSettings = { claude: true, codex: false, bar: 'five-hour' };
+  const ON: UsageSettings = { claude: true, codex: false, antigravity: false, bar: 'five-hour' };
 
   /** A program whose answer is a file the test rewrites between reads. */
   function switchable(name: string): Program & { answer(mode: string): void } {
@@ -665,6 +666,7 @@ describe('(c) through the usage service, a fake transport and an injected clock'
       },
       settings: () => ON,
       logins: () => ({ name: null, dir: null }),
+      receiver: forbiddenReceiver(),
       now: () => now,
       log: () => undefined
     });

@@ -18,28 +18,104 @@
  * happened and the renderer writes the words (src/renderer/app/usage-copy.ts),
  * which is the house pattern the fold and arch sections already use, and it is
  * also what stops an error string somebody else composed from being drawn.
+ *
+ * TWO KINDS OF PROVIDER (Phase 374). Claude and Codex are ASKED: main reads the
+ * person's own sign in and sends it to the vendor that issued it. Antigravity
+ * is RECEIVED: its own program hands Tortie's script the numbers, main reads
+ * the one small file that script wrote, and nobody is asked for anything. So a
+ * received row has no login, can never be signed out or expired, and can never
+ * have failed to be read. What kind a provider is lives in ONE table,
+ * `src/main/usage/providers.ts`, and the two lookups below say the two facts a
+ * renderer needs of it. Neither is ever a comparison: at the parent of Phase
+ * 374 "not claude" meant Codex in three places, and a third member sent the
+ * Codex sign in to the Codex host under its own name.
  */
 
-/** The two providers Phase 181 reads. Both are the person's own login. */
-export type UsageProviderId = 'claude' | 'codex';
+import type { LoginProviderId } from './logins';
 
-export const USAGE_PROVIDERS: readonly UsageProviderId[] = ['claude', 'codex'];
+/**
+ * Every provider the meter can draw. The first two are the person's own login;
+ * the third has none, and its numbers arrive from the sessions themselves.
+ */
+export type UsageProviderId = 'claude' | 'codex' | 'antigravity';
+
+export const USAGE_PROVIDERS: readonly UsageProviderId[] = [
+  'claude',
+  'codex',
+  'antigravity'
+];
+
+/**
+ * Which login a provider's numbers belong to, or null when it has none (Phase
+ * 374). `LoginProviderId` stays TWO members: widened, a Google login would
+ * fall through to Claude's keychain item on some paths and to Codex's file on
+ * others, with almost nothing failing to compile.
+ *
+ * NULL MEANS NO LOGIN LINE, NO CHOOSE LOGIN AND NO LOGIN FILE ASKED. Every
+ * caller that holds a `UsageProviderId` and wants a login goes through
+ * {@link usageLoginProvider}, which is a lookup and never a comparison.
+ */
+export const USAGE_LOGIN_PROVIDER: Readonly<
+  Record<UsageProviderId, LoginProviderId | null>
+> = {
+  claude: 'claude',
+  codex: 'codex',
+  antigravity: null
+};
+
+/** The login this provider's numbers belong to, or null when it has none. */
+export function usageLoginProvider(p: UsageProviderId): LoginProviderId | null {
+  return USAGE_LOGIN_PROVIDER[p];
+}
+
+/**
+ * Whether a provider's numbers arrive rather than being asked for (Phase 374).
+ * It agrees with the entry's kind in `src/main/usage/providers.ts`, which
+ * `npm run conformance:usage` holds.
+ */
+export const USAGE_RECEIVERS: Readonly<Record<UsageProviderId, boolean>> = {
+  claude: false,
+  codex: false,
+  antigravity: true
+};
+
+/** Do this provider's numbers arrive by themselves, so nothing asks for them? */
+export function usageIsReceiver(p: UsageProviderId): boolean {
+  return USAGE_RECEIVERS[p];
+}
+
+/** How long numbers may stand before the row says they are old. */
+export const USAGE_STALE_MS = 30 * 60 * 1000;
 
 /**
  * What happened on the last attempt for one provider.
  *
- * `off` is the shipped answer for both providers and it is load bearing:
+ * `off` is the shipped answer for every provider and it is load bearing:
  * while a provider is off nothing is read and nothing is sent, so main does
- * not open the keychain, does not open a credentials file and makes no
- * request at all.
+ * not open the keychain, does not open a credentials file, makes no request at
+ * all and opens no folder of received numbers.
+ *
+ * A RECEIVED ROW NEVER SAYS `signed-out`, `expired`, `api-key` OR
+ * `unavailable` (Phase 374): nothing is asked for it, so nothing can have
+ * refused it.
  */
 export type UsageState =
   /** The toggle is off. Nothing was read and nothing was sent. */
   | 'off'
   /** Numbers below are from a successful read. */
   | 'ok'
-  /** The last read failed; the numbers below are the previous ones. */
+  /**
+   * The last read failed; the numbers below are the previous ones. On a
+   * RECEIVED row nothing failed: the numbers are simply older than
+   * {@link USAGE_STALE_MS}, and `readAt` says how old.
+   */
   | 'stale'
+  /**
+   * Phase 374. A received row with nothing to draw yet, either because nothing
+   * has arrived or because every window that did has passed. `waitingFor` says
+   * what it is waiting for, and the renderer writes the words.
+   */
+  | 'waiting'
   /** No credential was found at all. The one state that earns a sign in line. */
   | 'signed-out'
   /** A credential was found and the vendor refused it. Run the agent to refresh. */
@@ -50,6 +126,37 @@ export type UsageState =
   | 'no-windows'
   /** Anything else: no route, a timeout, a body that did not parse. */
   | 'unavailable';
+
+/**
+ * Why a received row has no numbers, as a CODE (Phase 374). It is what the last
+ * launch decision of this process found, and `session` before any launch: a
+ * row that says "start a session" to a person who just started one would be
+ * false, so each of the other answers is the reason that one did not report.
+ */
+export type UsageWaitingFor =
+  /** Nothing has arrived; a new session is what fills it. */
+  | 'session'
+  /** The person has a status line or settings of their own, so Tortie stood aside. */
+  | 'own-status-line'
+  /** The program is too old, or its version could not be read off the file that runs. */
+  | 'version'
+  /** The session is recorded by SpecStory, which holds its command line. */
+  | 'captured'
+  /** The program did not start with it, so this build of it is left alone. */
+  | 'start-failed'
+  /** Tortie could not write its script. */
+  | 'unwritable';
+
+/**
+ * A second pair of windows beside the face's own (Phase 374). Antigravity has
+ * two model groups, each with a five hour and a weekly window; the Gemini group
+ * is the face's and this one is drawn on the hover card alone. It has no bar.
+ */
+export interface UsageSecondGroup {
+  label: string;
+  fiveHour: UsageWindow | null;
+  sevenDay: UsageWindow | null;
+}
 
 /** One window's served number and its reset time. Nothing is computed here. */
 export interface UsageWindow {
@@ -73,14 +180,19 @@ export interface UsageProviderSnapshot {
    * the label is the vendor's own display name.
    */
   scoped: (UsageWindow & { label: string }) | null;
+  /** The second model group, for the card alone (Phase 374). Null on every other provider. */
+  second: UsageSecondGroup | null;
+  /** What a `waiting` row waits for (Phase 374). Null in every other state. */
+  waitingFor: UsageWaitingFor | null;
   /**
    * The plain plan word this login is on, or null when the vendor named none
    * (Phase 181.2). Claude's `subscriptionType` and Codex's `plan_type`, both
-   * measured in docs/research/72 section 8, passed through
-   * `usagePlanWord` before they reach this field.
+   * measured in docs/research/72 section 8, and since Phase 374 the plan word
+   * Antigravity's own payload states, passed through `usagePlanWord` before
+   * they reach this field.
    *
    * WHAT KEEPS AN IDENTIFIER OUT OF HERE IS WHAT MAIN READS, and not the
-   * filter on its own. Main calls `usagePlanWord` on those two plan fields
+   * filter on its own. Main calls `usagePlanWord` on those three plan fields
    * and on nothing else in the tree: `email`, `user_id` and `account_id` sit
    * beside `plan_type` in the same Codex body and are never touched, and
    * Codex's account id goes into a request header and never onto a snapshot.
@@ -117,7 +229,11 @@ export interface UsageProviderSnapshot {
    * across accounts is what makes the difference worth a field.
    */
   loginChanged: boolean;
-  /** Milliseconds since epoch of the read the numbers came from; null if never. */
+  /**
+   * Milliseconds since epoch of the read the numbers came from; null if never.
+   * On a received row it is when the numbers last CHANGED, which is the only
+   * thing that proves they were served again (Phase 374).
+   */
   readAt: number | null;
   /** Milliseconds since epoch before which a refresh is refused, or null. */
   retryAfter: number | null;
@@ -169,6 +285,8 @@ export function emptyUsageProvider(
     fiveHour: null,
     sevenDay: null,
     scoped: null,
+    second: null,
+    waitingFor: null,
     plan: null,
     login: null,
     loginChanged: false,
@@ -230,9 +348,10 @@ export const USAGE_PLAN_MAX = 20;
  * a general identifier detector.
  *
  * SO THE GUARD THAT HOLDS IS WHAT IT IS HANDED. Main calls this on
- * `subscriptionType` off the Claude keychain item and on `plan_type` off the
- * Codex usage body, and on nothing else; the renderer calls it a second time
- * on a plan that already came through here. The address, user id and account
+ * `subscriptionType` off the Claude keychain item, on `plan_type` off the
+ * Codex usage body and, since Phase 374, on the one plan field of the file
+ * Tortie's own Antigravity script writes, and on nothing else; the renderer
+ * calls it a second time on a plan that already came through here. The address, user id and account
  * id in that same Codex body are never read, the organization id arrives in a
  * response header and the account id goes into a request header, and none of
  * them is offered to this function at all. Handing it a field that can hold

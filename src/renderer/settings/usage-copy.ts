@@ -2,7 +2,7 @@
  * Every sentence on the usage group in Settings then Agents (Phase 181, moved
  * here by Phase 181.1), in one file so the copy rules test can read them.
  *
- * JUST ENOUGH WORDS. The resting face is two switches with one line each, and
+ * JUST ENOUGH WORDS. The resting face is three switches with one line each, and
  * the rest of what a person may want to know once sits behind the disclosure
  * at the bottom rather than on the page.
  *
@@ -14,6 +14,12 @@
  * login, nothing is stored, no part of a login reaches a log or a file, and a
  * meter asks every fifteen minutes only while this window is in front, with
  * the refresh control asking now. No promise was dropped to save a line.
+ *
+ * PHASE 374 NARROWED THREE OF THOSE SENTENCES, because a third meter that asks
+ * nobody made each of them false as written: `Nothing is stored` (the file an
+ * Antigravity session writes is a store), `Both addresses` beside three rows,
+ * and `A meter asks every fifteen minutes`. Each now names which meters it is
+ * about, and the promises about Claude and Codex are the ones they were.
  */
 
 export const USAGE_TITLE = 'Usage';
@@ -25,6 +31,19 @@ export const USAGE_CLAUDE_CAPTION =
 export const USAGE_CODEX_LABEL = 'Codex';
 export const USAGE_CODEX_CAPTION =
   'Reads the login Codex already stored and asks OpenAI how much of your plan you have used.';
+
+/**
+ * PHASE 374. The meter that asks nobody, and the one line a person reads before
+ * turning it on. The note is ALWAYS drawn while the row is there, which is the
+ * operator's word of 2026-11-24: the vendor has been asked whether this is
+ * allowed and has not answered, and that is worth knowing while the switch is
+ * still off.
+ */
+export const USAGE_ANTIGRAVITY_LABEL = 'Antigravity';
+export const USAGE_ANTIGRAVITY_CAPTION =
+  'Reads the plan numbers the Antigravity CLI gives its own status line, in sessions you start after this is on. Nothing is asked of Google.';
+export const USAGE_ANTIGRAVITY_NOTE =
+  'Google was asked whether this is allowed and has not answered.';
 
 /**
  * PHASE 219, ITEM 8. The two refusals a person could not see.
@@ -69,13 +88,13 @@ export const USAGE_BAR_MOST_USED = 'Most used';
 
 export const USAGE_ABOUT_OPEN = 'How this works';
 export const USAGE_ABOUT_WHERE =
-  'Only the vendor that issued your login is asked. Both addresses are built in and no setting changes them.';
+  'Claude and Codex ask only the vendor that issued your login. Both addresses are built in and no setting changes them. Antigravity asks nobody.';
 export const USAGE_ABOUT_READONLY =
   'Your login is read, never written, refreshed or copied. Run the agent once to refresh a stale login.';
 export const USAGE_ABOUT_KEPT =
-  'Nothing is stored. Numbers stay in memory until you quit, and no part of your login reaches a log or a file.';
+  "Claude and Codex numbers stay in memory until you quit. Antigravity's stay in Tortie's own folder until you turn that meter off or remove the session. No part of a login reaches a log or a file.";
 export const USAGE_ABOUT_WHEN =
-  'A meter asks every fifteen minutes, and only while this window is in front. The refresh control asks now.';
+  'Claude and Codex ask every fifteen minutes, and only while this window is in front. The refresh control asks now. Antigravity updates as its sessions work.';
 
 /**
  * The logins block (Phase 202).

@@ -18,7 +18,7 @@
  *
  * ## NO CREDENTIAL IS READ, and that is the point of staging
  *
- * Both usage switches stay OFF for the whole run, so main opens no keychain
+ * Every usage switch stays OFF for the whole run, so main opens no keychain
  * item, opens no credentials file and makes no request to any vendor. The
  * numbers come from {@link P1812Drive.stage}, they are written into the same
  * store field main's own read writes, and they are invented: a two window

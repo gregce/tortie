@@ -109,6 +109,17 @@
  * {@link bareNameSpawnFile}, the one resolver, finds that very file by device
  * and inode ({@link bareNameSpawnRuns}). Anything else reads `unread`, and pi
  * starts exactly as it did before this phase. Files are read, never run.
+ *
+ * ## Phase 374: one reading for one launch, and one read again
+ *
+ * The plan meter's inline flag for Antigravity is put on a new session only for
+ * an agy read at its floor, and agy replaces its own file while it runs. So two
+ * doors are added beside the scan. {@link probedVersionFor} answers what was
+ * read of the very file a launch is about to run, by the same identity and the
+ * same walk pi's floor uses, and it decides nothing. {@link rereadAgent} runs
+ * the scan's own probe once more, for one row, once per file, after a create
+ * met a file the scan had not read; its answer never enters a scan. Neither is
+ * asked by any decision about pi.
  */
 
 import {
@@ -529,7 +540,7 @@ function realOf(path: string): string {
  * file (a new inode, a new changed time) even where it keeps the name, the size
  * and, as npm sets every installed file's, the modified time.
  */
-interface FileIdentity {
+export interface FileIdentity {
   readonly real: string;
   readonly dev: number;
   readonly ino: number;
@@ -551,7 +562,7 @@ function fileIdentityOf(path: string): FileIdentity | null {
 }
 
 /** TRUE when two readings are of the same file, unchanged between them. */
-function sameFile(a: FileIdentity, b: FileIdentity): boolean {
+export function sameFile(a: FileIdentity, b: FileIdentity): boolean {
   return (
     a.real === b.real &&
     a.dev === b.dev &&
@@ -802,6 +813,19 @@ export function versionProbeHeld(
 // Scan
 // ---------------------------------------------------------------------------
 
+/** The file one row's names resolve to, and where it was looked for. Filesystem only, never a subprocess. */
+function resolveEntry(
+  entry: DetectableAgentEntry,
+  userPath: string
+): { binPath: string | null; winningBare: string | null; probeDirs: string[] } {
+  const probeDirs = [...expandDirs(entry.extraProbeDirs), ...extraBinDirs()];
+  for (const bin of entry.binaries) {
+    const hit = resolveBinaryAgainst(bin, userPath, probeDirs);
+    if (hit !== null) return { binPath: hit, winningBare: bin, probeDirs };
+  }
+  return { binPath: null, winningBare: null, probeDirs };
+}
+
 async function detectOne(
   entry: DetectableAgentEntry,
   userPath: string,
@@ -813,17 +837,7 @@ async function detectOne(
 
   // Resolve the binary for BOTH kinds (fs-only, no subprocess): IDE entries
   // report it for display, but their installed signal is the store.
-  let binPath: string | null = null;
-  let winningBare: string | null = null;
-  const probeDirs = [...expandDirs(entry.extraProbeDirs), ...extraBinDirs()];
-  for (const bin of entry.binaries) {
-    const hit = resolveBinaryAgainst(bin, userPath, probeDirs);
-    if (hit !== null) {
-      binPath = hit;
-      winningBare = bin;
-      break;
-    }
-  }
+  const { binPath, winningBare, probeDirs } = resolveEntry(entry, userPath);
 
   // The guard against a cast test fixture: the compiled table always carries
   // the field, and a fixture that skipped it reads as "no map", never a throw.
@@ -1144,6 +1158,105 @@ export function piOwnResumeArgv(sessionId: string, launched: readonly string[] =
   }
 }
 
+/**
+ * PHASE 374 (build/p374/SPEC.md D6). One version reading, and the file it was
+ * taken of.
+ */
+export interface ProbedVersion {
+  /** The version line, as the probe read it. Never parsed here. */
+  readonly version: string;
+  /** The real path of that file, every link followed. */
+  readonly real: string;
+  /** What that file was when it was read, and is now. */
+  readonly identity: FileIdentity;
+  /** TRUE when the file itself is the program, and not a script that chooses another one. */
+  readonly native: boolean;
+  /** What was read of every OTHER file of the same name that the scan found, null where nothing was. */
+  readonly copies: readonly (string | null)[];
+}
+
+/**
+ * PHASE 374 (D6). What was last read of THE FILE A LAUNCH IS ABOUT TO RUN, for
+ * one agent, or null when nothing was. `bin` is the absolute file the launch
+ * resolved, and `spawn` is how its pane will start it when it goes by its bare
+ * name, read exactly as {@link piInlineFloorFor} reads it: a pane that would
+ * find another file has no reading.
+ *
+ * Null when no scan and no {@link rereadAgent} read a version, when the probe
+ * was held or answered nothing, and when the file read is not, now, the very
+ * file `bin` names, unchanged (real path, device, inode, size and both times),
+ * which is what an agent that replaces its own file comes to. FILES ARE READ,
+ * NEVER RUN: no scan is started and none is waited on.
+ *
+ * Which version is enough, and whether a script may stand for the program, is
+ * the caller's question. NO pi DECISION ASKS THIS: pi's floor is
+ * {@link piInlineFloorFor} alone (`conformance:agents` 11.11 holds both).
+ */
+export function probedVersionFor(
+  id: string,
+  bin: string | null | undefined,
+  spawn?: BareNameSpawn
+): ProbedVersion | null {
+  if (bin === null || bin === undefined || bin.length === 0) return null;
+  if (spawn !== undefined && !bareNameSpawnRuns(spawn, bin)) return null;
+  const now = fileIdentityOf(bin);
+  if (now === null) return null;
+  const scanned = { agent: lastScan?.agents.find((a) => a.id === id), readFrom: lastReadFrom.get(id) };
+  for (const one of [scanned, rereads.get(id)]) {
+    const version = one?.agent?.version ?? null;
+    if (version === null || one?.readFrom === undefined || !sameFile(one.readFrom, now)) continue;
+    const copies = (one.agent?.shadowed ?? []).map((copy) => copy.version);
+    return { version, real: now.real, identity: now, native: one.agent?.runtime?.kind === 'binary', copies };
+  }
+  return null;
+}
+
+/** PHASE 374. What {@link rereadAgent} read, by agent id, kept BESIDE the scan and never inside it. */
+const rereads = new Map<string, { readonly agent: DetectedAgent; readonly readFrom: FileIdentity }>();
+/** PHASE 374. The files a reread was already asked of in this process. */
+const rereadAsked = new Set<string>();
+
+/**
+ * PHASE 374 (D8). Read ONE agent's version again, because the file it resolves
+ * to is not the one the scan read.
+ *
+ * The scan is memoised for the life of the process and some agents replace
+ * their own file while Tortie runs, so without this one such update would leave
+ * {@link probedVersionFor} with no reading until Tortie restarts. It is the
+ * probe the scan runs, through {@link detectOne}, for this one row, AT MOST
+ * ONCE FOR ANY ONE FILE, with Phase 335's hold in front of it unchanged. It
+ * starts nothing when a scan in flight or already resolved read this very file,
+ * when the agent is not found, and when the file was asked of before.
+ *
+ * The answer is kept beside the scan and read by {@link probedVersionFor}
+ * alone: no list, no row of a scan and no recorded version moves because of it,
+ * so every other reader of a scan reads what it read before this phase. It is
+ * asked by a create, after that create answered, and it never rejects.
+ */
+export async function rereadAgent(id: string): Promise<void> {
+  try {
+    const entry = agentTable().find((e) => e.id === id);
+    if (entry === undefined || entry.kind === 'ide' || entry.versionProbe === null) return;
+    // A scan on its way may be about to read this file.
+    if (scanPromise !== null) await scanPromise.catch(() => undefined);
+    const userPath = await getUserPath();
+    const { binPath } = resolveEntry(entry, userPath);
+    const now = binPath === null ? null : fileIdentityOf(binPath);
+    if (now === null) return;
+    const read = lastReadFrom.get(id);
+    if (read !== undefined && sameFile(read, now)) return;
+    const key = JSON.stringify(now);
+    if (rereadAsked.has(key)) return;
+    rereadAsked.add(key);
+    const readFrom = new Map<string, FileIdentity>();
+    const agent = await detectOne(entry, userPath, readFrom);
+    const identity = readFrom.get(id);
+    if (identity !== undefined) rereads.set(id, { agent, readFrom: identity });
+  } catch (err) {
+    agentsLog.warn(`agent detection: '${id}' could not be read again: ${String((err as Error | undefined)?.message)}`);
+  }
+}
+
 /** Drop the cache and re-probe everything (Settings re-scan); a harness launch probes only what it named (Phase 335). */
 export function rescanAgents(): Promise<AgentsScanResult> {
   scanPromise = scanAgents();
@@ -1179,5 +1292,7 @@ export function resetDetectionCache(): void {
   // above the last line, which `conformance:harnessprobes` A8 anchors on.
   firstAnswer = freshFirstAnswer();
   lastReadFrom = new Map();
+  rereads.clear();
+  rereadAsked.clear();
   scanStarts = 0;
 }

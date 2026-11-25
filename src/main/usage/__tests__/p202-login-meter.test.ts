@@ -27,6 +27,7 @@ import {
   type CredentialDeps
 } from '../credentials';
 import { createUsageService } from '../service';
+import { forbiddenReceiver } from './p374-receiver';
 import type { UsageRequest, UsageResponse } from '../transport';
 
 const NOW = 1_790_000_000_000;
@@ -36,7 +37,7 @@ const CLAUDE_BODY = JSON.stringify({
   seven_day: { utilization: 34, resets_at: new Date(NOW + 86_400_000).toISOString() }
 });
 
-const ON: UsageSettings = { claude: true, codex: false, bar: 'five-hour' };
+const ON: UsageSettings = { claude: true, codex: false, antigravity: false, bar: 'five-hour' };
 
 interface Seen {
   services: string[];
@@ -73,6 +74,7 @@ function build(
     },
     settings: () => ON,
     logins: () => login(),
+    receiver: forbiddenReceiver(),
     now,
     log: () => undefined
   });
@@ -203,6 +205,7 @@ describe('a login that moved', () => {
       },
       settings: () => ON,
       logins: () => chosen,
+      receiver: forbiddenReceiver(),
       now: () => NOW,
       log: () => undefined
     });
@@ -296,6 +299,7 @@ describe('a read issued for the login you left', () => {
       },
       settings: () => ON,
       logins: () => chosen,
+      receiver: forbiddenReceiver(),
       now: () => clock,
       log: () => undefined
     });
@@ -415,6 +419,7 @@ describe('the default login still means Tortie own environment', () => {
       }),
       settings: () => ON,
       logins: () => login(),
+      receiver: forbiddenReceiver(),
       now: () => NOW,
       log: () => undefined
     });

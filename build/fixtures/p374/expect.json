@@ -1,0 +1,332 @@
+{
+ "note": "What a reader must hold after each run, from invented values alone.",
+ "launch": {
+  "runs": 42,
+  "withQuota": 39,
+  "writes": 4,
+  "perRun": [
+   {
+    "run": 1,
+    "wrote": false,
+    "held": null
+   },
+   {
+    "run": 2,
+    "wrote": false,
+    "held": null
+   },
+   {
+    "run": 3,
+    "wrote": false,
+    "held": null
+   },
+   {
+    "run": 4,
+    "wrote": true,
+    "held": "\"p\":null,\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 5,
+    "wrote": false,
+    "held": "\"p\":null,\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 6,
+    "wrote": true,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 7,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 8,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 9,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 10,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 11,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 12,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 13,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7125,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.64,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 14,
+    "wrote": true,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 15,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 16,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 17,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 18,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 19,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 20,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 21,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 22,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 23,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 24,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 25,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 26,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 27,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 28,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 29,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 30,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 31,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 32,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 33,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 34,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 35,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 36,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 37,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 38,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 39,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 40,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 41,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.7011,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.6338,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:13:05Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:13:05Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 42,
+    "wrote": true,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.70104,\"r\":\"2030-01-01T03:11:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.63378,\"r\":\"2030-01-06T02:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:14:20Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:14:20Z\",\"d\":null,\"a\":false}}}"
+   }
+  ]
+ },
+ "resume": {
+  "runs": 21,
+  "withQuota": 15,
+  "writes": 6,
+  "perRun": [
+   {
+    "run": 1,
+    "wrote": false,
+    "held": null
+   },
+   {
+    "run": 2,
+    "wrote": false,
+    "held": null
+   },
+   {
+    "run": 3,
+    "wrote": false,
+    "held": null
+   },
+   {
+    "run": 4,
+    "wrote": true,
+    "held": "\"p\":null,\"q\":{\"gemini-5h\":{\"f\":0.5281,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8412,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 5,
+    "wrote": false,
+    "held": "\"p\":null,\"q\":{\"gemini-5h\":{\"f\":0.5281,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8412,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 6,
+    "wrote": true,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 7,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 8,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 9,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 10,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 11,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 12,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 13,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 14,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 15,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 16,
+    "wrote": false,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:00:00Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:00:00Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 17,
+    "wrote": true,
+    "held": "\"p\":null,\"q\":{\"gemini-5h\":{\"f\":0.52804,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.84116,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:01:45Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:01:45Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 18,
+    "wrote": false,
+    "held": "\"p\":null,\"q\":{\"gemini-5h\":{\"f\":0.52804,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.84116,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:01:45Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:01:45Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 19,
+    "wrote": true,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.52804,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.84116,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:01:45Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:01:45Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 20,
+    "wrote": true,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.5263,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.8373,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:01:45Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:01:45Z\",\"d\":null,\"a\":false}}}"
+   },
+   {
+    "run": 21,
+    "wrote": true,
+    "held": "\"p\":\"Example Tier\",\"q\":{\"gemini-5h\":{\"f\":0.52804,\"r\":\"2030-01-01T02:23:00Z\",\"d\":null,\"a\":false},\"gemini-weekly\":{\"f\":0.84116,\"r\":\"2030-01-07T04:00:00Z\",\"d\":null,\"a\":false},\"3p-5h\":{\"f\":1,\"r\":\"2030-01-01T05:01:45Z\",\"d\":null,\"a\":false},\"3p-weekly\":{\"f\":1,\"r\":\"2030-01-08T00:01:45Z\",\"d\":null,\"a\":false}}}"
+   }
+  ]
+ }
+}

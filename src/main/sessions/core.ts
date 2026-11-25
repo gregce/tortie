@@ -93,6 +93,11 @@ import { faultPoint } from '../fault/inject';
 import { unwatchGitRepo } from '../git';
 // Phase 182. One call, and it is what a usage tap post does.
 import { applyUsageTap } from '../usage';
+// PHASE 374. The Antigravity plan meter's three lifetimes: the boot sweep, a
+// removed session's file, and a start that failed. Leaves; none of the three
+// throws, starts anything or sets a status.
+import { bootAntigravityUsage, forgetAntigravitySession } from '../usage/antigravity/folder';
+import { noteAntigravityDeath } from '../usage/antigravity/launch';
 import {
   claimConversationId,
   closeCodexState,
@@ -1806,6 +1811,15 @@ export class GmuxCore {
    * feature (research 18 §3).
    */
   private async startHookChannel(): Promise<void> {
+    // PHASE 374. Above the early return, because this folder has nothing to do
+    // with the hooks. The ids are asked again at every listing, and a removed
+    // row counts as none.
+    bootAntigravityUsage(() =>
+      this.manifest
+        .listSessions()
+        .filter((rec) => rec.status !== 'discarded')
+        .map((rec) => rec.id)
+    );
     if (!hooksEnabled()) return;
     const preferred = readPreferredHookPort();
     const port = await this.hookServer.start(preferred).catch(() => 0);
@@ -2796,6 +2810,9 @@ export class GmuxCore {
     try {
       const rec = this.manifest.getSession(sessionId);
       if (!rec || rec.status === 'exited') return; // gmux's own kill got here first
+      // PHASE 374. Before the awaits below, so the time since the start is the
+      // time it died in. It reads the reaper's two facts and nothing else.
+      noteAntigravityDeath(sessionId, exitCode, deadSignal);
       this.attachHost.detach(sessionId); // expected teardown, not a surprise
       // F1: a session we cannot bind to a live tmux id is not ours. Record the
       // death, kill NOTHING.
@@ -4022,6 +4039,7 @@ export class GmuxCore {
     this.resumeInPlace.forget(sessionId);
     this.hookServer.revoke(sessionId);
     void deleteSnapshot(sessionId).catch(() => undefined);
+    forgetAntigravitySession(sessionId); // PHASE 374: its plan numbers go with it
     rm(claudeHookSettingsPath(sessionId), { force: true }).catch(
       () => undefined
     );

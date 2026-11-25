@@ -3491,6 +3491,12 @@ function p350PackageFindings(texts) {
 // requires the guard to name neither term, and the create to hold the folder back,
 // because the walk is only the file that runs while the pane starts where it walks.
 //
+// PHASE 374 (build/p374/SPEC.md D7) ADMITS A SECOND CALLER OF THE COMPARISON, and
+// names it: `probedVersionFor`, the Antigravity plan meter's reading of the file a
+// launch runs, which asks it once as a gate answering null before it looks at any
+// version, over the very spawn pi's floor is handed. And no decision about pi asks
+// that reader: its one production call is the create's, of 'antigravity'.
+//
 // DRIVEN: the probe plants a world (a global npm pi; projects holding their own pi
 // as npm and pnpm install it, behind every relative and empty PATH entry and a
 // binstub; a second link, a hard link and a linked folder to the global file; a
@@ -3502,6 +3508,8 @@ function p350PackageFindings(texts) {
 
 /** The resolver and the comparison, by name. */
 const P350_SPAWN_FNS = ['bareNameSpawnFile', 'bareNameSpawnRuns'];
+/** PHASE 374. The comparison's second and last caller, in detection.ts: a reading for a launch, never pi's. */
+const P374_READER = 'probedVersionFor';
 /** What neither may call: a process or a scan, this process's folder, a normalised or case-folded path, a real path's text. */
 const P350_SPAWN_FORBIDDEN = new Set([
   ...P350_STARTERS, 'cwd', 'chdir', 'resolve', 'normalize', 'join', 'realpathSync', 'realpath',
@@ -3618,6 +3626,47 @@ function p353CreateHoldsFolderFindings(texts) {
       ];
 }
 
+/**
+ * PHASE 374 (build/p374/SPEC.md D7). The second caller holds the same rule pi's floor does: one ask, of its own
+ * spawn and the binary it was handed, as a gate answering null ahead of the first version it reads; and it is asked
+ * by the create alone, of 'antigravity', with the create's own binary and spawn, so no pi decision reads it.
+ */
+function p374ReaderFindings(texts, reader, inside) {
+  const out = [];
+  if (reader?.body === undefined) return [`${P350_DETECTION} no longer declares ${P374_READER}`];
+  if (inside.length !== 1) out.push(`${P374_READER} asks bareNameSpawnRuns ${String(inside.length)} times, not once`);
+  const gate = reader.body.statements.find(
+    (s) =>
+      ts.isIfStatement(s) &&
+      s.elseStatement === undefined &&
+      s.expression.getText().replace(/\s+/g, ' ') === 'spawn !== undefined && !bareNameSpawnRuns(spawn, bin)' &&
+      ts.isReturnStatement(s.thenStatement) &&
+      s.thenStatement.expression?.kind === ts.SyntaxKind.NullKeyword
+  );
+  if (gate === undefined) out.push(`${P374_READER} does not answer null when the pane's lookup does not find bin (\`if (spawn !== undefined && !bareNameSpawnRuns(spawn, bin)) return null;\`)`);
+  else {
+    const early = p350OwnNodes(reader.body).find((n) => ts.isIdentifier(n) && ['lastScan', 'lastReadFrom', 'rereads', 'version'].includes(n.text) && n.getStart() < gate.getStart());
+    if (early !== undefined) out.push(`${P374_READER} reads ${early.text} before it asks how the pane will run the binary`);
+  }
+  for (const [rel, text] of texts) {
+    const sf = p350Parse(rel, text);
+    const nodes = p350NodesOf(sf);
+    for (const n of nodes) {
+      if (!ts.isIdentifier(n) || n.text !== P374_READER || p350InImportOrExport(n) || (ts.isFunctionDeclaration(n.parent) && n.parent.name === n)) continue;
+      const at = `${rel}:${String(p350Line(sf, n))}`;
+      if (!(ts.isCallExpression(n.parent) && n.parent.expression === n)) {
+        out.push(`${P374_READER} is named at ${at} without being called, so which decision reads it cannot be told`);
+        continue;
+      }
+      const args = n.parent.arguments.map((a) => a.getText());
+      if (rel !== P350_CREATE) out.push(`${P374_READER} is asked at ${at}: only the create asks it, and no decision about pi does`);
+      else if (args[0] !== "'antigravity'") out.push(`the create asks ${P374_READER} of ${args[0] ?? 'nothing'} at ${at}, not of 'antigravity': pi's floor is piInlineFloorFor alone`);
+      else if (args.slice(1).join(', ') !== 'binPath, spawnedBy') out.push(`the create asks ${P374_READER} of (${args.slice(1).join(', ')}) at ${at}, not of the binary it records as its pane will run it (binPath, spawnedBy)`);
+    }
+  }
+  return out;
+}
+
 /** 11.11 by its shape: one resolver, one comparison by identity, one gate, and the create asking it. */
 function p350SpawnSourceFindings(texts) {
   const out = [];
@@ -3692,7 +3741,10 @@ function p350SpawnSourceFindings(texts) {
   if (floorFor?.body === undefined) out.push(`${P350_DETECTION} no longer declares piInlineFloorFor`);
   else {
     const own = p350OwnNodes(floorFor.body);
-    for (const c of calls.bareNameSpawnRuns.filter((x) => !own.includes(x.n))) out.push(`bareNameSpawnRuns is called at ${c.rel}:${String(p350Line(c.sf, c.n))}, outside piInlineFloorFor, its one caller`);
+    const reader = p350Fn(p350Parse(P350_DETECTION, texts.get(P350_DETECTION) ?? ''), P374_READER);
+    const readerOwn = reader?.body === undefined ? [] : p350OwnNodes(reader.body);
+    for (const c of calls.bareNameSpawnRuns.filter((x) => !own.includes(x.n) && !readerOwn.includes(x.n))) out.push(`bareNameSpawnRuns is called at ${c.rel}:${String(p350Line(c.sf, c.n))}, outside piInlineFloorFor and ${P374_READER}, its two callers`);
+    out.push(...p374ReaderFindings(texts, reader, calls.bareNameSpawnRuns.filter((x) => readerOwn.includes(x.n))));
     const inside = calls.bareNameSpawnRuns.filter((x) => own.includes(x.n));
     const param = floorFor.parameters[1];
     if (param === undefined || !ts.isIdentifier(param.name) || param.name.text !== 'spawn' || param.questionToken === undefined) out.push("piInlineFloorFor takes no optional second parameter `spawn`, so a create cannot say how its pane will run pi");
@@ -3896,7 +3948,7 @@ const p350Data = data.p350 ?? null;
     {
       // HIS RULING OF 2026-11-02, THE SECOND RULED ROUND: see the block above p350SpawnSourceFindings.
       rule: '11.11',
-      name: "the file that runs: one resolver from the session's own folder, one comparison by device and inode, one gate, and the create asking it",
+      name: "the file that runs: one resolver from the session's own folder, one comparison by device and inode, one gate in each of its two callers, and the create asking them",
       findings: () => [...p350SpawnSourceFindings(texts), ...p350SpawnDrivenFindings(p350Data)],
       attacks: [
         // The source, broken one clause at a time.
@@ -3906,6 +3958,15 @@ const p350Data = data.p350 ?? null;
         ["the spawn walking a PATH that is not the pane's", () => p350With(texts, P350_CREATE, (s) => s.replace('path: panePath,', "path: '',"))],
         ['a second resolver', () => p350With(texts, P350_RESTORE, (s) => `${s}\nexport function bareNameSpawnFile(): null {\n  return null;\n}\n`)],
         ['the comparison asked outside the floor reader', () => p350With(texts, P350_RESTORE, (s) => `${s}\nexport const p350SpawnSelfTest = (bin: string): boolean => bareNameSpawnRuns({ name: 'pi', path: '', folder: '/' }, bin);\n`)],
+        // PHASE 374: the second caller, broken one clause at a time, and asked where it may not be.
+        ["the gate taken out of probedVersionFor", () => p350With(texts, P350_DETECTION, (s) => s.replace('  if (spawn !== undefined && !bareNameSpawnRuns(spawn, bin)) return null;\n', ''))],
+        ['probedVersionFor reading a version before its gate', () => p350With(texts, P350_DETECTION, (s) => s.replace('  if (spawn !== undefined && !bareNameSpawnRuns(spawn, bin)) return null;\n', '  if (lastReadFrom.get(id) === undefined) return null;\n  if (spawn !== undefined && !bareNameSpawnRuns(spawn, bin)) return null;\n'))],
+        ['probedVersionFor asking of another binary', () => p350With(texts, P350_DETECTION, (s) => s.replace('!bareNameSpawnRuns(spawn, bin)) return null;', "!bareNameSpawnRuns(spawn, lastReadFrom.get(id)?.real ?? '')) return null;"))],
+        ['a third caller of the comparison', () => p350With(texts, P350_DETECTION, (s) => `${s}\nexport const p374SelfTest = (bin: string): boolean => bareNameSpawnRuns({ name: 'agy', path: '', folder: '/' }, bin);\n`)],
+        ['pi asked of probedVersionFor', () => p350With(texts, P350_CREATE, (s) => s.replace("probedVersionFor('antigravity', binPath, spawnedBy)", "probedVersionFor('pi', binPath, spawnedBy)"))],
+        ['a restore asking probedVersionFor', () => p350With(texts, P350_RESTORE, (s) => `${s}\nexport const p374RestoreSelfTest = (bin: string): boolean => probedVersionFor('antigravity', bin) !== null;\n`)],
+        ['the create asking probedVersionFor with no spawn', () => p350With(texts, P350_CREATE, (s) => s.replace("probedVersionFor('antigravity', binPath, spawnedBy)", "probedVersionFor('antigravity', binPath)"))],
+        ['probedVersionFor handed on by name', () => p350With(texts, P350_CREATE, (s) => `${s}\nexport const p374Handed = { read: probedVersionFor };\n`)],
         ['the resolver normalising its candidate', () => p350With(texts, P350_DETECTION, (s) => s.replace('    const at = `${dir}/${name}`;\n', '    const at = join(dir, name);\n'))],
         ['the comparison reading real paths', () => p350With(texts, P350_DETECTION, (s) => s.replace('    const st = statSync(bin, { bigint: true });\n    return st.dev === runs.dev && st.ino === runs.ino;\n', '    return realpathSync(bin) === realpathSync(runs.at);\n'))],
         // PHASE 353: his rulings' two terms, put back, each red; and the guard's own absolute-folder term taken out.

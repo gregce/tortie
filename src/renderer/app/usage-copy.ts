@@ -13,19 +13,22 @@
  * one of these is one short line.
  */
 
-import type { UsageProviderId, UsageState } from '@shared/usage';
+import { formatAge } from '@shared/age';
+import type { UsageProviderId, UsageState, UsageWaitingFor } from '@shared/usage';
 import { boundUsageReset, clampUsagePercent, usagePlanWord } from '@shared/usage';
 
 /** The vendor names, as a person knows them. */
 export const USAGE_PROVIDER_LABEL: Record<UsageProviderId, string> = {
   claude: 'Claude',
-  codex: 'Codex'
+  codex: 'Codex',
+  antigravity: 'Antigravity'
 };
 
 /** The agent a person runs, which is what refreshes the login. */
 export const USAGE_AGENT_LABEL: Record<UsageProviderId, string> = {
   claude: 'Claude Code',
-  codex: 'Codex'
+  codex: 'Codex',
+  antigravity: 'Antigravity CLI'
 };
 
 /** The two window labels. Short because the strip is narrow. */
@@ -93,13 +96,50 @@ export function usageOtherLoginsLine(counts: Map<string, number>): string {
   return parts.join(', ');
 }
 
+/**
+ * Why a receiver has nothing to draw yet (Phase 374).
+ *
+ * A RECEIVER IS ASKED NOTHING, so `signed-out` and `expired` are not things
+ * this app can know about one and neither is ever said. Main names the reason
+ * of the last launch decision and these are its words, one line each, so a
+ * person reading an empty row knows what would fill the row or what is in the
+ * way. A Record rather than a switch, so a reason main learns to name is a
+ * compile error here until somebody writes its sentence.
+ */
+export const USAGE_WAITING_LINE: Record<UsageWaitingFor, string> = {
+  session: 'Shows after a new Antigravity session starts.',
+  'own-status-line': 'Your own Antigravity status line or settings are in use.',
+  version: 'Needs Antigravity CLI 1.4.10 or later.',
+  captured: 'A session SpecStory captures does not report its plan.',
+  'start-failed':
+    'A new Antigravity session ended at once, so this row waits for the next Antigravity update, or until this meter is turned off and on.',
+  unwritable: 'Tortie could not write its status line script.'
+};
+
+/**
+ * `Last reported 42m ago`, the stale mark of a row nobody asks for (Phase
+ * 374). `Last read failed` would be false there: nothing was read and nothing
+ * failed, the sessions that report have simply said nothing since.
+ *
+ * Never `now ago`: main calls a row stale only past half an hour, and a clock
+ * that moved backwards between the two processes reads as one minute.
+ */
+export function usageReportedLine(readAt: number | null, now: number): string {
+  if (readAt === null || !Number.isFinite(readAt)) return '';
+  const age = formatAge(Math.min(readAt, now - 60_000), now);
+  return `Last reported ${age} ago`;
+}
+
 /** The one line hover says when a provider has no numbers to draw. */
 export function usageStateLine(
   provider: UsageProviderId,
-  state: UsageState
+  state: UsageState,
+  waitingFor: UsageWaitingFor | null = null
 ): string {
   const agent = USAGE_AGENT_LABEL[provider];
   switch (state) {
+    case 'waiting':
+      return USAGE_WAITING_LINE[waitingFor ?? 'session'];
     case 'signed-out':
       return `Sign in with ${agent} to see usage.`;
     case 'expired':

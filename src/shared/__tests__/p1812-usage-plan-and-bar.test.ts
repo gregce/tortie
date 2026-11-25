@@ -9,7 +9,7 @@
  * being any short word of that shape INCLUDING an identifier shaped one. The
  * second set is the one that matters, because a reader who saw only the first
  * would conclude the gate can be handed a field that holds an identifier, and
- * it cannot. What keeps one off the card is that main reads two plan fields
+ * it cannot. What keeps one off the card is that main reads three plan fields
  * and no others, which `src/main/usage/__tests__/p1812-plan.test.ts` pins.
  *
  * Every value below is invented for this file. Nothing here is read from a
@@ -57,6 +57,7 @@ describe('the bar window a settings file may name', () => {
     expect(sanitizeUsageSettings({ claude: true, codex: true })).toEqual({
       claude: true,
       codex: true,
+      antigravity: false,
       bar: 'five-hour'
     });
   });
@@ -65,6 +66,23 @@ describe('the bar window a settings file may name', () => {
     expect(sanitizeUsageSettings({ claude: true, codex: false, bar: 9 })).toEqual({
       claude: true,
       codex: false,
+      antigravity: false,
+      bar: 'five-hour'
+    });
+  });
+
+  it('keeps the third switch only when it is literally true (Phase 374)', () => {
+    expect(noUsageChosen().antigravity).toBe(false);
+    expect(sanitizeUsageSettings({ antigravity: true }).antigravity).toBe(true);
+    for (const odd of ['true', 1, {}, [], null, undefined, false, 'agy', { on: true }]) {
+      expect(sanitizeUsageSettings({ antigravity: odd }).antigravity).toBe(false);
+    }
+    // A file written before the phase has no such key, and nothing a newer or
+    // a stranger's file puts beside the switches survives the reader.
+    expect(sanitizeUsageSettings({ claude: true, command: '/bin/sh' })).toEqual({
+      claude: true,
+      codex: false,
+      antigravity: false,
       bar: 'five-hour'
     });
   });

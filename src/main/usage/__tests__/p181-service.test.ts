@@ -22,6 +22,7 @@ import {
   USAGE_STALE_MS,
   createUsageService
 } from '../service';
+import { forbiddenReceiver } from './p374-receiver';
 
 const CLAUDE_BODY = JSON.stringify({
   five_hour: { utilization: 2, resets_at: '2026-08-31T20:00:00.000000+00:00' },
@@ -76,7 +77,7 @@ function harness(over: Partial<Harness> = {}): Harness {
     credentialCalls: 0,
     logs: [] as string[],
     now: 1_000_000,
-    on: { claude: true, codex: true, bar: 'five-hour' } as UsageSettings,
+    on: { claude: true, codex: true, antigravity: false, bar: 'five-hour' } as UsageSettings,
     respond: (req: UsageRequest): UsageResponse => ({
       status: 200,
       body: req.host === 'api.anthropic.com' ? CLAUDE_BODY : CODEX_BODY,
@@ -109,6 +110,7 @@ function harness(over: Partial<Harness> = {}): Harness {
     // Phase 202: the DEFAULT login, which is what every install has before a
     // second one is added, so these cases read exactly what Phase 181 read.
     logins: () => ({ name: null, dir: null }),
+    receiver: forbiddenReceiver(),
     now: () => h.now,
     log: (event) => h.logs.push(event)
   });
@@ -118,24 +120,24 @@ function harness(over: Partial<Harness> = {}): Harness {
 describe('THE NEGATIVE CONTROL: a switch that is off', () => {
   it('reads no credential and sends no request, over a reader that throws', async () => {
     const h = harness({
-      on: { claude: false, codex: false, bar: 'five-hour' },
+      on: { claude: false, codex: false, antigravity: false, bar: 'five-hour' },
       credentials: forbidden()
     });
     const snap = await h.service.read();
     expect(h.sent).toEqual([]);
-    expect(snap.providers.map((p) => p.state)).toEqual(['off', 'off']);
+    expect(snap.providers.map((p) => p.state)).toEqual(['off', 'off', 'off']);
     expect(snap.providers.every((p) => p.fiveHour === null)).toBe(true);
   });
 
   it('sends nothing for the OFF provider while the other one is on', async () => {
-    const h = harness({ on: { claude: true, codex: false, bar: 'five-hour' } });
+    const h = harness({ on: { claude: true, codex: false, antigravity: false, bar: 'five-hour' } });
     await h.service.read();
     expect(h.sent.map((r) => r.host)).toEqual(['api.anthropic.com']);
   });
 
   it('sends nothing even when the person presses refresh', async () => {
     const h = harness({
-      on: { claude: false, codex: false, bar: 'five-hour' },
+      on: { claude: false, codex: false, antigravity: false, bar: 'five-hour' },
       credentials: forbidden()
     });
     await h.service.refresh();
@@ -145,7 +147,7 @@ describe('THE NEGATIVE CONTROL: a switch that is off', () => {
   it('takes the numbers off the screen the moment a switch goes off', async () => {
     const h = harness();
     expect((await h.service.read()).providers[0]?.fiveHour?.percent).toBe(2);
-    h.on = { claude: false, codex: false, bar: 'five-hour' };
+    h.on = { claude: false, codex: false, antigravity: false, bar: 'five-hour' };
     const snap = await h.service.read();
     expect(snap.providers[0]).toEqual({
       provider: 'claude',
@@ -153,6 +155,8 @@ describe('THE NEGATIVE CONTROL: a switch that is off', () => {
       fiveHour: null,
       sevenDay: null,
       scoped: null,
+      second: null,
+      waitingFor: null,
       plan: null,
       // Phase 202: the default login, which is what this harness reads.
       login: null,
@@ -166,11 +170,11 @@ describe('THE NEGATIVE CONTROL: a switch that is off', () => {
 
 describe('the switch is answered at once, and the floor still holds', () => {
   it('asks as soon as a provider is switched on, not fifteen minutes later', async () => {
-    const h = harness({ on: { claude: false, codex: false, bar: 'five-hour' } });
+    const h = harness({ on: { claude: false, codex: false, antigravity: false, bar: 'five-hour' } });
     await h.service.read();
     expect(h.sent).toEqual([]);
 
-    h.on = { claude: true, codex: false, bar: 'five-hour' };
+    h.on = { claude: true, codex: false, antigravity: false, bar: 'five-hour' };
     const snap = await h.service.read();
 
     expect(h.sent.map((r) => r.host)).toEqual(['api.anthropic.com']);
@@ -179,13 +183,13 @@ describe('the switch is answered at once, and the floor still holds', () => {
   });
 
   it('asks on every flip, because a flip is a person and not a poll', async () => {
-    const h = harness({ on: { claude: true, codex: false, bar: 'five-hour' } });
+    const h = harness({ on: { claude: true, codex: false, antigravity: false, bar: 'five-hour' } });
     await h.service.read();
     expect(h.sent.length).toBe(1);
 
-    h.on = { claude: false, codex: false, bar: 'five-hour' };
+    h.on = { claude: false, codex: false, antigravity: false, bar: 'five-hour' };
     await h.service.read();
-    h.on = { claude: true, codex: false, bar: 'five-hour' };
+    h.on = { claude: true, codex: false, antigravity: false, bar: 'five-hour' };
     await h.service.read();
 
     expect(h.sent.length).toBe(2);
@@ -196,7 +200,7 @@ describe('the switch is answered at once, and the floor still holds', () => {
 
   it('will not walk past a Retry-After by flipping the switch', async () => {
     const h = harness({
-      on: { claude: true, codex: false, bar: 'five-hour' },
+      on: { claude: true, codex: false, antigravity: false, bar: 'five-hour' },
       respond: () => ({
         status: 429,
         body: '',
@@ -207,9 +211,9 @@ describe('the switch is answered at once, and the floor still holds', () => {
     expect(h.sent.length).toBe(1);
 
     for (let i = 0; i < 5; i += 1) {
-      h.on = { claude: false, codex: false, bar: 'five-hour' };
+      h.on = { claude: false, codex: false, antigravity: false, bar: 'five-hour' };
       await h.service.read();
-      h.on = { claude: true, codex: false, bar: 'five-hour' };
+      h.on = { claude: true, codex: false, antigravity: false, bar: 'five-hour' };
       await h.service.read();
     }
     expect(h.sent.length).toBe(1);
@@ -337,7 +341,8 @@ describe('the face a failure draws', () => {
     const snap = await h.service.read();
     expect(snap.providers.map((p) => p.state)).toEqual([
       'signed-out',
-      'signed-out'
+      'signed-out',
+      'off'
     ]);
     expect(h.sent).toEqual([]);
   });
@@ -352,7 +357,7 @@ describe('the face a failure draws', () => {
 
   it('says api key billing rather than signed out for a codex api key', async () => {
     const h = harness({
-      on: { claude: false, codex: true, bar: 'five-hour' },
+      on: { claude: false, codex: true, antigravity: false, bar: 'five-hour' },
       credentials: {
         keychain: async () => null,
         readText: async () =>
