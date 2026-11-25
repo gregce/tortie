@@ -159,7 +159,7 @@ export function faceOf(payload, now) {
 /** The card's second group, this file's own reading: each window's number alone. */
 export function secondOf(payload, now) {
   const d = drawnOf(payload, now).second;
-  return [d.fiveHour === null ? null : `Claude and GPT ${String(Math.round(d.fiveHour.used))}% 5h`, d.sevenDay === null ? null : `Claude and GPT ${String(Math.round(d.sevenDay.used))}% wk`].filter((x) => x !== null);
+  return [d.fiveHour === null ? null : `Other models ${String(Math.round(d.fiveHour.used))}% 5h`, d.sevenDay === null ? null : `Other models ${String(Math.round(d.sevenDay.used))}% wk`].filter((x) => x !== null);
 }
 
 /** What is wrong with a spliced argv, `[]` when it is D3 and D4's own: the flag straight after the name and the JSON holding one key of three. */
@@ -244,11 +244,11 @@ export const GRADERS = {
       ['no run over the 300 ms overlap', (r) => r.runs.killedByNext === 0],
       ['the kept file is the last payload’s', (r) => r.keptTail === r.lastTail],
       ['the face draws the last numbers', (r) => r.face === r.wantFace],
-      ['the card draws the same two, each with its reset', (r) => r.wantFace.split(' · ').every((w) => r.card.some((l) => l.startsWith(`${w}, Resets in `)))],
+      ['the card draws the same two, each with its reset', (r) => r.wantFace.split(' · ').every((w) => r.card.some((l) => l.startsWith(`Gemini ${w}, Resets in `)))],
       [`within ${String(FACE_MS)} ms`, (r) => r.faceMs <= FACE_MS],
-      ['a full bucket draws no reset and the card has the second group', (r) => r.wantSecond.every((w) => r.card.some((l) => l.startsWith(w))) && !r.card.some((l) => l.startsWith('Claude and GPT 0%') && l.includes('Resets'))],
+      ['a full bucket draws no reset and the card has the second group', (r) => r.wantSecond.every((w) => r.card.some((l) => l.startsWith(w))) && !r.card.some((l) => l.startsWith('Other models 0%') && l.includes('Resets'))],
       ['the card has no login line and no Choose login for this row', (r) => r.loginControls === 0 && !r.card.some((l) => /^Login:|Choose login/.test(l))],
-      ['the second group is not on the face', (r) => !r.face.includes('Claude and GPT')],
+      ['the second group is not on the face', (r) => !r.face.includes('Other models')],
       ['a window behind moved nothing', (r) => r.behind.faceBefore === r.behind.faceAfter && r.behind.faceThen === r.behind.wantThen]
     ]
   },

@@ -265,7 +265,7 @@ describe('the two groups', () => {
     expect(row.sevenDay?.percent).toBe(50);
     expect(row.scoped).toBeNull();
     expect(row.second).toEqual({
-      label: 'Claude and GPT',
+      label: 'Other models',
       fiveHour: { percent: 10, resetsAt: T0 + 4 * HOUR },
       sevenDay: { percent: 0, resetsAt: null }
     });

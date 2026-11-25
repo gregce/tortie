@@ -72,6 +72,7 @@ import {
   USAGE_REFRESH,
   USAGE_SEVEN_DAY,
   USAGE_LOGIN_SWITCHING,
+  USAGE_FIRST_GROUP_LABEL,
   USAGE_STALE_MARK,
   USAGE_LOGIN_CONTROL,
   USAGE_TITLE,
@@ -224,7 +225,8 @@ export function cardLines(
   const hasLogin = usageLoginProvider(p.provider) !== null;
   const login = hasLogin ? usageLoginLine(p.login, email) : '';
   if (login !== '') out.push(login);
-  out.push(...windowLines(p.fiveHour, p.sevenDay, now));
+  const first = windowLines(p.fiveHour, p.sevenDay, now);
+  out.push(...(p.second != null ? first.map((text) => `${USAGE_FIRST_GROUP_LABEL} ${text}`) : first));
   // PHASE 374. The second group, on the card and nowhere else. The comparison
   // is loose on purpose: an older harness stages rows with no such field.
   if (p.second != null) {

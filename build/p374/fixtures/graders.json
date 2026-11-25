@@ -488,15 +488,15 @@
    "card": [
     "Antigravity",
     "Example Tier plan",
-    "30% 5h, Resets in 3h 11m",
-    "37% wk, Resets in 5d 2h",
-    "Claude and GPT 0% 5h",
-    "Claude and GPT 0% wk"
+    "Gemini 30% 5h, Resets in 3h 11m",
+    "Gemini 37% wk, Resets in 5d 2h",
+    "Other models 0% 5h",
+    "Other models 0% wk"
    ],
    "loginControls": 0,
    "wantSecond": [
-    "Claude and GPT 0% 5h",
-    "Claude and GPT 0% wk"
+    "Other models 0% 5h",
+    "Other models 0% wk"
    ],
    "behind": {
     "heldMs": 11503,
@@ -674,8 +674,8 @@
       "set": "card",
       "to": [
        "Antigravity",
-       "Claude and GPT 0% 5h, Resets in 4h 59m",
-       "Claude and GPT 0% wk"
+       "Other models 0% 5h, Resets in 4h 59m",
+       "Other models 0% wk"
       ]
      }
     ]
@@ -694,11 +694,11 @@
     "ops": [
      {
       "set": "face",
-      "to": "30% 5h · 37% wk · Claude and GPT 0%"
+      "to": "30% 5h · 37% wk · Other models 0%"
      },
      {
       "set": "wantFace",
-      "to": "30% 5h · 37% wk · Claude and GPT 0%"
+      "to": "30% 5h · 37% wk · Other models 0%"
      }
     ]
    },
@@ -863,10 +863,10 @@
       "to": [
        "Antigravity",
        "Example Tier plan",
-       "30% 5h, Resets in 3h 11m",
-       "Claude and GPT 0% 5h",
-       "Claude and GPT 0% wk",
-       "37% wk"
+       "Gemini 30% 5h, Resets in 3h 11m",
+       "Other models 0% 5h",
+       "Other models 0% wk",
+       "Gemini 37% wk"
       ]
      }
     ]

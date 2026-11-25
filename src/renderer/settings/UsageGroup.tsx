@@ -55,7 +55,6 @@ import {
   USAGE_ABOUT_WHERE,
   USAGE_ANTIGRAVITY_CAPTION,
   USAGE_ANTIGRAVITY_LABEL,
-  USAGE_ANTIGRAVITY_NOTE,
   USAGE_BAR_CAPTION,
   USAGE_BAR_FIVE_HOUR,
   USAGE_BAR_LABEL,
@@ -371,7 +370,6 @@ export function UsageGroup(): React.JSX.Element {
           provider="antigravity"
           label={USAGE_ANTIGRAVITY_LABEL}
           caption={USAGE_ANTIGRAVITY_CAPTION}
-          note={USAGE_ANTIGRAVITY_NOTE}
           noteWarns={false}
         />
         <BarWindowRow />

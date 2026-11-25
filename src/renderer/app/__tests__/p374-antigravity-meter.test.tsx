@@ -66,7 +66,7 @@ const antigravity: UsageProviderSnapshot = {
   fiveHour: { percent: 4, resetsAt: NOW + 2 * HOUR },
   sevenDay: { percent: 2, resetsAt: NOW + 3 * DAY },
   second: {
-    label: 'Claude and GPT',
+    label: 'Other models',
     fiveHour: { percent: 3, resetsAt: NOW + 2 * HOUR + 60_000 },
     sevenDay: { percent: 1, resetsAt: NOW + 4 * DAY }
   },
@@ -128,7 +128,7 @@ describe('R1: three rows on the face', () => {
     const full: UsageProviderSnapshot = {
       ...antigravity,
       second: {
-        label: 'Claude and GPT',
+        label: 'Other models',
         fiveHour: { percent: 97, resetsAt: null },
         sevenDay: null
       }
@@ -136,7 +136,7 @@ describe('R1: three rows on the face', () => {
     expect(barPercent(full, 'most-used')).toBe(4);
     for (const density of ['full', 'compact', 'mini'] as const) {
       const drawn = face(draw(density, [full]));
-      expect(drawn).not.toContain('Claude and GPT');
+      expect(drawn).not.toContain('Other models');
       expect(drawn).not.toContain('97');
     }
   });
@@ -164,10 +164,10 @@ describe('R1: the card', () => {
     expect(cardLines({ ...antigravity, plan: 'plus' }, NOW)).toEqual([
       'Antigravity',
       'Plus plan',
-      '4% 5h, Resets in 2h 0m',
-      '2% wk, Resets in 3d 0h',
-      'Claude and GPT 3% 5h, Resets in 2h 1m',
-      'Claude and GPT 1% wk, Resets in 4d 0h'
+      'Gemini 4% 5h, Resets in 2h 0m',
+      'Gemini 2% wk, Resets in 3d 0h',
+      'Other models 3% 5h, Resets in 2h 1m',
+      'Other models 1% wk, Resets in 4d 0h'
     ]);
   });
 
@@ -176,15 +176,15 @@ describe('R1: the card', () => {
       {
         ...antigravity,
         second: {
-          label: 'Claude and GPT',
+          label: 'Other models',
           fiveHour: null,
           sevenDay: { percent: 1, resetsAt: null }
         }
       },
       NOW
     );
-    expect(lines.filter((line) => line.startsWith('Claude and GPT'))).toEqual([
-      'Claude and GPT 1% wk'
+    expect(lines.filter((line) => line.startsWith('Other models'))).toEqual([
+      'Other models 1% wk'
     ]);
   });
 
@@ -193,14 +193,14 @@ describe('R1: the card', () => {
       {
         ...antigravity,
         second: {
-          label: 'Claude and GPT',
+          label: 'Other models',
           fiveHour: { percent: Number.NaN, resetsAt: null },
           sevenDay: { percent: Number.POSITIVE_INFINITY, resetsAt: null }
         }
       },
       NOW
     );
-    expect(lines.join(' ')).not.toContain('Claude and GPT');
+    expect(lines.join(' ')).not.toContain('Other models');
   });
 
   it('is drawn over a row an older harness staged, with no second field', () => {
@@ -217,7 +217,7 @@ describe('R1: the card', () => {
 
   it('says the second group to a screen reader when it is all there is', () => {
     const only = { ...antigravity, fiveHour: null, sevenDay: null };
-    expect(draw('mini', [only])).toContain('Claude and GPT 3% 5h');
+    expect(draw('mini', [only])).toContain('Other models 3% 5h');
   });
 });
 

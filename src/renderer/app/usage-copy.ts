@@ -59,6 +59,13 @@ export const USAGE_LOGIN_CONTROL = 'Choose login';
 export const USAGE_LOGIN_SWITCHING = 'Reading the new login';
 
 /**
+ * The first group's label on a card that also draws a second group, so the two
+ * read as one plan's two groups and not as the Claude and Codex rows above (his
+ * question of 2026-11-25, beside a card whose second group read "Claude and GPT").
+ */
+export const USAGE_FIRST_GROUP_LABEL = 'Gemini';
+
+/**
  * `Login: greg@example.com`, or `Login: Work` when no address is known, or
  * nothing at all for a default sign in whose account Tortie cannot name.
  *

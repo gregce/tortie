@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { GmuxSettings } from '@shared/settings';
 import { defaultGmuxSettings } from '@shared/settings';
-import { UsageGroup, UsageRow, setUsageProvider } from '../UsageGroup';
+import { UsageGroup, setUsageProvider } from '../UsageGroup';
 import {
   USAGE_ABOUT_KEPT,
   USAGE_ABOUT_READONLY,
@@ -21,7 +21,6 @@ import {
   USAGE_ABOUT_WHERE,
   USAGE_ANTIGRAVITY_CAPTION,
   USAGE_ANTIGRAVITY_LABEL,
-  USAGE_ANTIGRAVITY_NOTE,
   USAGE_CODEX_CAPTION,
   USAGE_OFF_NOTE
 } from '../usage-copy';
@@ -74,38 +73,18 @@ describe('R4: the third switch', () => {
     );
   });
 
-  it('says what turning it on does, and that nothing is asked of Google', () => {
+  it('says what turning it on does, in the shape of the Claude and Codex rows', () => {
     expect(USAGE_ANTIGRAVITY_CAPTION).toBe(
-      'Reads the plan numbers the Antigravity CLI gives its own status line, in sessions you start after this is on. Nothing is asked of Google.'
+      'Reads how much of your plan you have used from the Antigravity CLI, in sessions you start after this is on.'
     );
     expect(group(false)).toContain(USAGE_ANTIGRAVITY_CAPTION);
   });
 
-  it('says Google has not answered, on and off, once', () => {
-    expect(USAGE_ANTIGRAVITY_NOTE).toBe(
-      'Google was asked whether this is allowed and has not answered.'
-    );
+  it('draws no note under it, on or off (his word of 2026-11-25)', () => {
     for (const on of [false, true]) {
-      const markup = group(on);
-      expect(markup.split(USAGE_ANTIGRAVITY_NOTE).length - 1).toBe(1);
-      expect(markup).toContain('data-usage-note="antigravity"');
+      expect(group(on)).not.toContain('data-usage-note="antigravity"');
+      expect(group(on)).not.toContain('has not answered');
     }
-  });
-
-  it('draws that line as a fact and not as a fault', () => {
-    const drawn = renderToStaticMarkup(
-      <UsageRow
-        provider="antigravity"
-        label={USAGE_ANTIGRAVITY_LABEL}
-        caption={USAGE_ANTIGRAVITY_CAPTION}
-        note={USAGE_ANTIGRAVITY_NOTE}
-        noteWarns={false}
-      />
-    );
-    expect(drawn).not.toContain('set-row-warn');
-    expect(group(false)).not.toMatch(
-      /set-row-warn[^>]*data-usage-note="antigravity"/
-    );
   });
 
   it('has no logins list', () => {
@@ -172,8 +151,7 @@ describe('R4: what How this works says now', () => {
     }
     const drawn = [
       USAGE_ANTIGRAVITY_CAPTION,
-      USAGE_ANTIGRAVITY_NOTE,
-      USAGE_ABOUT_WHERE,
+          USAGE_ABOUT_WHERE,
       USAGE_ABOUT_KEPT,
       USAGE_ABOUT_WHEN
     ].join(' ');

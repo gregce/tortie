@@ -84,7 +84,7 @@ export interface AntigravityReading {
 }
 
 /** The label the second group is drawn under, on the card alone. */
-export const ANTIGRAVITY_SECOND_LABEL = 'Claude and GPT';
+export const ANTIGRAVITY_SECOND_LABEL = 'Other models';
 
 const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;

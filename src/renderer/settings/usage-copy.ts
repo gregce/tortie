@@ -33,17 +33,13 @@ export const USAGE_CODEX_CAPTION =
   'Reads the login Codex already stored and asks OpenAI how much of your plan you have used.';
 
 /**
- * PHASE 374. The meter that asks nobody, and the one line a person reads before
- * turning it on. The note is ALWAYS drawn while the row is there, which is the
- * operator's word of 2026-11-24: the vendor has been asked whether this is
- * allowed and has not answered, and that is worth knowing while the switch is
- * still off.
+ * PHASE 374. The meter that asks nobody. Since his word of 2026-11-25 ("more
+ * like what chatgpt and codex says") it is one sentence in the shape of the
+ * two above, and the note that Google had not answered is gone.
  */
 export const USAGE_ANTIGRAVITY_LABEL = 'Antigravity';
 export const USAGE_ANTIGRAVITY_CAPTION =
-  'Reads the plan numbers the Antigravity CLI gives its own status line, in sessions you start after this is on. Nothing is asked of Google.';
-export const USAGE_ANTIGRAVITY_NOTE =
-  'Google was asked whether this is allowed and has not answered.';
+  'Reads how much of your plan you have used from the Antigravity CLI, in sessions you start after this is on.';
 
 /**
  * PHASE 219, ITEM 8. The two refusals a person could not see.
